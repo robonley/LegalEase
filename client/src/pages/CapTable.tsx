@@ -48,6 +48,14 @@ import type { Person, PersonOnOrg, ShareIssuance, Org } from "@shared/schema";
 
 interface PersonWithRoles extends Person {
   roles: PersonOnOrg[];
+  address?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    region?: string;
+    country?: string;
+    postal?: string;
+  };
 }
 
 export default function CapTable() {
@@ -412,14 +420,10 @@ export default function CapTable() {
                       <p className="mt-1">{viewingPerson.email || "Not provided"}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Phone</label>
-                      <p className="mt-1">{viewingPerson.phone || "Not provided"}</p>
-                    </div>
-                    <div>
                       <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
                       <p className="mt-1">
-                        {viewingPerson.dateOfBirth 
-                          ? formatDate(viewingPerson.dateOfBirth) 
+                        {viewingPerson.dob
+                          ? formatDate(viewingPerson.dob)
                           : "Not provided"
                         }
                       </p>
@@ -462,7 +466,7 @@ export default function CapTable() {
                               </div>
                             )}
                             <div>
-                              <span className="font-medium">Start Date:</span> {formatDate(role.startDate)}
+                              <span className="font-medium">Start Date:</span> {formatDate(role.startAt)}
                             </div>
                           </div>
                         </div>

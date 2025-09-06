@@ -48,6 +48,14 @@ import { PersonForm } from "../components/PersonForm";
 
 interface PersonWithRoles extends Person {
   roles: PersonOnOrg[];
+  address?: {
+    line1?: string;
+    line2?: string;
+    city?: string;
+    region?: string;
+    country?: string;
+    postal?: string;
+  };
 }
 
 export default function People() {
@@ -59,6 +67,7 @@ export default function People() {
   const [viewingPerson, setViewingPerson] = useState<PersonWithRoles | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [personFormInitialData, setPersonFormInitialData] = useState<any>();
 
   const { data: people = [], isLoading } = useQuery<PersonWithRoles[]>({
     queryKey: ["/api/orgs", currentEntity?.id, "people"],
@@ -92,27 +101,29 @@ export default function People() {
 
   // Clone person function
   const handleClonePerson = (person: PersonWithRoles) => {
-    // Create a copy of the person data for the form
     const clonedData = {
       firstName: `${person.firstName} (Copy)`,
       lastName: person.lastName,
-      email: "", // Clear email to avoid conflicts
-      phone: person.phone,
-      address: person.address,
-      dateOfBirth: person.dateOfBirth,
+      email: "",
+      dob: person.dob ? new Date(person.dob).toISOString().split("T")[0] : "",
+      includeAddress: !!person.address,
+      addressLine1: person.address?.line1 || "",
+      addressLine2: person.address?.line2 || "",
+      city: person.address?.city || "",
+      region: person.address?.region || "",
+      country: person.address?.country || "",
+      postal: person.address?.postal || "",
       roles: person.roles.map(role => ({
         role: role.role,
-        title: role.title,
-        startDate: role.startDate,
-        shareQuantity: role.shareQuantity,
+        title: role.title || "",
+        startAt: role.startAt ? new Date(role.startAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+        shareQuantity: role.shareQuantity ? role.shareQuantity.toString() : "",
         shareType: role.shareType,
-        shareClass: role.shareClass,
-        shareIssueDate: role.shareIssueDate,
+        shareClass: role.shareClass || "",
       })),
     };
-    // You would pass this data to PersonForm in create mode
+    setPersonFormInitialData(clonedData);
     setIsCreateDialogOpen(true);
-    // Note: PersonForm would need to accept initialData prop for this to work
   };
 
   const createPersonMutation = useMutation({
@@ -193,7 +204,13 @@ export default function People() {
               Manage directors, officers, and shareholders for {currentEntity.name}
             </p>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+          <Dialog
+            open={isCreateDialogOpen}
+            onOpenChange={(open) => {
+              setIsCreateDialogOpen(open);
+              if (!open) setPersonFormInitialData(undefined);
+            }}
+          >
             <DialogTrigger asChild>
               <Button data-testid="add-person-button">
                 <i className="fas fa-plus mr-2"></i>
@@ -208,11 +225,15 @@ export default function People() {
                 </DialogDescription>
               </DialogHeader>
               <div className="flex-1 overflow-y-auto px-6 py-4">
-                <PersonForm 
+                <PersonForm
                   onSubmit={(data) => createPersonMutation.mutate(data)}
-                  onCancel={() => setIsCreateDialogOpen(false)}
+                  onCancel={() => {
+                    setIsCreateDialogOpen(false);
+                    setPersonFormInitialData(undefined);
+                  }}
                   isLoading={createPersonMutation.isPending}
                   hideButtons={true}
+                  initialData={personFormInitialData}
                 />
               </div>
               <div className="border-t p-6 flex justify-end gap-3">
@@ -435,16 +456,6 @@ export default function People() {
                               </DropdownMenuItem>
                             )}
                             
-                            {/* Call */}
-                            {person.phone && (
-                              <DropdownMenuItem
-                                onClick={() => window.open(`tel:${person.phone}`, '_blank')}
-                                data-testid={`call-person-${person.id}`}
-                              >
-                                <i className="fas fa-phone mr-2"></i>
-                                Call
-                              </DropdownMenuItem>
-                            )}
                             
                             <DropdownMenuSeparator />
                             
@@ -554,14 +565,10 @@ export default function People() {
                         <p className="mt-1">{viewingPerson.email || "Not provided"}</p>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground">Phone</label>
-                        <p className="mt-1">{viewingPerson.phone || "Not provided"}</p>
-                      </div>
-                      <div>
                         <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
                         <p className="mt-1">
-                          {viewingPerson.dateOfBirth 
-                            ? formatDate(viewingPerson.dateOfBirth) 
+                          {viewingPerson.dob
+                            ? formatDate(viewingPerson.dob)
                             : "Not provided"
                           }
                         </p>
@@ -589,7 +596,7 @@ export default function People() {
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
-                              <span className="font-medium">Start Date:</span> {role.startDate ? formatDate(role.startDate) : "Not set"}
+                              <span className="font-medium">Start Date:</span> {role.startAt ? formatDate(role.startAt) : "Not set"}
                             </div>
                             {role.role === 'Shareholder' && role.shareQuantity && (
                               <>
