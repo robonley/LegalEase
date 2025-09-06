@@ -37,7 +37,12 @@ export default function Documents() {
   // Fetch documents for current entity
   const { data: documents = [], isLoading } = useQuery<GeneratedDoc[]>({
     queryKey: ["/api/documents", currentEntity?.id],
-    queryFn: () => fetch(`/api/documents/${currentEntity?.id}`).then(res => res.json()),
+    queryFn: async () => {
+      const res = await fetch(`/api/documents/${currentEntity?.id}`, {
+        credentials: "include",
+      });
+      return await res.json();
+    },
     enabled: !!currentEntity?.id,
   });
 
