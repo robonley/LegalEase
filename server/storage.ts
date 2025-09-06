@@ -95,6 +95,9 @@ export interface IStorage {
   // Audit log operations
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogsByOrg(orgId: string): Promise<AuditLog[]>;
+
+  // Object storage operations
+  getUploadUrl(): Promise<string>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -358,6 +361,12 @@ export class DatabaseStorage implements IStorage {
       .from(auditLogs)
       .where(eq(auditLogs.orgId, orgId))
       .orderBy(desc(auditLogs.createdAt));
+  }
+
+  // Object storage operations
+  async getUploadUrl(): Promise<string> {
+    const key = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    return `https://example.com/${key}?signature=mock`;
   }
 }
 

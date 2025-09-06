@@ -85,13 +85,9 @@ export function TemplateUploader({ orgId, onUploadComplete }: TemplateUploaderPr
     setIsUploading(true);
     try {
       // Step 1: Get upload URL
-      const uploadResponse = await apiRequest("POST", "/api/objects/upload");
-      const { uploadURL } = uploadResponse;
+      const { uploadURL } = await apiRequest("POST", "/api/objects/upload").then(r => r.json());
 
       // Step 2: Upload file to object storage
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      
       const uploadResult = await fetch(uploadURL, {
         method: "PUT",
         body: selectedFile,
@@ -112,7 +108,7 @@ export function TemplateUploader({ orgId, onUploadComplete }: TemplateUploaderPr
         fileUrl: uploadURL.split('?')[0], // Remove query parameters
         fileName: selectedFile.name,
         fileSize: selectedFile.size,
-      });
+      }).then(r => r.json());
 
       toast({
         title: "Success",
