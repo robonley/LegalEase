@@ -128,18 +128,38 @@ export default function People() {
                 Add Person
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
+            <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
+              <DialogHeader className="p-6 pb-4 border-b">
                 <DialogTitle>Add New Person</DialogTitle>
                 <DialogDescription>
                   Add a new person and assign their roles within {currentEntity.name}.
                 </DialogDescription>
               </DialogHeader>
-              <PersonForm 
-                onSubmit={(data) => createPersonMutation.mutate(data)}
-                onCancel={() => setIsCreateDialogOpen(false)}
-                isLoading={createPersonMutation.isPending}
-              />
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+                <PersonForm 
+                  onSubmit={(data) => createPersonMutation.mutate(data)}
+                  onCancel={() => setIsCreateDialogOpen(false)}
+                  isLoading={createPersonMutation.isPending}
+                  hideButtons={true}
+                />
+              </div>
+              <div className="border-t p-6 flex justify-end gap-3">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsCreateDialogOpen(false)}
+                  disabled={createPersonMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  form="person-form"
+                  disabled={createPersonMutation.isPending}
+                >
+                  {createPersonMutation.isPending ? "Adding..." : "Add Person"}
+                </Button>
+              </div>
             </DialogContent>
           </Dialog>
         </div>

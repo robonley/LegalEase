@@ -53,6 +53,7 @@ interface PersonFormProps {
   onCancel: () => void;
   isLoading?: boolean;
   initialData?: Partial<PersonWithRolesForm>;
+  hideButtons?: boolean;
 }
 
 const roleOptions = [
@@ -73,7 +74,7 @@ const officerTitles = [
   "Other",
 ];
 
-export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData }: PersonFormProps) {
+export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData, hideButtons = false }: PersonFormProps) {
   const form = useForm<PersonWithRolesForm>({
     resolver: zodResolver(personWithRolesSchema),
     defaultValues: {
@@ -131,7 +132,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+      <form id="person-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         {/* Personal Information */}
         <Card>
           <CardHeader>
@@ -441,15 +442,17 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
         </Card>
 
         {/* Form Actions */}
-        <div className="flex items-center justify-end gap-3">
-          <Button type="button" variant="outline" onClick={onCancel} data-testid="cancel-button">
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isLoading} data-testid="submit-button">
-            {isLoading && <i className="fas fa-spinner fa-spin mr-2"></i>}
-            Add Person
-          </Button>
-        </div>
+        {!hideButtons && (
+          <div className="flex items-center justify-end gap-3">
+            <Button type="button" variant="outline" onClick={onCancel} data-testid="cancel-button">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isLoading} data-testid="submit-button">
+              {isLoading && <i className="fas fa-spinner fa-spin mr-2"></i>}
+              Add Person
+            </Button>
+          </div>
+        )}
       </form>
     </Form>
   );
