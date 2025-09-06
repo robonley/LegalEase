@@ -20,9 +20,9 @@ export function Sidebar() {
   // Generate navigation items based on entity context
   const getNavigationItems = () => {
     if (currentEntity) {
-      // Entity-specific navigation
+      // Entity-specific navigation - Dashboard should stay in entity context
       return [
-        { href: "/", icon: "fas fa-tachometer-alt", label: "Dashboard" },
+        { href: `/entities/${currentEntity.id}`, icon: "fas fa-tachometer-alt", label: "Dashboard" },
         { href: "/people", icon: "fas fa-users", label: "People & Roles" },
         { href: "/cap-table", icon: "fas fa-chart-pie", label: "Cap Table" },
         { href: "/documents", icon: "fas fa-file-alt", label: "Documents" },
@@ -69,18 +69,6 @@ export function Sidebar() {
           
           {/* Entity Selector */}
           <EntitySelector />
-          
-          {/* Entity Context Indicator */}
-          {currentEntity && (
-            <div className="mt-3 p-2 bg-accent rounded-lg">
-              <div className="text-xs font-medium text-accent-foreground">
-                Entity Mode
-              </div>
-              <div className="text-xs text-muted-foreground">
-                All actions apply to this entity
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Navigation Menu */}
