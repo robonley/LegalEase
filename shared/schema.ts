@@ -102,7 +102,9 @@ export const shareClasses = pgTable("share_classes", {
 export const shareIssuances = pgTable("share_issuances", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orgId: varchar("org_id").notNull().references(() => orgs.id),
-  shareholderId: varchar("shareholder_id").notNull().references(() => people.id),
+  shareholderType: text("shareholder_type").notNull().default("person"), // "person" | "entity"
+  shareholderId: varchar("shareholder_id").references(() => people.id), // for individual shareholders
+  entityShareholderId: varchar("entity_shareholder_id").references(() => orgs.id), // for corporate shareholders
   shareClassId: varchar("share_class_id").notNull().references(() => shareClasses.id),
   quantity: integer("quantity").notNull(),
   certNumber: text("cert_number").notNull(),
@@ -186,6 +188,8 @@ export const orgsRelations = relations(orgs, ({ one, many }) => ({
   shareTransfers: many(shareTransfers),
   generatedDocs: many(generatedDocs),
   auditLogs: many(auditLogs),
+  // Entity shareholdings - where this org holds shares in other entities
+  entityShareholdings: many(shareIssuances, { relationName: "entityShareholder" }),
 }));
 
 export const peopleRelations = relations(people, ({ one, many }) => ({
@@ -227,6 +231,12 @@ export const shareIssuancesRelations = relations(shareIssuances, ({ one }) => ({
   shareholder: one(people, {
     fields: [shareIssuances.shareholderId],
     references: [people.id],
+    relationName: "individualShareholder",
+  }),
+  entityShareholder: one(orgs, {
+    fields: [shareIssuances.entityShareholderId],
+    references: [orgs.id],
+    relationName: "entityShareholder",
   }),
   shareClass: one(shareClasses, {
     fields: [shareIssuances.shareClassId],
