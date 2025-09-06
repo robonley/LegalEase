@@ -1,18 +1,33 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
+import { useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { useEntityContext } from "@/hooks/useEntityContext";
 
 export default function EntityDetail() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
+  const { setCurrentEntity } = useEntityContext();
 
   const { data: entity, isLoading } = useQuery({
     queryKey: ["/api/orgs", id],
     enabled: !!id,
   });
+
+  // Track this entity as recently accessed when data loads
+  useEffect(() => {
+    if (entity) {
+      setCurrentEntity({
+        id: entity.id,
+        name: entity.name,
+        jurisdiction: entity.jurisdiction,
+        number: entity.number
+      });
+    }
+  }, [entity, setCurrentEntity]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {

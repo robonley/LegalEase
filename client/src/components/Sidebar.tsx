@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { EntitySelector } from "@/components/EntitySelector";
 
 const navigationItems = [
   { href: "/", icon: "fas fa-tachometer-alt", label: "Dashboard" },
@@ -37,18 +38,8 @@ export function Sidebar() {
             <span className="font-semibold text-lg">LegalEntity</span>
           </div>
           
-          {/* Organization Selector - Placeholder for now */}
-          <div className="relative">
-            <button className="w-full flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-accent transition-colors" data-testid="org-selector">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
-                  <span className="text-xs font-medium text-primary-foreground">AC</span>
-                </div>
-                <span className="text-sm font-medium">Acme Corp</span>
-              </div>
-              <i className="fas fa-chevron-down text-xs text-muted-foreground"></i>
-            </button>
-          </div>
+          {/* Entity Selector */}
+          <EntitySelector />
         </div>
 
         {/* Navigation Menu */}

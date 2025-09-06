@@ -13,6 +13,7 @@ import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { insertOrgSchema } from "@shared/schema";
+import { useEntityContext } from "@/hooks/useEntityContext";
 
 const formSchema = insertOrgSchema.omit({ 
   createdById: true, 
@@ -27,11 +28,24 @@ export default function EntityEdit() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { setCurrentEntity } = useEntityContext();
 
   const { data: entity, isLoading } = useQuery({
     queryKey: ["/api/orgs", id],
     enabled: !!id,
   });
+
+  // Track this entity as recently accessed when data loads
+  useEffect(() => {
+    if (entity) {
+      setCurrentEntity({
+        id: entity.id,
+        name: entity.name,
+        jurisdiction: entity.jurisdiction,
+        number: entity.number
+      });
+    }
+  }, [entity, setCurrentEntity]);
 
   const updateMutation = useMutation({
     mutationFn: async (data: z.infer<typeof formSchema>) => {
