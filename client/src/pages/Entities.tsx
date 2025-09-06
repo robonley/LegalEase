@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,6 +20,8 @@ import { insertOrgSchema } from "@shared/schema";
 import { PDFIngestion } from "@/components/PDFIngestion";
 import { ExtractionResultsModal } from "@/components/ExtractionResultsModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Search, SortAsc, SortDesc, Filter, ChevronDown } from "lucide-react";
 
 const formSchema = insertOrgSchema.omit({ 
   createdById: true, 
@@ -32,6 +35,11 @@ export default function Entities() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [extractionResults, setExtractionResults] = useState<any[]>([]);
   const [showExtractionModal, setShowExtractionModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [filterType, setFilterType] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -102,6 +110,69 @@ export default function Entities() {
     });
   };
 
+  // Filter and sort entities
+  const filteredAndSortedOrgs = React.useMemo(() => {
+    let filtered = orgs.filter((org: any) => {
+      // Search filter
+      const matchesSearch = org.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (org.number && org.number.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                           org.jurisdiction.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Type filter (assuming we have this data)
+      const matchesType = filterType === 'all' || 
+                         (org.entityType && org.entityType.toLowerCase() === filterType.toLowerCase());
+      
+      // Status filter (assuming all entities are active for now)
+      const matchesStatus = filterStatus === 'all' || filterStatus === 'active';
+      
+      return matchesSearch && matchesType && matchesStatus;
+    });
+
+    // Sort entities
+    filtered.sort((a: any, b: any) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'name':
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case 'date':
+          aValue = new Date(a.createdAt).getTime();
+          bValue = new Date(b.createdAt).getTime();
+          break;
+        case 'jurisdiction':
+          aValue = a.jurisdiction.toLowerCase();
+          bValue = b.jurisdiction.toLowerCase();
+          break;
+        case 'number':
+          aValue = a.number || '';
+          bValue = b.number || '';
+          break;
+        default:
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      } else {
+        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+      }
+    });
+
+    return filtered;
+  }, [orgs, searchTerm, sortBy, sortOrder, filterType, filterStatus]);
+
+  const toggleSort = (field: string) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -128,7 +199,7 @@ export default function Entities() {
     <div className="flex-1 overflow-auto">
       {/* Header */}
       <header className="bg-card border-b border-border px-6 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-semibold">Entities</h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -373,6 +444,88 @@ export default function Entities() {
             </DialogContent>
           </Dialog>
         </div>
+        
+        {/* Search and Filter Controls */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+          {/* Search Bar */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search entities by name, number, or jurisdiction..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+              data-testid="search-entities"
+            />
+          </div>
+          
+          {/* Sort Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="shrink-0" data-testid="sort-dropdown">
+                {sortOrder === 'asc' ? <SortAsc className="h-4 w-4 mr-2" /> : <SortDesc className="h-4 w-4 mr-2" />}
+                Sort by {sortBy === 'date' ? 'Date' : sortBy === 'jurisdiction' ? 'Jurisdiction' : sortBy === 'number' ? 'Number' : 'Name'}
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => toggleSort('name')} data-testid="sort-name">
+                Sort by Name {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toggleSort('date')} data-testid="sort-date">
+                Sort by Date {sortBy === 'date' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toggleSort('jurisdiction')} data-testid="sort-jurisdiction">
+                Sort by Jurisdiction {sortBy === 'jurisdiction' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => toggleSort('number')} data-testid="sort-number">
+                Sort by Number {sortBy === 'number' && (sortOrder === 'asc' ? '↑' : '↓')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          {/* Filter Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="shrink-0" data-testid="filter-dropdown">
+                <Filter className="h-4 w-4 mr-2" />
+                Filters
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <div className="px-2 py-1 text-sm font-medium">Type</div>
+              <DropdownMenuItem onClick={() => setFilterType('all')} data-testid="filter-type-all">
+                All Types {filterType === 'all' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilterType('corporation')} data-testid="filter-type-corporation">
+                Corporation {filterType === 'corporation' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilterType('partnership')} data-testid="filter-type-partnership">
+                Partnership {filterType === 'partnership' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilterType('llc')} data-testid="filter-type-llc">
+                LLC {filterType === 'llc' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <div className="px-2 py-1 text-sm font-medium">Status</div>
+              <DropdownMenuItem onClick={() => setFilterStatus('all')} data-testid="filter-status-all">
+                All Status {filterStatus === 'all' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilterStatus('active')} data-testid="filter-status-active">
+                Active {filterStatus === 'active' && '✓'}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilterStatus('inactive')} data-testid="filter-status-inactive">
+                Inactive {filterStatus === 'inactive' && '✓'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          {/* Results Count */}
+          <div className="text-sm text-muted-foreground shrink-0">
+            {filteredAndSortedOrgs.length} of {orgs.length} entities
+          </div>
+        </div>
       </header>
 
       {/* Content */}
@@ -381,7 +534,7 @@ export default function Entities() {
           <div className="flex items-center justify-center py-12">
             <i className="fas fa-spinner fa-spin text-2xl text-muted-foreground"></i>
           </div>
-        ) : orgs.length === 0 ? (
+        ) : filteredAndSortedOrgs.length === 0 && orgs.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <i className="fas fa-building text-4xl text-muted-foreground mb-4"></i>
@@ -398,9 +551,27 @@ export default function Entities() {
               </Button>
             </CardContent>
           </Card>
+        ) : filteredAndSortedOrgs.length === 0 ? (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <Search className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <CardTitle className="mb-2">No entities found</CardTitle>
+              <CardDescription className="mb-6">
+                No entities match your current search and filter criteria. Try adjusting your search terms or filters.
+              </CardDescription>
+              <div className="flex gap-2 justify-center">
+                <Button variant="outline" onClick={() => setSearchTerm('')} data-testid="clear-search">
+                  Clear Search
+                </Button>
+                <Button variant="outline" onClick={() => { setFilterType('all'); setFilterStatus('all'); }} data-testid="clear-filters">
+                  Clear Filters
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {orgs.map((org: any) => (
+            {filteredAndSortedOrgs.map((org: any) => (
               <Card key={org.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-center gap-3">
