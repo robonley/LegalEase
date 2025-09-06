@@ -57,6 +57,7 @@ export default function People() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingPerson, setEditingPerson] = useState<PersonWithRoles | null>(null);
   const [viewingPerson, setViewingPerson] = useState<PersonWithRoles | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: people = [], isLoading } = useQuery<PersonWithRoles[]>({
@@ -491,92 +492,139 @@ export default function People() {
         )}
 
         {/* View Person Dialog */}
-        <Dialog open={!!viewingPerson} onOpenChange={() => setViewingPerson(null)}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <Dialog open={!!viewingPerson} onOpenChange={(open) => {
+          if (!open) {
+            setViewingPerson(null);
+            setIsEditMode(false);
+          }
+        }}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Person Details</DialogTitle>
-              <DialogDescription>
-                Detailed information for {viewingPerson?.firstName} {viewingPerson?.lastName}
-              </DialogDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <DialogTitle>Person Details</DialogTitle>
+                  <DialogDescription>
+                    {isEditMode ? 'Edit information for' : 'Detailed information for'} {viewingPerson?.firstName} {viewingPerson?.lastName}
+                  </DialogDescription>
+                </div>
+                {!isEditMode && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setIsEditMode(true)}
+                    data-testid="quick-edit-button"
+                  >
+                    <i className="fas fa-edit mr-2"></i>
+                    Edit
+                  </Button>
+                )}
+              </div>
             </DialogHeader>
             {viewingPerson && (
-              <div className="space-y-6">
-                {/* Personal Information */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Personal Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Name</label>
-                      <p className="mt-1">{viewingPerson.firstName} {viewingPerson.lastName}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Email</label>
-                      <p className="mt-1">{viewingPerson.email || "Not provided"}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Phone</label>
-                      <p className="mt-1">{viewingPerson.phone || "Not provided"}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
-                      <p className="mt-1">
-                        {viewingPerson.dateOfBirth 
-                          ? formatDate(viewingPerson.dateOfBirth) 
-                          : "Not provided"
-                        }
-                      </p>
-                    </div>
-                  </div>
-                  {viewingPerson.address && (
-                    <div className="mt-4">
-                      <label className="text-sm font-medium text-muted-foreground">Address</label>
-                      <p className="mt-1">{viewingPerson.address}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Roles and Responsibilities */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Roles and Responsibilities</h3>
-                  <div className="space-y-3">
-                    {viewingPerson.roles.map((role) => (
-                      <div key={role.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <Badge variant="outline">{role.role}</Badge>
-                          {role.title && (
-                            <span className="text-sm text-muted-foreground">{role.title}</span>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <div>
-                            <span className="font-medium">Start Date:</span> {formatDate(role.startDate)}
-                          </div>
-                          {role.role === 'Shareholder' && role.shareQuantity && (
-                            <>
-                              <div>
-                                <span className="font-medium">Shares:</span> {role.shareQuantity.toLocaleString()}
-                              </div>
-                              <div>
-                                <span className="font-medium">Share Type:</span> {role.shareType}
-                              </div>
-                              {role.shareClass && (
-                                <div>
-                                  <span className="font-medium">Share Class:</span> {role.shareClass}
-                                </div>
-                              )}
-                              {role.shareIssueDate && (
-                                <div>
-                                  <span className="font-medium">Issue Date:</span> {formatDate(role.shareIssueDate)}
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
+              isEditMode ? (
+                // Edit Mode - Show PersonForm
+                <PersonForm
+                  mode="edit"
+                  initialData={viewingPerson}
+                  onSuccess={() => {
+                    setIsEditMode(false);
+                    queryClient.invalidateQueries({
+                      queryKey: ["/api/orgs", currentEntity?.id, "people"],
+                    });
+                    toast({
+                      title: "Success",
+                      description: "Person updated successfully",
+                    });
+                  }}
+                  onCancel={() => setIsEditMode(false)}
+                  hideButtons={true}
+                />
+              ) : (
+                // View Mode - Show person details
+                <div className="space-y-6">
+                  {/* Personal Information */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Personal Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Name</label>
+                        <p className="mt-1">{viewingPerson.firstName} {viewingPerson.lastName}</p>
                       </div>
-                    ))}
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Email</label>
+                        <p className="mt-1">{viewingPerson.email || "Not provided"}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Phone</label>
+                        <p className="mt-1">{viewingPerson.phone || "Not provided"}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
+                        <p className="mt-1">
+                          {viewingPerson.dateOfBirth 
+                            ? formatDate(viewingPerson.dateOfBirth) 
+                            : "Not provided"
+                          }
+                        </p>
+                      </div>
+                    </div>
+                    {viewingPerson.address && (
+                      <div className="mt-4">
+                        <label className="text-sm font-medium text-muted-foreground">Address</label>
+                        <p className="mt-1">{viewingPerson.address}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Roles and Responsibilities */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3">Roles and Responsibilities</h3>
+                    <div className="space-y-3">
+                      {viewingPerson.roles.map((role) => (
+                        <div key={role.id} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <Badge variant="outline">{role.role}</Badge>
+                            {role.title && (
+                              <span className="text-sm text-muted-foreground">{role.title}</span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <span className="font-medium">Start Date:</span> {role.startDate ? formatDate(role.startDate) : "Not set"}
+                            </div>
+                            {role.role === 'Shareholder' && role.shareQuantity && (
+                              <>
+                                <div>
+                                  <span className="font-medium">Shares:</span> {role.shareQuantity.toLocaleString()}
+                                </div>
+                                <div>
+                                  <span className="font-medium">Share Type:</span> {role.shareType}
+                                </div>
+                                {role.shareClass && (
+                                  <div>
+                                    <span className="font-medium">Share Class:</span> {role.shareClass}
+                                  </div>
+                                )}
+                                {role.shareIssueDate && (
+                                  <div>
+                                    <span className="font-medium">Issue Date:</span> {formatDate(role.shareIssueDate)}
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Action Buttons for View Mode */}
+                  <div className="flex justify-end gap-3 pt-6 border-t">
+                    <Button variant="outline" onClick={() => setViewingPerson(null)}>
+                      Close
+                    </Button>
                   </div>
                 </div>
-              </div>
+              )
             )}
           </DialogContent>
         </Dialog>
