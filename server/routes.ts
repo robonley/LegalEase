@@ -519,7 +519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         shareClassId,
         quantity: parseInt(quantity),
         certNumber,
-        issuePrice: issuePrice ? parseFloat(issuePrice) : null,
+        issuePrice: issuePrice ? parseFloat(issuePrice).toString() : null,
         issueDate: new Date(issueDate),
       });
 
@@ -674,7 +674,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: templateConfig.name,
           code: templateConfig.code,
           scope: templateConfig.scope,
-          fileKey: null, // No actual file yet
+              fileKey: "", // No actual file yet
           schema: {},
           ownerId: userId,
         });
@@ -736,7 +736,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             name: templateConfig.name,
             code: templateConfig.code,
             scope: templateConfig.scope,
-            fileKey: null, // No actual file yet
+            fileKey: "", // No actual file yet
             schema: {},
             ownerId: userId,
           });

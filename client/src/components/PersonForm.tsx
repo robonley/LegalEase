@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -50,7 +50,7 @@ const personWithRolesSchema = z.object({
   })).min(1, "At least one role is required"),
 });
 
-type PersonWithRolesForm = z.infer<typeof personWithRolesSchema>;
+export type PersonWithRolesForm = z.infer<typeof personWithRolesSchema>;
 
 interface PersonFormProps {
   onSubmit: (data: { person: any; roles: any[] }) => void;
@@ -99,6 +99,17 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
       ],
     },
   });
+
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        ...form.getValues(),
+        ...initialData,
+        includeAddress: initialData.includeAddress ?? !!initialData.addressLine1,
+        roles: initialData.roles || form.getValues("roles"),
+      });
+    }
+  }, [initialData, form]);
 
   const includeAddress = form.watch("includeAddress");
 
