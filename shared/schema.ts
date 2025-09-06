@@ -130,9 +130,13 @@ export const templates = pgTable("templates", {
   name: text("name").notNull(), // "Bylaw No.1 (CBCA)"
   code: text("code").notNull(), // "BYLAW_CBCA_1"
   scope: text("scope").notNull(), // "organization" | "annual" | "resolution" | "register"
+  category: text("category"), // "minute-book" | "resolution" | "register"
   fileKey: text("file_key"), // storage key for .docx (nullable for placeholder templates)
   schema: json("schema").notNull(), // required fields map
+  variables: json("variables").notNull().default('{}'), // extracted template variables
+  isStarter: boolean("is_starter").notNull().default(false), // app-wide starter template
   ownerId: varchar("owner_id").references(() => users.id),
+  description: text("description"), // template description
   createdAt: timestamp("created_at").defaultNow(),
 });
 

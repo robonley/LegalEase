@@ -15,6 +15,7 @@ import {
   insertAuditLogSchema
 } from "@shared/schema";
 import { z } from "zod";
+import { extractTemplateVariables, createVariableMapping, CBCA_TEMPLATE_VARIABLES } from "./templateProcessor";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -559,6 +560,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Starter template routes
+  app.post('/api/templates/starter/cbca', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { fileUrl } = req.body;
+      
+      // Create CBCA Minute Book starter template
+      const template = await storage.createTemplate({
+        name: "CBCA Minute Book - Federal Corporation",
+        code: "CBCA_MINUTE_BOOK",
+        scope: "minute-book",
+        category: "minute-book",
+        fileKey: fileUrl,
+        schema: {},
+        variables: CBCA_TEMPLATE_VARIABLES,
+        isStarter: true,
+        ownerId: userId,
+        description: "Complete minute book template for Canadian Federal Corporations (CBCA)"
+      });
+
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating CBCA starter template:", error);
+      res.status(500).json({ message: "Failed to create starter template" });
+    }
+  });
+
+  app.get('/api/templates/starter', isAuthenticated, async (req, res) => {
+    try {
+      const templates = await storage.getTemplates();
+      const starterTemplates = templates.filter(t => t.isStarter);
+      res.json(starterTemplates);
+    } catch (error) {
+      console.error("Error fetching starter templates:", error);
+      res.status(500).json({ message: "Failed to fetch starter templates" });
+    }
+  });
+
   // Template management routes
   app.get('/api/orgs/:orgId/templates', isAuthenticated, async (req, res) => {
     try {
@@ -581,9 +620,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name,
         code: `${type.toUpperCase()}_${Date.now()}`, // Generate unique code
         scope: type,
+        category: type,
         fileKey: fileUrl,
         schema: {}, // Will be populated when we parse template variables
+        variables: {}, // Will be populated when processing template
+        isStarter: false,
         ownerId: userId,
+        description: description || `Custom ${type} template`,
       });
 
       // Create audit log
@@ -674,9 +717,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: templateConfig.name,
           code: templateConfig.code,
           scope: templateConfig.scope,
+          category: templateConfig.scope,
           fileKey: null, // No actual file yet
           schema: {},
+          variables: {},
+          isStarter: false,
           ownerId: userId,
+          description: `Placeholder template for ${templateConfig.name}`,
         });
       }
 
@@ -736,9 +783,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             name: templateConfig.name,
             code: templateConfig.code,
             scope: templateConfig.scope,
+            category: templateConfig.scope,
             fileKey: null, // No actual file yet
             schema: {},
+            variables: {},
+            isStarter: false,
             ownerId: userId,
+            description: `Placeholder template for ${templateConfig.name}`,
           });
         }
 

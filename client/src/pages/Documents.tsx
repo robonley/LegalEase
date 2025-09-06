@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TemplateUploader } from "@/components/TemplateUploader";
+import { TemplateSelector } from "@/components/TemplateSelector";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -35,6 +36,7 @@ export default function Documents() {
   const [activeTab, setActiveTab] = useState("documents");
   const [selectedDoc, setSelectedDoc] = useState<GeneratedDoc | null>(null);
   const [showDocViewer, setShowDocViewer] = useState(false);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
 
   // Fetch documents for current entity
   const { data: documents = [], isLoading } = useQuery<GeneratedDoc[]>({
@@ -99,6 +101,15 @@ export default function Documents() {
     } finally {
       setIsCreatingBundle(false);
     }
+  };
+
+  const handleTemplateSelect = (templateId: string, templateType: 'starter' | 'custom') => {
+    // TODO: Implement document generation from selected template
+    console.log('Selected template:', templateId, templateType);
+    toast({
+      title: "Template Selected",
+      description: `Document generation from ${templateType} template will be implemented next`,
+    });
   };
 
   const formatDate = (date: string | Date | null) => {
@@ -419,6 +430,14 @@ export default function Documents() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Template Selector */}
+      <TemplateSelector
+        open={showTemplateSelector}
+        onOpenChange={setShowTemplateSelector}
+        onTemplateSelect={handleTemplateSelect}
+        orgId={currentEntity.id}
+      />
     </div>
   );
 }
