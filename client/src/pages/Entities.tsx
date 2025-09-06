@@ -16,6 +16,9 @@ import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { insertOrgSchema } from "@shared/schema";
+import { PDFIngestion } from "@/components/PDFIngestion";
+import { ExtractionResultsModal } from "@/components/ExtractionResultsModal";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const formSchema = insertOrgSchema.omit({ 
   createdById: true, 
@@ -27,6 +30,8 @@ const formSchema = insertOrgSchema.omit({
 
 export default function Entities() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [extractionResults, setExtractionResults] = useState<any[]>([]);
+  const [showExtractionModal, setShowExtractionModal] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -71,6 +76,32 @@ export default function Entities() {
     createMutation.mutate(data);
   };
 
+  const handleExtractionComplete = (results: any[]) => {
+    setExtractionResults(results);
+    if (results.length > 0) {
+      setShowExtractionModal(true);
+    }
+  };
+
+  const handleApplyExtractionResults = (selectedData: any) => {
+    // Pre-fill form with extracted data
+    if (selectedData.entities && selectedData.entities.length > 0) {
+      const entity = selectedData.entities[0];
+      form.setValue('name', entity.name);
+      if (entity.incorporationNumber) {
+        form.setValue('number', entity.incorporationNumber);
+      }
+      if (entity.jurisdiction) {
+        form.setValue('jurisdiction', entity.jurisdiction);
+      }
+    }
+    
+    toast({
+      title: 'Data Applied',
+      description: 'Extracted information has been pre-filled in the form',
+    });
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -111,13 +142,28 @@ export default function Entities() {
                 Create Entity
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Entity</DialogTitle>
                 <DialogDescription>
-                  Add a new legal entity to your portfolio
+                  Add a new legal entity to your portfolio or scan documents to auto-populate
                 </DialogDescription>
               </DialogHeader>
+              
+              <Tabs defaultValue="manual" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+                  <TabsTrigger value="scan">Scan PDF Documents</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="scan" className="space-y-4">
+                  <PDFIngestion 
+                    onExtractionComplete={handleExtractionComplete}
+                    className="mt-4"
+                  />
+                </TabsContent>
+                
+                <TabsContent value="manual" className="space-y-4">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="grid grid-cols-2 gap-4">
@@ -322,6 +368,8 @@ export default function Entities() {
                   </div>
                 </form>
               </Form>
+                </TabsContent>
+              </Tabs>
             </DialogContent>
           </Dialog>
         </div>
@@ -421,6 +469,14 @@ export default function Entities() {
           </div>
         )}
       </div>
+      
+      {/* Extraction Results Modal */}
+      <ExtractionResultsModal
+        isOpen={showExtractionModal}
+        onClose={() => setShowExtractionModal(false)}
+        results={extractionResults}
+        onApplyResults={handleApplyExtractionResults}
+      />
     </div>
   );
 }
