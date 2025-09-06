@@ -43,6 +43,10 @@ const personWithRolesSchema = z.object({
     role: z.enum(["Director", "Officer", "Shareholder"]),
     title: z.string().optional(),
     startAt: z.string().optional(),
+    // Shareholder-specific fields
+    shareQuantity: z.string().optional(),
+    shareType: z.enum(["Common", "Preferred"]).optional(),
+    shareClass: z.string().optional(),
   })).min(1, "At least one role is required"),
 });
 
@@ -91,7 +95,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
       postal: "",
       roles: [
         { role: "Director" as const, title: "", startAt: new Date().toISOString().split('T')[0] },
-        { role: "Shareholder" as const, title: "", startAt: new Date().toISOString().split('T')[0] }
+        { role: "Shareholder" as const, title: "", startAt: new Date().toISOString().split('T')[0], shareQuantity: "", shareType: "Common" as const, shareClass: "" }
       ],
     },
   });
@@ -123,6 +127,12 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
         role: role.role,
         title: role.title || undefined,
         startAt: role.startAt || new Date().toISOString(),
+        // Include shareholder-specific data if applicable
+        ...(role.role === "Shareholder" && {
+          shareQuantity: role.shareQuantity ? parseInt(role.shareQuantity) : undefined,
+          shareType: role.shareType,
+          shareClass: role.shareClass || undefined,
+        }),
       })),
     };
     
@@ -363,7 +373,10 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                         form.setValue("roles", [...roles, { 
                           role: "Shareholder" as const, 
                           title: "", 
-                          startAt: new Date().toISOString().split('T')[0] 
+                          startAt: new Date().toISOString().split('T')[0],
+                          shareQuantity: "",
+                          shareType: "Common" as const,
+                          shareClass: ""
                         }]);
                       }
                     } else {
@@ -508,6 +521,70 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                     </FormItem>
                   )}
                 />
+
+                {/* Shareholder-specific fields */}
+                {form.watch(`roles.${index}.role`) === "Shareholder" && (
+                  <div className="grid grid-cols-3 gap-4 pt-4 border-t">
+                    <FormField
+                      control={form.control}
+                      name={`roles.${index}.shareQuantity`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Number of Shares</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number"
+                              placeholder="1000"
+                              {...field}
+                              data-testid={`input-share-quantity-${index}`}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`roles.${index}.shareType`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Share Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger data-testid={`select-share-type-${index}`}>
+                                <SelectValue placeholder="Select type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Common">Common</SelectItem>
+                              <SelectItem value="Preferred">Preferred</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name={`roles.${index}.shareClass`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Share Class</FormLabel>
+                          <FormControl>
+                            <Input 
+                              placeholder="Class A"
+                              {...field}
+                              data-testid={`input-share-class-${index}`}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </CardContent>
