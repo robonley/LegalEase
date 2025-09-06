@@ -85,9 +85,10 @@ export default function CapTable() {
   // Delete person mutation
   const deleteMutation = useMutation({
     mutationFn: async (personId: string) => {
-      await apiRequest(`/api/orgs/${currentEntity?.id}/people/${personId}`, {
-        method: "DELETE",
-      });
+      await apiRequest(
+        "DELETE",
+        `/api/orgs/${currentEntity?.id}/people/${personId}`,
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({

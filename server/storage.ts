@@ -34,7 +34,7 @@ import {
   type InsertAuditLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, or } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -57,6 +57,7 @@ export interface IStorage {
   getPeopleByOrg(orgId: string): Promise<Person[]>;
   getPersonById(id: string): Promise<Person | undefined>;
   updatePerson(id: string, updates: Partial<InsertPerson>): Promise<Person>;
+  deletePerson(id: string): Promise<void>;
   
   // Person-Org relationships
   createPersonOnOrg(relation: InsertPersonOnOrg): Promise<PersonOnOrg>;
@@ -197,6 +198,22 @@ export class DatabaseStorage implements IStorage {
       .where(eq(people.id, id))
       .returning();
     return updatedPerson;
+  }
+
+  async deletePerson(id: string): Promise<void> {
+    // Remove relations and dependent records
+    await db.delete(personOnOrgs).where(eq(personOnOrgs.personId, id));
+    await db.delete(shareIssuances).where(eq(shareIssuances.shareholderId, id));
+    await db.delete(shareTransfers).where(
+      or(eq(shareTransfers.fromPersonId, id), eq(shareTransfers.toPersonId, id)),
+    );
+
+    const [person] = await db.select().from(people).where(eq(people.id, id));
+    if (person?.addressId) {
+      await db.delete(addresses).where(eq(addresses.id, person.addressId));
+    }
+
+    await db.delete(people).where(eq(people.id, id));
   }
 
   // Person-Org relationships

@@ -216,6 +216,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/orgs/:orgId/people/:personId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { person: personData } = req.body;
+
+      if (personData?.address) {
+        const address = await storage.createAddress(personData.address);
+        personData.addressId = address.id;
+        delete personData.address;
+      }
+
+      const updates = insertPersonSchema.partial().parse(personData || {});
+      const person = await storage.updatePerson(req.params.personId, updates);
+
+      await storage.createAuditLog({
+        orgId: req.params.orgId,
+        actorId: userId,
+        action: "UPDATE_PERSON",
+        payload: { personId: person.id },
+      });
+
+      res.json(person);
+    } catch (error) {
+      console.error("Error updating person:", error);
+      res.status(500).json({ message: "Failed to update person" });
+    }
+  });
+
+  app.delete('/api/orgs/:orgId/people/:personId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      await storage.deletePerson(req.params.personId);
+
+      await storage.createAuditLog({
+        orgId: req.params.orgId,
+        actorId: userId,
+        action: "DELETE_PERSON",
+        payload: { personId: req.params.personId },
+      });
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting person:", error);
+      res.status(500).json({ message: "Failed to delete person" });
+    }
+  });
+
   // Share class routes
   app.get('/api/orgs/:orgId/share-classes', isAuthenticated, async (req, res) => {
     try {
