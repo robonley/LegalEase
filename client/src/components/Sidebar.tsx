@@ -56,39 +56,67 @@ export function Sidebar() {
       <div className="flex flex-col h-screen">
         {/* Header with Logo and Collapse Toggle */}
         <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-4">
-            <Link 
-              href="/" 
-              onClick={() => {
-                if (!currentEntity) {
-                  clearCurrentEntity();
-                }
-              }}
-            >
-              <div className={cn(
-                "flex items-center cursor-pointer hover:opacity-80 transition-opacity",
-                isCollapsed ? "justify-center" : "gap-3"
-              )}>
-                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+          {isCollapsed ? (
+            /* Collapsed State - Large Expand Button */
+            <div className="flex flex-col items-center gap-4">
+              <Link 
+                href="/" 
+                onClick={() => {
+                  if (!currentEntity) {
+                    clearCurrentEntity();
+                  }
+                }}
+              >
+                <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
                   <i className="fas fa-balance-scale text-primary-foreground text-sm"></i>
                 </div>
-                {!isCollapsed && <span className="font-semibold text-lg">LegalEntity</span>}
+              </Link>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCollapsed(false)}
+                className="w-10 h-10 p-0 border-2 border-primary/20 hover:border-primary/40 hover:bg-primary/10"
+                data-testid="sidebar-expand"
+              >
+                <i className="fas fa-angle-right text-lg text-primary"></i>
+              </Button>
+            </div>
+          ) : (
+            /* Expanded State */
+            <>
+              <div className="flex items-center justify-between mb-4">
+                <Link 
+                  href="/" 
+                  onClick={() => {
+                    if (!currentEntity) {
+                      clearCurrentEntity();
+                    }
+                  }}
+                >
+                  <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
+                    <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                      <i className="fas fa-balance-scale text-primary-foreground text-sm"></i>
+                    </div>
+                    <span className="font-semibold text-lg">LegalEntity</span>
+                  </div>
+                </Link>
+                
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsCollapsed(true)}
+                  className="w-8 h-8 p-0 text-muted-foreground hover:text-foreground"
+                  data-testid="sidebar-collapse"
+                >
+                  <i className="fas fa-angle-left text-sm"></i>
+                </Button>
               </div>
-            </Link>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="w-8 h-8 p-0 text-muted-foreground hover:text-foreground"
-              data-testid="sidebar-toggle"
-            >
-              <i className={`fas ${isCollapsed ? 'fa-angle-right' : 'fa-angle-left'} text-sm`}></i>
-            </Button>
-          </div>
-          
-          {/* Entity Selector */}
-          {!isCollapsed && <EntitySelector />}
+              
+              {/* Entity Selector */}
+              <EntitySelector />
+            </>
+          )}
         </div>
 
         {/* Navigation Menu */}
