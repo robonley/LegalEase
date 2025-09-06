@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { useEntityContext } from '@/hooks/useEntityContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,6 +14,7 @@ import {
 export function EntitySelector() {
   const { currentEntity, recentEntities, setCurrentEntity } = useEntityContext();
   const [isOpen, setIsOpen] = useState(false);
+  const [, setLocation] = useLocation();
 
   // Show current entity or default message
   const displayEntity = currentEntity || {
@@ -69,6 +70,8 @@ export function EntitySelector() {
                 onClick={() => {
                   setCurrentEntity(entity);
                   setIsOpen(false);
+                  // Navigate to dashboard which will show entity-specific content
+                  setLocation('/');
                 }}
               >
                 <div className="flex items-center gap-3 w-full cursor-pointer">
