@@ -19,6 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TemplateUploader } from "@/components/TemplateUploader";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -30,6 +32,7 @@ export default function Documents() {
   const queryClient = useQueryClient();
   const [showBundleDialog, setShowBundleDialog] = useState(false);
   const [isCreatingBundle, setIsCreatingBundle] = useState(false);
+  const [activeTab, setActiveTab] = useState("documents");
 
   // Fetch documents for current entity
   const { data: documents = [], isLoading } = useQuery<GeneratedDoc[]>({

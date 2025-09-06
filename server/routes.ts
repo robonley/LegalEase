@@ -559,6 +559,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Template management routes
+  app.get('/api/orgs/:orgId/templates', isAuthenticated, async (req, res) => {
+    try {
+      const orgId = req.params.orgId;
+      const templates = await storage.getTemplatesByOrg(orgId);
+      res.json(templates);
+    } catch (error) {
+      console.error("Error fetching templates:", error);
+      res.status(500).json({ message: "Failed to fetch templates" });
+    }
+  });
+
+  app.post('/api/orgs/:orgId/templates', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const orgId = req.params.orgId;
+      const { name, type, description, fileUrl, fileName, fileSize } = req.body;
+
+      const template = await storage.createTemplate({
+        name,
+        code: `${type.toUpperCase()}_${Date.now()}`, // Generate unique code
+        scope: type,
+        fileKey: fileUrl,
+        schema: {}, // Will be populated when we parse template variables
+        ownerId: userId,
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        orgId,
+        actorId: userId,
+        action: "UPLOAD_TEMPLATE",
+        payload: { 
+          templateId: template.id,
+          name,
+          type,
+          fileName
+        }
+      });
+
+      res.status(201).json(template);
+    } catch (error) {
+      console.error("Error creating template:", error);
+      res.status(500).json({ message: "Failed to create template" });
+    }
+  });
+
+  app.delete('/api/orgs/:orgId/templates/:templateId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { orgId, templateId } = req.params;
+
+      await storage.deleteTemplate(templateId);
+
+      // Create audit log
+      await storage.createAuditLog({
+        orgId,
+        actorId: userId,
+        action: "DELETE_TEMPLATE",
+        payload: { templateId }
+      });
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting template:", error);
+      res.status(500).json({ message: "Failed to delete template" });
+    }
+  });
+
   // Document routes
   app.get('/api/documents/:orgId?', isAuthenticated, async (req, res) => {
     try {

@@ -83,6 +83,7 @@ export interface IStorage {
   // Template operations
   createTemplate(template: InsertTemplate): Promise<Template>;
   getTemplates(): Promise<Template[]>;
+  getTemplatesByOrg(orgId: string): Promise<Template[]>;
   getTemplateById(id: string): Promise<Template | undefined>;
   updateTemplate(id: string, updates: Partial<InsertTemplate>): Promise<Template>;
   deleteTemplate(id: string): Promise<void>;
@@ -298,6 +299,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTemplates(): Promise<Template[]> {
+    return await db
+      .select()
+      .from(templates)
+      .orderBy(desc(templates.createdAt));
+  }
+
+  async getTemplatesByOrg(orgId: string): Promise<Template[]> {
+    // For now, return all templates since templates aren't org-specific in current schema
+    // This can be updated when we add orgId to templates table
     return await db
       .select()
       .from(templates)
