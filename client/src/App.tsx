@@ -9,6 +9,8 @@ import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
 import Dashboard from "@/pages/Dashboard";
 import Entities from "@/pages/Entities";
+import EntityDetail from "@/pages/EntityDetail";
+import EntityEdit from "@/pages/EntityEdit";
 import People from "@/pages/People";
 import CapTable from "@/pages/CapTable";
 import Documents from "@/pages/Documents";
@@ -35,6 +37,8 @@ function Router() {
         <Layout>
           <Route path="/" component={Dashboard} />
           <Route path="/entities" component={Entities} />
+          <Route path="/entities/:id" component={EntityDetail} />
+          <Route path="/entities/:id/edit" component={EntityEdit} />
           <Route path="/people" component={People} />
           <Route path="/cap-table" component={CapTable} />
           <Route path="/documents" component={Documents} />

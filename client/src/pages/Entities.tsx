@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +39,7 @@ export default function Entities() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
 
   const { data: orgs = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/orgs"],
@@ -104,6 +106,16 @@ export default function Entities() {
 
   const getEntityInitials = (name: string) => {
     return name.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase();
+  };
+
+  const handleViewEntity = (entityId: string) => {
+    // Navigate to entity detail view page
+    setLocation(`/entities/${entityId}`);
+  };
+
+  const handleEditEntity = (entityId: string) => {
+    // Navigate to entity edit page
+    setLocation(`/entities/${entityId}/edit`);
   };
 
   return (
@@ -385,15 +397,32 @@ export default function Entities() {
                     </div>
                     
                     <div className="flex gap-2 pt-3">
-                      <Button variant="outline" size="sm" className="flex-1" data-testid={`view-entity-${org.id}`}>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1" 
+                        onClick={() => handleViewEntity(org.id)}
+                        data-testid={`view-entity-${org.id}`}
+                      >
                         <i className="fas fa-eye mr-2"></i>
                         View
                       </Button>
-                      <Button variant="outline" size="sm" className="flex-1" data-testid={`edit-entity-${org.id}`}>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1" 
+                        onClick={() => handleEditEntity(org.id)}
+                        data-testid={`edit-entity-${org.id}`}
+                      >
                         <i className="fas fa-edit mr-2"></i>
                         Edit
                       </Button>
-                      <Button variant="outline" size="sm" data-testid={`generate-docs-${org.id}`}>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => toast({ title: "Feature coming soon", description: "Document generation will be available soon" })}
+                        data-testid={`generate-docs-${org.id}`}
+                      >
                         <i className="fas fa-file-download"></i>
                       </Button>
                     </div>
