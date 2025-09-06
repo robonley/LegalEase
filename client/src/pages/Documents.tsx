@@ -36,8 +36,7 @@ export default function Documents() {
 
   // Fetch documents for current entity
   const { data: documents = [], isLoading } = useQuery<GeneratedDoc[]>({
-    queryKey: ["/api/documents", currentEntity?.id],
-    queryFn: () => fetch(`/api/documents/${currentEntity?.id}`).then(res => res.json()),
+    queryKey: ["/api/orgs", currentEntity?.id, "documents"],
     enabled: !!currentEntity?.id,
   });
 
@@ -50,7 +49,9 @@ export default function Documents() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/orgs", currentEntity?.id, "documents"],
+      });
       toast({
         title: "Success",
         description: "Document created successfully",
@@ -74,7 +75,9 @@ export default function Documents() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/orgs", currentEntity?.id, "documents"],
+      });
       toast({
         title: "Success",
         description: "New Corporation Bundle created successfully",
