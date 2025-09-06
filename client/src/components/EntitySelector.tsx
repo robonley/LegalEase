@@ -36,7 +36,7 @@ export function EntitySelector() {
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="w-full justify-between p-3 bg-muted hover:bg-accent h-auto"
+          className="w-full justify-between p-3 bg-muted hover:bg-accent h-auto min-h-[52px]"
           data-testid="entity-selector"
         >
           <div className="flex items-center gap-3">
@@ -46,14 +46,9 @@ export function EntitySelector() {
               </span>
             </div>
             <div className="text-left min-w-0 flex-1">
-              <div className="text-sm font-medium truncate">
+              <div className="text-sm font-medium leading-tight break-words">
                 {displayEntity.name}
               </div>
-              {currentEntity && (
-                <div className="text-xs text-muted-foreground truncate">
-                  {currentEntity.jurisdiction}
-                </div>
-              )}
             </div>
           </div>
           <i className="fas fa-chevron-down text-xs text-muted-foreground flex-shrink-0"></i>
@@ -81,11 +76,8 @@ export function EntitySelector() {
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">
+                    <div className="text-sm font-medium leading-tight break-words">
                       {entity.name}
-                    </div>
-                    <div className="text-xs text-muted-foreground truncate">
-                      {entity.jurisdiction}
                     </div>
                   </div>
                 </div>
