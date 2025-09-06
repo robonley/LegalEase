@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useEntityContext } from "@/hooks/useEntityContext";
+import type { Org } from "@shared/schema";
 
 export default function EntityDetail() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { setCurrentEntity } = useEntityContext();
 
-  const { data: entity, isLoading } = useQuery({
+  const { data: entity, isLoading } = useQuery<Org>({
     queryKey: ["/api/orgs", id],
     enabled: !!id,
   });
@@ -24,13 +25,15 @@ export default function EntityDetail() {
         id: entity.id,
         name: entity.name,
         jurisdiction: entity.jurisdiction,
-        number: entity.number
+        number: entity.number || undefined
       });
     }
   }, [entity, setCurrentEntity]);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (date: string | Date | null) => {
+    if (!date) return 'Not set';
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
@@ -139,7 +142,7 @@ export default function EntityDetail() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Formation Date</label>
                 <p className="text-lg font-medium">
-                  {entity.formationAt ? formatDate(entity.formationAt) : 'Not set'}
+                  {formatDate(entity.formationAt)}
                 </p>
               </div>
               <div>

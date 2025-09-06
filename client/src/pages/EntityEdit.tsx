@@ -14,6 +14,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { insertOrgSchema } from "@shared/schema";
 import { useEntityContext } from "@/hooks/useEntityContext";
+import type { Org } from "@shared/schema";
 
 const formSchema = insertOrgSchema.omit({ 
   createdById: true, 
@@ -30,7 +31,7 @@ export default function EntityEdit() {
   const queryClient = useQueryClient();
   const { setCurrentEntity } = useEntityContext();
 
-  const { data: entity, isLoading } = useQuery({
+  const { data: entity, isLoading } = useQuery<Org>({
     queryKey: ["/api/orgs", id],
     enabled: !!id,
   });
@@ -42,7 +43,7 @@ export default function EntityEdit() {
         id: entity.id,
         name: entity.name,
         jurisdiction: entity.jurisdiction,
-        number: entity.number
+        number: entity.number || undefined
       });
     }
   }, [entity, setCurrentEntity]);
