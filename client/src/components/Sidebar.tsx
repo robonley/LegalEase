@@ -128,15 +128,10 @@ export function Sidebar() {
             variant="ghost"
             size="sm"
             onClick={toggleTheme}
-            className="w-full justify-start gap-3 h-9"
+            className="w-8 h-8 p-0"
             data-testid="theme-toggle"
           >
-            <div className="w-4 h-4 flex items-center justify-center">
-              <i className={theme === 'dark' ? "fas fa-sun" : "fas fa-moon"}></i>
-            </div>
-            <span className="text-sm">
-              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-            </span>
+            <i className={theme === 'dark' ? "fas fa-sun" : "fas fa-moon"}></i>
           </Button>
         </div>
 
