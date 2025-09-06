@@ -62,7 +62,7 @@ export default function Dashboard() {
   });
 
   const { data: auditLogs = [] } = useQuery<any[]>({
-    queryKey: ["/api/audit-logs"],
+    queryKey: ["/api", "audit-logs"],
     enabled: isAuthenticated && !currentEntity, // Only load when viewing global dashboard
   });
 

@@ -76,6 +76,7 @@ export default function People() {
       queryClient.invalidateQueries({
         queryKey: ["/api/orgs", currentEntity?.id, "people"],
       });
+      queryClient.invalidateQueries({ queryKey: ["/api", "audit-logs"] });
       toast({
         title: "Success",
         description: "Person deleted successfully",
@@ -121,6 +122,7 @@ export default function People() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/orgs", currentEntity?.id, "people"] });
+      queryClient.invalidateQueries({ queryKey: ["/api", "audit-logs"] });
       setIsCreateDialogOpen(false);
       toast({
         title: "Success",
@@ -525,16 +527,17 @@ export default function People() {
                 <PersonForm
                   mode="edit"
                   initialData={viewingPerson}
-                  onSuccess={() => {
-                    setIsEditMode(false);
-                    queryClient.invalidateQueries({
-                      queryKey: ["/api/orgs", currentEntity?.id, "people"],
-                    });
-                    toast({
-                      title: "Success",
-                      description: "Person updated successfully",
-                    });
-                  }}
+                    onSuccess={() => {
+                      setIsEditMode(false);
+                      queryClient.invalidateQueries({
+                        queryKey: ["/api/orgs", currentEntity?.id, "people"],
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["/api", "audit-logs"] });
+                      toast({
+                        title: "Success",
+                        description: "Person updated successfully",
+                      });
+                    }}
                   onCancel={() => setIsEditMode(false)}
                   hideButtons={true}
                 />
@@ -647,6 +650,7 @@ export default function People() {
                   queryClient.invalidateQueries({
                     queryKey: ["/api/orgs", currentEntity?.id, "people"],
                   });
+                  queryClient.invalidateQueries({ queryKey: ["/api", "audit-logs"] });
                 }}
                 onCancel={() => setEditingPerson(null)}
               />

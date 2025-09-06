@@ -93,6 +93,7 @@ export default function CapTable() {
       queryClient.invalidateQueries({
         queryKey: ["/api/orgs", currentEntity?.id, "people"],
       });
+      queryClient.invalidateQueries({ queryKey: ["/api", "audit-logs"] });
       toast({
         title: "Success",
         description: "Shareholder deleted successfully",
@@ -166,6 +167,7 @@ export default function CapTable() {
                   queryClient.invalidateQueries({
                     queryKey: ["/api/orgs", currentEntity?.id, "people"],
                   });
+                  queryClient.invalidateQueries({ queryKey: ["/api", "audit-logs"] });
                 }}
                 onCancel={() => setIsCreateDialogOpen(false)}
               />
@@ -212,6 +214,7 @@ export default function CapTable() {
                       queryClient.invalidateQueries({
                         queryKey: ["/api/orgs", currentEntity?.id, "people"],
                       });
+                      queryClient.invalidateQueries({ queryKey: ["/api", "audit-logs"] });
                     }}
                     onCancel={() => setIsCreateDialogOpen(false)}
                   />
@@ -493,6 +496,7 @@ export default function CapTable() {
                   queryClient.invalidateQueries({
                     queryKey: ["/api/orgs", currentEntity?.id, "people"],
                   });
+                  queryClient.invalidateQueries({ queryKey: ["/api", "audit-logs"] });
                 }}
                 onCancel={() => setEditingPerson(null)}
               />
