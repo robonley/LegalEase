@@ -91,6 +91,7 @@ export interface IStorage {
   // Generated document operations
   createGeneratedDoc(doc: InsertGeneratedDoc): Promise<GeneratedDoc>;
   getGeneratedDocsByOrg(orgId: string): Promise<GeneratedDoc[]>;
+  getGeneratedDocById(id: string): Promise<GeneratedDoc | undefined>;
   
   // Audit log operations
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
@@ -344,6 +345,11 @@ export class DatabaseStorage implements IStorage {
       .from(generatedDocs)
       .where(eq(generatedDocs.orgId, orgId))
       .orderBy(desc(generatedDocs.createdAt));
+  }
+
+  async getGeneratedDocById(id: string): Promise<GeneratedDoc | undefined> {
+    const [doc] = await db.select().from(generatedDocs).where(eq(generatedDocs.id, id));
+    return doc;
   }
 
   // Audit log operations

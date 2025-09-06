@@ -771,6 +771,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Document download route
+  app.get('/api/documents/:docId/download', isAuthenticated, async (req, res) => {
+    try {
+      const { docId } = req.params;
+      
+      // Get document details
+      const document = await storage.getGeneratedDocById(docId);
+      
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // For now, return a placeholder response since we don't have actual file storage yet
+      res.set({
+        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Content-Disposition': `attachment; filename="${document.fileKey}"`,
+      });
+      
+      // TODO: Implement actual file serving from object storage
+      res.status(501).json({ 
+        message: "Document download not yet implemented - need to integrate with object storage",
+        documentId: docId,
+        fileName: document.fileKey 
+      });
+    } catch (error) {
+      console.error("Error downloading document:", error);
+      res.status(500).json({ message: "Failed to download document" });
+    }
+  });
+
+  // Document view route (for getting document details)
+  app.get('/api/documents/:docId', isAuthenticated, async (req, res) => {
+    try {
+      const { docId } = req.params;
+      
+      // Get document details with related data
+      const document = await storage.getGeneratedDocById(docId);
+      
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Get organization details to show what data was used
+      const org = await storage.getOrgById(document.orgId);
+      const people = await storage.getPeopleByOrg(document.orgId);
+      const template = await storage.getTemplateById(document.templateId);
+
+      res.json({
+        ...document,
+        organization: org,
+        people: people,
+        template: template,
+        entityDataSnapshot: {
+          orgName: org?.name,
+          peopleCount: people.length,
+          directors: people.filter(p => p.orgRoles?.some(r => r.role === 'director')),
+          officers: people.filter(p => p.orgRoles?.some(r => r.role === 'officer'))
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching document details:", error);
+      res.status(500).json({ message: "Failed to fetch document details" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
