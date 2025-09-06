@@ -70,8 +70,8 @@ export function EntitySelector() {
                 onClick={() => {
                   setCurrentEntity(entity);
                   setIsOpen(false);
-                  // Navigate to dashboard which will show entity-specific content
-                  setLocation('/');
+                  // Navigate to entity detail page (same as View button from Entities screen)
+                  setLocation(`/entities/${entity.id}`);
                 }}
               >
                 <div className="flex items-center gap-3 w-full cursor-pointer">
