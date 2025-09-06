@@ -559,6 +559,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Object storage upload URL
+  app.post('/api/objects/upload', isAuthenticated, async (_req, res) => {
+    try {
+      const uploadURL = await storage.getUploadUrl();
+      res.json({ uploadURL });
+    } catch (error) {
+      console.error("Error generating upload URL:", error);
+      res.status(500).json({ message: "Failed to generate upload URL" });
+    }
+  });
+
   // Template management routes
   app.get('/api/orgs/:orgId/templates', isAuthenticated, async (req, res) => {
     try {
