@@ -129,6 +129,28 @@ export default function Documents() {
     }
   };
 
+  const handleDownload = async (docId: string, fileKey: string) => {
+    try {
+      const res = await fetch(`/api/docs/${docId}`);
+      if (!res.ok) throw new Error('Failed to download');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileKey.split('/').pop() || 'document';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      toast({
+        title: 'Download failed',
+        description: err instanceof Error ? err.message : 'Unable to download document',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (!currentEntity) {
     return (
       <div className="flex-1 overflow-auto">
@@ -267,7 +289,12 @@ export default function Documents() {
                           <i className="fas fa-eye mr-2"></i>
                           View
                         </Button>
-                        <Button variant="outline" size="sm" data-testid={`download-doc-${doc.id}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          data-testid={`download-doc-${doc.id}`}
+                          onClick={() => handleDownload(doc.id, doc.fileKey)}
+                        >
                           <i className="fas fa-download mr-2"></i>
                           Download
                         </Button>
