@@ -16,23 +16,12 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { insertOrgSchema } from "@shared/schema";
 
-const formSchema = insertOrgSchema.extend({
-  registeredOffice: z.object({
-    line1: z.string().min(1, "Address line 1 is required"),
-    line2: z.string().optional(),
-    city: z.string().min(1, "City is required"),
-    region: z.string().min(1, "Province/State is required"),
-    country: z.string().min(1, "Country is required"),
-    postal: z.string().min(1, "Postal code is required"),
-  }).optional(),
-  recordsOffice: z.object({
-    line1: z.string().min(1, "Address line 1 is required"),
-    line2: z.string().optional(),
-    city: z.string().min(1, "City is required"),
-    region: z.string().min(1, "Province/State is required"),
-    country: z.string().min(1, "Country is required"),
-    postal: z.string().min(1, "Postal code is required"),
-  }).optional(),
+const formSchema = insertOrgSchema.omit({ 
+  createdById: true, 
+  createdAt: true, 
+  updatedAt: true,
+  registeredOfficeId: true,
+  recordsOfficeId: true
 });
 
 export default function Entities() {
@@ -73,22 +62,6 @@ export default function Entities() {
       number: "",
       jurisdiction: "",
       formationAt: undefined,
-      registeredOffice: {
-        line1: "",
-        line2: "",
-        city: "",
-        region: "",
-        country: "",
-        postal: "",
-      },
-      recordsOffice: {
-        line1: "",
-        line2: "",
-        city: "",
-        region: "",
-        country: "",
-        postal: "",
-      },
     },
   });
 
