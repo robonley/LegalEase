@@ -89,7 +89,10 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
       region: "",
       country: "",
       postal: "",
-      roles: [{ role: "Director" as const, title: "", startAt: new Date().toISOString().split('T')[0] }],
+      roles: [
+        { role: "Director" as const, title: "", startAt: new Date().toISOString().split('T')[0] },
+        { role: "Shareholder" as const, title: "", startAt: new Date().toISOString().split('T')[0] }
+      ],
     },
   });
 
@@ -323,11 +326,80 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
         {/* Roles Section */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">Roles & Responsibilities</CardTitle>
-              <Button type="button" variant="outline" onClick={addRole} data-testid="add-role-button">
+            <CardTitle className="text-lg">Roles & Responsibilities</CardTitle>
+            <div className="flex flex-wrap items-center gap-4 pt-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="quick-director"
+                  checked={form.watch("roles").some(r => r.role === "Director")}
+                  onChange={(e) => {
+                    const roles = form.getValues("roles");
+                    if (e.target.checked) {
+                      if (!roles.some(r => r.role === "Director")) {
+                        form.setValue("roles", [...roles, { 
+                          role: "Director" as const, 
+                          title: "", 
+                          startAt: new Date().toISOString().split('T')[0] 
+                        }]);
+                      }
+                    } else {
+                      form.setValue("roles", roles.filter(r => r.role !== "Director"));
+                    }
+                  }}
+                  className="rounded"
+                />
+                <label htmlFor="quick-director" className="text-sm font-medium">Director</label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="quick-shareholder"
+                  checked={form.watch("roles").some(r => r.role === "Shareholder")}
+                  onChange={(e) => {
+                    const roles = form.getValues("roles");
+                    if (e.target.checked) {
+                      if (!roles.some(r => r.role === "Shareholder")) {
+                        form.setValue("roles", [...roles, { 
+                          role: "Shareholder" as const, 
+                          title: "", 
+                          startAt: new Date().toISOString().split('T')[0] 
+                        }]);
+                      }
+                    } else {
+                      form.setValue("roles", roles.filter(r => r.role !== "Shareholder"));
+                    }
+                  }}
+                  className="rounded"
+                />
+                <label htmlFor="quick-shareholder" className="text-sm font-medium">Shareholder</label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="quick-officer"
+                  checked={form.watch("roles").some(r => r.role === "Officer")}
+                  onChange={(e) => {
+                    const roles = form.getValues("roles");
+                    if (e.target.checked) {
+                      if (!roles.some(r => r.role === "Officer")) {
+                        form.setValue("roles", [...roles, { 
+                          role: "Officer" as const, 
+                          title: "", 
+                          startAt: new Date().toISOString().split('T')[0] 
+                        }]);
+                      }
+                    } else {
+                      form.setValue("roles", roles.filter(r => r.role !== "Officer"));
+                    }
+                  }}
+                  className="rounded"
+                />
+                <label htmlFor="quick-officer" className="text-sm font-medium">Officer</label>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={addRole} data-testid="add-role-button">
                 <i className="fas fa-plus mr-2"></i>
-                Add Role
+                Add Custom Role
               </Button>
             </div>
           </CardHeader>
