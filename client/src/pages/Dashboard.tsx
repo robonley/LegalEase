@@ -55,24 +55,45 @@ export default function Dashboard() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
+  // Global data queries
   const { data: orgs = [], isLoading: orgsLoading } = useQuery<Entity[]>({
     queryKey: ["/api/orgs"],
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && !currentEntity, // Only load when viewing global dashboard
   });
 
   const { data: auditLogs = [] } = useQuery<any[]>({
     queryKey: ["/api/audit-logs"],
-    enabled: isAuthenticated && orgs.length > 0,
+    enabled: isAuthenticated && !currentEntity, // Only load when viewing global dashboard
+  });
+
+  // Entity-specific data queries
+  const { data: entityPeople = [], isLoading: entityPeopleLoading } = useQuery<any[]>({
+    queryKey: ["/api/orgs", currentEntity?.id, "people"],
+    enabled: isAuthenticated && !!currentEntity?.id,
+  });
+
+  const { data: entityData, isLoading: entityLoading } = useQuery<Entity>({
+    queryKey: ["/api/orgs", currentEntity?.id],
+    enabled: isAuthenticated && !!currentEntity?.id,
   });
 
   if (!isAuthenticated || isLoading) {
     return null;
   }
 
-  // Calculate stats from real data
-  const stats: StatsData = {
+  // Calculate stats based on context (global vs entity)
+  const stats: StatsData = currentEntity ? {
+    // Entity-specific stats
+    activeEntities: 1, // Current entity
+    totalShareholders: entityPeople.filter(person => 
+      person.roles?.some((role: any) => role.role === 'Shareholder')
+    ).length,
+    documentsGenerated: 0, // Would need additional query
+    minuteBooks: 0, // Would need additional query
+  } : {
+    // Global stats
     activeEntities: orgs.length,
-    totalShareholders: 0, // Would need additional query
+    totalShareholders: 0, // Would need additional query across all entities
     documentsGenerated: 0, // Would need additional query
     minuteBooks: 0, // Would need additional query
   };
@@ -158,9 +179,11 @@ export default function Dashboard() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Active Entities</p>
+                  <p className="text-sm text-muted-foreground">
+                    {currentEntity ? "Entity Status" : "Active Entities"}
+                  </p>
                   <p className="text-2xl font-semibold mt-1" data-testid="stat-entities">
-                    {stats.activeEntities}
+                    {currentEntity ? "Active" : stats.activeEntities}
                   </p>
                 </div>
                 <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
@@ -169,7 +192,7 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center mt-4">
                 <span className="text-xs text-green-400 font-medium">
-                  +{orgs.filter(org => new Date(org.updatedAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length} this month
+                  {currentEntity ? "Good standing" : `+${orgs.filter(org => new Date(org.updatedAt) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)).length} this month`}
                 </span>
               </div>
             </CardContent>
@@ -292,61 +315,132 @@ export default function Dashboard() {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                data-testid="quick-action-minute-book"
-              >
-                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
-                  <i className="fas fa-book text-primary"></i>
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium">Generate Minute Book</p>
-                  <p className="text-xs text-muted-foreground">Create complete corporate records</p>
-                </div>
-              </Button>
+              {currentEntity ? (
+                // Entity-specific quick actions
+                <>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => setLocation('/people')}
+                    data-testid="quick-action-add-person"
+                  >
+                    <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center mr-3">
+                      <i className="fas fa-user-plus text-blue-500"></i>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Add Person</p>
+                      <p className="text-xs text-muted-foreground">Add directors, officers, or shareholders</p>
+                    </div>
+                  </Button>
 
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                data-testid="quick-action-add-shareholder"
-              >
-                <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center mr-3">
-                  <i className="fas fa-user-plus text-blue-500"></i>
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium">Add Shareholder</p>
-                  <p className="text-xs text-muted-foreground">Register new equity holder</p>
-                </div>
-              </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => setLocation('/cap-table')}
+                    data-testid="quick-action-cap-table"
+                  >
+                    <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center mr-3">
+                      <i className="fas fa-chart-pie text-emerald-500"></i>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Manage Cap Table</p>
+                      <p className="text-xs text-muted-foreground">View and edit shareholdings</p>
+                    </div>
+                  </Button>
 
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                data-testid="quick-action-upload-template"
-              >
-                <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center mr-3">
-                  <i className="fas fa-upload text-emerald-500"></i>
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium">Upload Template</p>
-                  <p className="text-xs text-muted-foreground">Add new document template</p>
-                </div>
-              </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => setLocation('/documents')}
+                    data-testid="quick-action-documents"
+                  >
+                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
+                      <i className="fas fa-file-alt text-primary"></i>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Documents</p>
+                      <p className="text-xs text-muted-foreground">Generate and manage documents</p>
+                    </div>
+                  </Button>
 
-              <Button
-                variant="outline"
-                className="w-full justify-start"
-                data-testid="quick-action-export-data"
-              >
-                <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center mr-3">
-                  <i className="fas fa-download text-purple-500"></i>
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-medium">Export Data</p>
-                  <p className="text-xs text-muted-foreground">Download entity information</p>
-                </div>
-              </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => setLocation('/minute-books')}
+                    data-testid="quick-action-minute-book"
+                  >
+                    <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center mr-3">
+                      <i className="fas fa-book text-purple-500"></i>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Minute Books</p>
+                      <p className="text-xs text-muted-foreground">Generate corporate records</p>
+                    </div>
+                  </Button>
+                </>
+              ) : (
+                // Global quick actions
+                <>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => setLocation('/entities')}
+                    data-testid="quick-action-new-entity"
+                  >
+                    <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center mr-3">
+                      <i className="fas fa-plus text-primary"></i>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Create Entity</p>
+                      <p className="text-xs text-muted-foreground">Set up a new legal entity</p>
+                    </div>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => setLocation('/templates')}
+                    data-testid="quick-action-upload-template"
+                  >
+                    <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center mr-3">
+                      <i className="fas fa-upload text-emerald-500"></i>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Upload Template</p>
+                      <p className="text-xs text-muted-foreground">Add new document template</p>
+                    </div>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => setLocation('/entities')}
+                    data-testid="quick-action-manage-entities"
+                  >
+                    <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center mr-3">
+                      <i className="fas fa-building text-blue-500"></i>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Manage Entities</p>
+                      <p className="text-xs text-muted-foreground">View and edit your entities</p>
+                    </div>
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start"
+                    data-testid="quick-action-export-data"
+                  >
+                    <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center mr-3">
+                      <i className="fas fa-download text-purple-500"></i>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-medium">Export Data</p>
+                      <p className="text-xs text-muted-foreground">Download entity information</p>
+                    </div>
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
