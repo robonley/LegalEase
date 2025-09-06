@@ -163,8 +163,20 @@ export default function EntityDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Registered Office</CardTitle>
-              <CardDescription>Official registered address</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Registered Office</CardTitle>
+                  <CardDescription>Official registered address</CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLocation(`/entities/${id}/edit`)}
+                  data-testid="edit-registered-office-button"
+                >
+                  <i className="fas fa-edit text-sm"></i>
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               {entity.registeredOfficeId ? (
@@ -177,14 +189,26 @@ export default function EntityDetail() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Records Office</CardTitle>
-              <CardDescription>Where corporate records are maintained</CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Mailing Address</CardTitle>
+                  <CardDescription>Where corporate correspondence is sent</CardDescription>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setLocation(`/entities/${id}/edit`)}
+                  data-testid="edit-mailing-address-button"
+                >
+                  <i className="fas fa-edit text-sm"></i>
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              {entity.recordsOfficeId ? (
+              {entity.mailingAddressId ? (
                 <p className="text-muted-foreground">Address details will be loaded here</p>
               ) : (
-                <p className="text-muted-foreground">No records office address on file</p>
+                <p className="text-muted-foreground">No mailing address on file</p>
               )}
             </CardContent>
           </Card>
