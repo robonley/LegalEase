@@ -309,14 +309,18 @@ export default function People() {
                   {filteredPeople.map((person) => (
                     <TableRow key={person.id} data-testid={`person-row-${person.id}`}>
                       <TableCell>
-                        <div className="flex items-center gap-3">
+                        <div 
+                          className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 rounded p-2 -m-2 transition-colors"
+                          onClick={() => setViewingPerson(person)}
+                          data-testid={`view-person-${person.id}`}
+                        >
                           <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                             <span className="text-sm font-medium text-primary-foreground">
                               {person.firstName[0]}{person.lastName[0]}
                             </span>
                           </div>
                           <div>
-                            <div className="font-medium">
+                            <div className="font-medium hover:text-primary transition-colors">
                               {person.firstName} {person.lastName}
                             </div>
                           </div>
@@ -333,7 +337,9 @@ export default function People() {
                             <Badge 
                               key={role.id} 
                               variant={getRoleBadgeVariant(role.role)}
-                              className="text-xs"
+                              className="text-xs cursor-pointer hover:bg-primary/20 transition-colors"
+                              onClick={() => setViewingPerson(person)}
+                              data-testid={`role-badge-${person.id}-${role.role}`}
                             >
                               {role.title || role.role}
                             </Badge>
