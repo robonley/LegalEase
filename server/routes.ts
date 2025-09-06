@@ -499,6 +499,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Document routes
+  app.get('/api/documents/:orgId?', isAuthenticated, async (req, res) => {
+    try {
+      const orgId = req.params.orgId;
+      if (!orgId) {
+        return res.status(400).json({ message: "Organization ID required" });
+      }
+      
+      const documents = await storage.getGeneratedDocsByOrg(orgId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+
+  app.post('/api/orgs/:orgId/documents', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { documentType } = req.body;
+      const orgId = req.params.orgId;
+
+      // Document type templates mapping
+      const documentTemplates: Record<string, { name: string; code: string; scope: string }> = {
+        "minute-book": { name: "Corporate Minute Book", code: "MINUTE_BOOK", scope: "minute-book" },
+        "bylaws": { name: "Corporate By-Laws", code: "BYLAWS", scope: "bylaws" },
+        "founding-resolution": { name: "Founding Resolution", code: "FOUNDING_RES", scope: "resolution" },
+        "dividend-resolution": { name: "Dividend Resolution", code: "DIVIDEND_RES", scope: "resolution" }
+      };
+
+      const templateConfig = documentTemplates[documentType];
+      if (!templateConfig) {
+        return res.status(400).json({ message: "Invalid document type" });
+      }
+
+      // Create the generated document
+      const generatedDoc = await storage.createGeneratedDoc({
+        orgId,
+        templateId: templateConfig.code,
+        fileKey: `${templateConfig.name}_${new Date().toISOString().split('T')[0]}.docx`,
+        dataUsed: { documentType, organizationId: orgId },
+        createdBy: userId,
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        orgId,
+        actorId: userId,
+        action: "CREATE_DOCUMENT",
+        payload: { documentId: generatedDoc.id, documentType, templateName: templateConfig.name }
+      });
+
+      res.status(201).json(generatedDoc);
+    } catch (error) {
+      console.error("Error creating document:", error);
+      res.status(500).json({ message: "Failed to create document" });
+    }
+  });
+
+  app.post('/api/orgs/:orgId/documents/bundle', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { bundleType } = req.body;
+      const orgId = req.params.orgId;
+
+      if (bundleType !== "new-corporation") {
+        return res.status(400).json({ message: "Invalid bundle type" });
+      }
+
+      // Create bundle documents: Minute Book, By-Laws, Founding Resolution
+      const bundleDocuments = [
+        { name: "Corporate Minute Book", code: "MINUTE_BOOK", scope: "minute-book" },
+        { name: "Corporate By-Laws", code: "BYLAWS", scope: "bylaws" },
+        { name: "Founding Resolution", code: "FOUNDING_RES", scope: "resolution" }
+      ];
+
+      const createdDocs = [];
+      const dateStr = new Date().toISOString().split('T')[0];
+
+      for (const template of bundleDocuments) {
+        const generatedDoc = await storage.createGeneratedDoc({
+          orgId,
+          templateId: template.code,
+          fileKey: `${template.name}_${dateStr}.docx`,
+          dataUsed: { documentType: template.code.toLowerCase(), organizationId: orgId, bundleType },
+          createdBy: userId,
+        });
+        createdDocs.push(generatedDoc);
+      }
+
+      // Create audit log for bundle creation
+      await storage.createAuditLog({
+        orgId,
+        actorId: userId,
+        action: "CREATE_DOCUMENT_BUNDLE",
+        payload: { 
+          bundleType: "new-corporation", 
+          documentsCreated: createdDocs.length,
+          documentIds: createdDocs.map(d => d.id)
+        }
+      });
+
+      res.status(201).json({ documents: createdDocs, message: "New Corporation Bundle created successfully" });
+    } catch (error) {
+      console.error("Error creating document bundle:", error);
+      res.status(500).json({ message: "Failed to create document bundle" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
