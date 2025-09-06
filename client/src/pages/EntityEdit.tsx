@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { useForm } from "react-hook-form";
@@ -93,6 +94,7 @@ export default function EntityEdit() {
     defaultValues: {
       name: "",
       number: "",
+      companyKey: "",
       jurisdiction: "",
       formationAt: undefined,
       authRepName: "",
@@ -132,6 +134,7 @@ export default function EntityEdit() {
       form.reset({
         name: entity.name || "",
         number: entity.number || "",
+        companyKey: entity.companyKey || "",
         jurisdiction: entity.jurisdiction || "",
         formationAt: entity.formationAt ? new Date(entity.formationAt) : undefined,
         authRepName: entity.authRepName || "",
@@ -280,6 +283,19 @@ export default function EntityEdit() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="companyKey"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Company Key</FormLabel>
+                        <FormControl>
+                          <PasswordInput {...field} value={field.value || ""} data-testid="input-company-key" placeholder="Enter secure company key" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="jurisdiction"

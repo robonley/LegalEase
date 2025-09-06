@@ -51,6 +51,7 @@ export const orgs = pgTable("orgs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   number: text("number"), // registration/corp number
+  companyKey: text("company_key"), // secure key for the company
   jurisdiction: text("jurisdiction").notNull(), // e.g., "CBCA", "OBCA", "DE"
   formationAt: timestamp("formation_at"),
   registeredOfficeId: varchar("registered_office_id").references(() => addresses.id),

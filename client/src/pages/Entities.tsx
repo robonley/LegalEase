@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
@@ -60,6 +61,7 @@ export default function Entities() {
     defaultValues: {
       name: "",
       number: "",
+      companyKey: "",
       jurisdiction: "",
       formationAt: undefined,
     },
@@ -148,6 +150,19 @@ export default function Entities() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="companyKey"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company Key</FormLabel>
+                          <FormControl>
+                            <PasswordInput {...field} value={field.value || ""} data-testid="input-company-key" placeholder="Enter secure company key" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField
                       control={form.control}
                       name="jurisdiction"
