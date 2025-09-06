@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { EntitySelector } from "@/components/EntitySelector";
+import { useEntityContext } from "@/hooks/useEntityContext";
 import type { User } from "@shared/schema";
 
 const navigationItems = [
@@ -22,6 +23,7 @@ const adminItems = [
 export function Sidebar() {
   const { user, isAuthenticated } = useAuth();
   const [location] = useLocation();
+  const { currentEntity, clearCurrentEntity } = useEntityContext();
 
   if (!isAuthenticated || !user) {
     return null;
@@ -32,12 +34,23 @@ export function Sidebar() {
       <div className="flex flex-col h-full">
         {/* Logo */}
         <div className="p-6 border-b border-border">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <i className="fas fa-balance-scale text-primary-foreground text-sm"></i>
+          <Link 
+            href="/" 
+            onClick={() => {
+              if (!currentEntity) {
+                // If no entity selected, clear any entity context
+                clearCurrentEntity();
+              }
+              // Navigate to dashboard - either main or entity-specific
+            }}
+          >
+            <div className="flex items-center gap-3 mb-4 cursor-pointer hover:opacity-80 transition-opacity">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                <i className="fas fa-balance-scale text-primary-foreground text-sm"></i>
+              </div>
+              <span className="font-semibold text-lg">LegalEntity</span>
             </div>
-            <span className="font-semibold text-lg">LegalEntity</span>
-          </div>
+          </Link>
           
           {/* Entity Selector */}
           <EntitySelector />

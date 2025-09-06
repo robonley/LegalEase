@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { useEntityContext } from "@/hooks/useEntityContext";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 
@@ -37,6 +38,7 @@ export default function Dashboard() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { currentEntity } = useEntityContext();
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -111,10 +113,21 @@ export default function Dashboard() {
       <header className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Overview of your legal entities and recent activity
-            </p>
+            {currentEntity ? (
+              <>
+                <h1 className="text-2xl font-semibold">{currentEntity.name}</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {currentEntity.jurisdiction} • Entity Dashboard
+                </p>
+              </>
+            ) : (
+              <>
+                <h1 className="text-2xl font-semibold">Dashboard</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Overview of your legal entities and recent activity
+                </p>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <div className="relative">
