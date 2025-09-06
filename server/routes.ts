@@ -663,10 +663,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid document type" });
       }
 
+      // Check if template exists, if not create a placeholder
+      let template = await storage.getTemplates().then(templates => 
+        templates.find(t => t.code === templateConfig.code)
+      );
+
+      if (!template) {
+        // Create a placeholder template
+        template = await storage.createTemplate({
+          name: templateConfig.name,
+          code: templateConfig.code,
+          scope: templateConfig.scope,
+          fileKey: null, // No actual file yet
+          schema: {},
+          ownerId: userId,
+        });
+      }
+
       // Create the generated document
       const generatedDoc = await storage.createGeneratedDoc({
         orgId,
-        templateId: templateConfig.code,
+        templateId: template.id, // Use actual template ID
         fileKey: `${templateConfig.name}_${new Date().toISOString().split('T')[0]}.docx`,
         dataUsed: { documentType, organizationId: orgId },
         createdBy: userId,
@@ -707,12 +724,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const createdDocs = [];
       const dateStr = new Date().toISOString().split('T')[0];
 
-      for (const template of bundleDocuments) {
+      for (const templateConfig of bundleDocuments) {
+        // Check if template exists, if not create a placeholder
+        let template = await storage.getTemplates().then(templates => 
+          templates.find(t => t.code === templateConfig.code)
+        );
+
+        if (!template) {
+          // Create a placeholder template
+          template = await storage.createTemplate({
+            name: templateConfig.name,
+            code: templateConfig.code,
+            scope: templateConfig.scope,
+            fileKey: null, // No actual file yet
+            schema: {},
+            ownerId: userId,
+          });
+        }
+
         const generatedDoc = await storage.createGeneratedDoc({
           orgId,
-          templateId: template.code,
-          fileKey: `${template.name}_${dateStr}.docx`,
-          dataUsed: { documentType: template.code.toLowerCase(), organizationId: orgId, bundleType },
+          templateId: template.id, // Use actual template ID
+          fileKey: `${templateConfig.name}_${dateStr}.docx`,
+          dataUsed: { documentType: templateConfig.code.toLowerCase(), organizationId: orgId, bundleType },
           createdBy: userId,
         });
         createdDocs.push(generatedDoc);
