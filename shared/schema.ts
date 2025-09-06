@@ -363,3 +363,72 @@ export type GeneratedDoc = typeof generatedDocs.$inferSelect;
 export type InsertGeneratedDoc = z.infer<typeof insertGeneratedDocSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+
+// Ingestion Jobs and Results
+export const ingestionJobs = pgTable("ingestion_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  filename: text("filename").notNull(),
+  fileKey: text("file_key").notNull(), // storage key for uploaded file
+  status: text("status").notNull().default("queued"), // queued, processing, completed, failed
+  progress: integer("progress").default(0), // 0-100
+  errorMessage: text("error_message"),
+  extractionResult: jsonb("extraction_result"), // stores ExtractionResult JSON
+  tokensUsed: integer("tokens_used").default(0),
+  processingTimeMs: integer("processing_time_ms"),
+  createdAt: timestamp("created_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+});
+
+// Extraction data types (not stored in DB, used for API responses)
+export const extractedOrganizationSchema = z.object({
+  legalName: z.string().optional(),
+  number: z.string().optional(),
+  jurisdiction: z.string().optional(),
+  formationDate: z.string().optional(), // ISO date
+  registeredOffice: z.string().optional(),
+  recordsOffice: z.string().optional(),
+});
+
+export const extractedPersonSchema = z.object({
+  fullName: z.string(),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  province: z.string().optional(),
+  country: z.string().optional(),
+  postalCode: z.string().optional(),
+  email: z.string().optional(),
+  isDirector: z.boolean().optional(),
+  isOfficer: z.boolean().optional(),
+  officerTitle: z.string().optional(),
+  isShareholder: z.boolean().optional(),
+  shareClass: z.string().optional(),
+  shareSeries: z.string().optional(),
+  shares: z.number().optional(),
+  issueDate: z.string().optional(), // ISO date
+});
+
+export const extractionResultSchema = z.object({
+  organization: extractedOrganizationSchema,
+  people: z.array(extractedPersonSchema),
+  shareholders: z.array(extractedPersonSchema),
+  confidence: z.number().min(0).max(1),
+  confidences: z.record(z.string(), z.number().min(0).max(1)).optional(),
+  sourceMeta: z.object({
+    filename: z.string(),
+    pages: z.number(),
+  }),
+});
+
+export const insertIngestionJobSchema = createInsertSchema(ingestionJobs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type IngestionJob = typeof ingestionJobs.$inferSelect;
+export type InsertIngestionJob = z.infer<typeof insertIngestionJobSchema>;
+export type ExtractedOrganization = z.infer<typeof extractedOrganizationSchema>;
+export type ExtractedPerson = z.infer<typeof extractedPersonSchema>;
+export type ExtractionResult = z.infer<typeof extractionResultSchema>;

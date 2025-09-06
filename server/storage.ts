@@ -10,6 +10,7 @@ import {
   templates,
   generatedDocs,
   auditLogs,
+  ingestionJobs,
   type User,
   type UpsertUser,
   type Org,
@@ -32,6 +33,9 @@ import {
   type InsertGeneratedDoc,
   type AuditLog,
   type InsertAuditLog,
+  type IngestionJob,
+  type InsertIngestionJob,
+  type ExtractionResult,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -96,6 +100,12 @@ export interface IStorage {
   // Audit log operations
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogsByOrg(orgId: string): Promise<AuditLog[]>;
+  
+  // Ingestion job operations
+  createIngestionJob(job: InsertIngestionJob): Promise<IngestionJob>;
+  getIngestionJobById(id: string): Promise<IngestionJob | undefined>;
+  updateIngestionJob(id: string, updates: Partial<InsertIngestionJob>): Promise<IngestionJob>;
+  getIngestionJobsByUser(userId: string): Promise<IngestionJob[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -364,6 +374,34 @@ export class DatabaseStorage implements IStorage {
       .from(auditLogs)
       .where(eq(auditLogs.orgId, orgId))
       .orderBy(desc(auditLogs.createdAt));
+  }
+
+  // Ingestion job operations
+  async createIngestionJob(job: InsertIngestionJob): Promise<IngestionJob> {
+    const [created] = await db.insert(ingestionJobs).values(job).returning();
+    return created;
+  }
+
+  async getIngestionJobById(id: string): Promise<IngestionJob | undefined> {
+    const [job] = await db.select().from(ingestionJobs).where(eq(ingestionJobs.id, id));
+    return job;
+  }
+
+  async updateIngestionJob(id: string, updates: Partial<InsertIngestionJob>): Promise<IngestionJob> {
+    const [updated] = await db
+      .update(ingestionJobs)
+      .set(updates)
+      .where(eq(ingestionJobs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getIngestionJobsByUser(userId: string): Promise<IngestionJob[]> {
+    return await db
+      .select()
+      .from(ingestionJobs)
+      .where(eq(ingestionJobs.userId, userId))
+      .orderBy(desc(ingestionJobs.createdAt));
   }
 }
 
