@@ -1,0 +1,40 @@
+Upgraded Build Prompt (MVP) — Legal Entity Management Platform
+
+1) Product Goal
+
+Build a web app that generates compliant corporate minute books (By-laws, Organizational & Annual Resolutions, Director/Officer registers, Share registers) as high-quality .docx files from reusable templates populated by structured entity data.
+
+2) Target Users & Roles
+	•	Admin (law firm/ops lead): manages templates, data models, user access.
+	•	Lawyer/Clerk: creates entities, maintains cap table, generates documents.
+	•	Read-only (Client/Reviewer): view/download generated PDFs/DOCX, no edits.
+
+3) MVP Scope (must have)
+	•	Entity Profiles: name, number, jurisdiction, formation date, addresses.
+	•	People & Roles: directors, officers, with terms/effective dates and KYC basics.
+	•	Share Classes & Cap Table: class terms, issued shares, certificates, transfers.
+	•	Registers: auto-built Director/Officer/Shareholder/Share Issuance registers.
+	•	Document Templating: upload/manage .docx templates with placeholders; server fills fields and returns .docx (and optional PDF).
+	•	Minute Book Generator: 1-click bundle (zip) of the standard set for: Organization, Annual Maintenance, By-laws.
+	•	Versioning & Audit Log: who changed what, when (entity, cap table, templates).
+	•	Data Export: JSON/CSV exports of entity, people, and cap table.
+	•	Auth & RBAC: email/password + role permissions; org-scoped data.
+	•	Basic Validation: date formats, share math, duplicate cert numbers.
+
+4) Nice-to-Have (post-MVP backlog)
+	•	E-signature trigger (DocuSign/Dropbox Sign).
+	•	Reminders (AGM, annual returns) with calendar invites.
+	•	Template variables with conditional logic and loops for schedules.
+	•	Multi-jurisdiction rulesets (CA CBCA/OBCA; US DE).
+	•	Bulk generation for portfolios.
+	•	API keys for partners (e.g., Clio, internal tools).
+	•	Share certificate graphics renderer with QR code.
+
+5) Tech Stack (suggested, Replit-friendly)
+	•	Frontend: React + TypeScript, Vite.
+	•	Backend: Node.js (Express/Fastify).
+	•	DB: PostgreSQL (Prisma ORM).
+	•	Auth: JWT (httpOnly cookies).
+	•	Document gen: docx-templating via docx, docxtemplater, or PizZip; libreoffice-headless/docx-pdf for PDF.
+	•	Storage: S3-compatible (e.g., Cloudflare R2) or local in dev.
+	•	Infra: Single-repo monolith; .env for secrets; simple migrations.

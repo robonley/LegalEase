@@ -1,0 +1,47 @@
+7) Document Templating Specification (copy/paste for devs)
+	•	Template Format: .docx with placeholder tags using {{variable}}.
+	•	Nested/Repeaters: Use loops: {{#directors}} {{firstName}} {{lastName}} {{/directors}}.
+	•	Conditionals: {{#hasVoting}}…{{/hasVoting}}, {{^hasVoting}}…{{/hasVoting}}.
+	•	Date formatting: {{issueDate | date("MMMM D, YYYY")}}.
+	•	Common Variables:
+	•	{{org.name}}, {{org.number}}, {{org.jurisdiction}}, {{org.formationAt}}
+	•	{{registeredOffice.line1}}, {{recordsOffice.city}}, etc.
+	•	{{#directors}} {{fullName}} {{startAt}} {{/directors}}
+	•	{{#officers}} {{fullName}} {{title}} {{/officers}}
+	•	{{#shareClasses}} {{name}} {{rights}} {{/shareClasses}}
+	•	{{#issuances}} {{shareholder.fullName}} {{quantity}} {{certNumber}} {{issueDate}} {{/issuances}}
+	•	Validation: On upload, parse template to list required fields; UI shows missing/extra fields vs entity data.
+
+8) API Endpoints (MVP)
+	•	POST /auth/signup|login|logout
+	•	GET/POST /orgs (CRUD)
+	•	GET/POST /orgs/:id/people (assign roles, dates)
+	•	GET/POST /orgs/:id/share-classes
+	•	GET/POST /orgs/:id/issuances
+	•	POST /orgs/:id/transfers
+	•	GET /orgs/:id/registers → returns computed registers JSON
+	•	GET /templates | POST /templates (upload .docx + schema)
+	•	POST /generate body: { orgId, templateId, overrides? } → returns file
+	•	POST /minute-book body: { orgId, bundle: ["BYLAW_CBCA_1","ORG_RES_CBCA","DIR_REGISTER","SHR_REGISTER"] }
+	•	GET /docs/:id → signed URL download
+
+9) Security & Compliance (MVP)
+	•	JWT + httpOnly cookies; bcrypt passwords.
+	•	Row-level authorization by org.
+	•	Input validation (zod/yup).
+	•	Audit logging on changes and document generation.
+	•	Basic PII minimization; no SIN/SSN collection in MVP.
+	•	Server-side file type/size checks; virus scan stub.
+
+10) Non-Functional Requirements
+	•	Generate a standard minute book bundle in < 10s with 10k-row cap table.
+	•	99.5% uptime target for MVP.
+	•	Deterministic doc generation (same inputs → identical output).
+	•	All operations scriptable via REST for future CI jobs.
+
+11) Definition of Done (MVP Acceptance)
+	•	Create an org, add directors/officers/shareholders, define classes, record issuances/transfers.
+	•	Upload by-law and organizational resolution templates; generate filled .docx and optional PDF.
+	•	Auto-produce updated Director/Officer/Shareholder registers.
+	•	Download a zip “Minute Book” bundle.
+	•	See audit log entries for all state changes.

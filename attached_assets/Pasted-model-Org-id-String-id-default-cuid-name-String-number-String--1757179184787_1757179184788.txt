@@ -1,0 +1,116 @@
+model Org {
+  id           String  @id @default(cuid())
+  name         String
+  number       String? // registration/corp number
+  jurisdiction String  // e.g., "CBCA", "OBCA", "DE"
+  formationAt  DateTime?
+  registeredOffice Address?
+  recordsOffice   Address?
+  people       PersonOnOrg[]
+  shareClasses ShareClass[]
+  shares       ShareIssuance[]
+  transfers    ShareTransfer[]
+  documents    GeneratedDoc[]
+  auditLogs    AuditLog[]
+  createdById  String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Address {
+  id       String @id @default(cuid())
+  line1    String
+  line2    String?
+  city     String
+  region   String // province/state
+  country  String
+  postal   String
+}
+
+model Person {
+  id        String @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String?
+  dob       DateTime?
+  addressId String?
+  address   Address? @relation(fields: [addressId], references: [id])
+  kycId     String? // external ref
+}
+
+model PersonOnOrg {
+  id        String @id @default(cuid())
+  orgId     String
+  personId  String
+  role      String // "Director" | "Officer" | "Shareholder"
+  title     String? // e.g., "President"
+  startAt   DateTime?
+  endAt     DateTime?
+  @@index([orgId, role])
+}
+
+model ShareClass {
+  id          String @id @default(cuid())
+  orgId       String
+  name        String // "Class A Common"
+  shortCode   String // "A"
+  voting      Boolean
+  participating Boolean
+  redemption  Boolean
+  specialRights String? // free text
+}
+
+model ShareIssuance {
+  id           String @id @default(cuid())
+  orgId        String
+  shareholderId String // Person.id (as shareholder)
+  shareClassId String
+  quantity     Int
+  certNumber   String
+  issuePrice   Decimal?
+  issueDate    DateTime
+}
+
+model ShareTransfer {
+  id            String @id @default(cuid())
+  orgId         String
+  fromPersonId  String?
+  toPersonId    String
+  shareClassId  String
+  quantity      Int
+  transferDate  DateTime
+  consideration Decimal?
+  certFrom      String?
+  certTo        String?
+}
+
+model Template {
+  id         String @id @default(cuid())
+  name       String // "Bylaw No.1 (CBCA)"
+  code       String // "BYLAW_CBCA_1"
+  scope      String // "organization" | "annual" | "resolution" | "register"
+  fileKey    String // storage key for .docx
+  schema     Json   // required fields map
+  ownerId    String?
+  createdAt  DateTime @default(now())
+}
+
+model GeneratedDoc {
+  id         String @id @default(cuid())
+  orgId      String
+  templateId String
+  fileKey    String // output .docx
+  pdfKey     String?
+  dataUsed   Json
+  createdBy  String
+  createdAt  DateTime @default(now())
+}
+
+model AuditLog {
+  id        String @id @default(cuid())
+  orgId     String?
+  actorId   String
+  action    String // e.g., "UPDATE_CAP_TABLE"
+  payload   Json
+  createdAt DateTime @default(now())
+}
