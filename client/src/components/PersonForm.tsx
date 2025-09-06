@@ -58,6 +58,7 @@ interface PersonFormProps {
   isLoading?: boolean;
   initialData?: Partial<PersonWithRolesForm>;
   hideButtons?: boolean;
+  mode?: "create" | "edit";
 }
 
 const roleOptions = [
@@ -78,7 +79,7 @@ const officerTitles = [
   "Other",
 ];
 
-export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData, hideButtons = false }: PersonFormProps) {
+export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData, hideButtons = false, mode }: PersonFormProps) {
   const form = useForm<PersonWithRolesForm>({
     resolver: zodResolver(personWithRolesSchema),
     defaultValues: {
@@ -94,9 +95,9 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
       country: "",
       postal: "",
       roles: [
-        { role: "Director" as const, title: "", startAt: new Date().toISOString().split('T')[0] },
-        { role: "Shareholder" as const, title: "", startAt: new Date().toISOString().split('T')[0], shareQuantity: "", shareType: "Common" as const, shareClass: "" }
-      ],
+        { role: "Director", title: "", startAt: new Date().toISOString().split('T')[0] },
+        { role: "Shareholder", title: "", startAt: new Date().toISOString().split('T')[0], shareQuantity: "", shareType: "Common", shareClass: "" }
+      ] as any,
     },
   });
 
@@ -129,7 +130,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
         startAt: role.startAt || new Date().toISOString(),
         // Include shareholder-specific data if applicable
         ...(role.role === "Shareholder" && {
-          shareQuantity: role.shareQuantity ? parseInt(role.shareQuantity) : undefined,
+          shareQuantity: role.shareQuantity ? Number(role.shareQuantity) : undefined,
           shareType: role.shareType,
           shareClass: role.shareClass || undefined,
         }),
@@ -145,7 +146,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
 
   return (
     <Form {...form}>
-      <form id="person-form" onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+      <form id="person-form" onSubmit={form.handleSubmit(handleSubmit as any)} className="space-y-6">
         {/* Personal Information */}
         <Card>
           <CardHeader>

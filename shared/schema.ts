@@ -86,6 +86,10 @@ export const personOnOrgs = pgTable("person_on_orgs", {
   title: text("title"), // e.g., "President"
   startAt: timestamp("start_at"),
   endAt: timestamp("end_at"),
+  // Shareholder-specific fields
+  shareQuantity: integer("share_quantity"),
+  shareType: text("share_type"), // e.g., "Common" | "Preferred"
+  shareClass: text("share_class"),
 });
 
 export const shareClasses = pgTable("share_classes", {
