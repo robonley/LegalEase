@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 export function EntitySelector() {
-  const { currentEntity, recentEntities } = useEntityContext();
+  const { currentEntity, recentEntities, setCurrentEntity } = useEntityContext();
   const [isOpen, setIsOpen] = useState(false);
 
   // Show current entity or default message
@@ -64,27 +64,28 @@ export function EntitySelector() {
           <>
             <DropdownMenuLabel>Recent Entities</DropdownMenuLabel>
             {recentEntities.map((entity) => (
-              <DropdownMenuItem key={entity.id} asChild>
-                <Link href={`/entities/${entity.id}`}>
-                  <div 
-                    className="flex items-center gap-3 w-full cursor-pointer"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <div className="w-6 h-6 bg-primary rounded flex items-center justify-center flex-shrink-0">
-                      <span className="text-xs font-medium text-primary-foreground">
-                        {getInitials(entity.name)}
-                      </span>
+              <DropdownMenuItem 
+                key={entity.id}
+                onClick={() => {
+                  setCurrentEntity(entity);
+                  setIsOpen(false);
+                }}
+              >
+                <div className="flex items-center gap-3 w-full cursor-pointer">
+                  <div className="w-6 h-6 bg-primary rounded flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-medium text-primary-foreground">
+                      {getInitials(entity.name)}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium truncate">
+                      {entity.name}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {entity.name}
-                      </div>
-                      <div className="text-xs text-muted-foreground truncate">
-                        {entity.jurisdiction}
-                      </div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {entity.jurisdiction}
                     </div>
                   </div>
-                </Link>
+                </div>
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />

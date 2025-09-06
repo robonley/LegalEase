@@ -49,12 +49,12 @@ export function EntityProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('recentEntities', JSON.stringify(recentEntities));
   }, [recentEntities]);
 
-  // Clear current entity when navigating away from entity pages
+  // Clear current entity when navigating to home or other non-entity pages
   useEffect(() => {
-    if (!location.startsWith('/entities/') && currentEntity) {
+    if (location === '/' || location === '/dashboard') {
       setCurrentEntityState(null);
     }
-  }, [location, currentEntity]);
+  }, [location]);
 
   const setCurrentEntity = (entity: Entity | null) => {
     setCurrentEntityState(entity);
