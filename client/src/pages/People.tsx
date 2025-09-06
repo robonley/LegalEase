@@ -229,6 +229,7 @@ export default function People() {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Roles</TableHead>
+                    <TableHead>Share Holdings</TableHead>
                     <TableHead>Date Added</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
@@ -267,6 +268,34 @@ export default function People() {
                             </Badge>
                           ))}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const shareholderRoles = person.roles.filter(role => role.role === 'Shareholder');
+                          if (shareholderRoles.length === 0) {
+                            return <span className="text-muted-foreground text-sm">-</span>;
+                          }
+                          return (
+                            <div className="space-y-1">
+                              {shareholderRoles.map((role) => (
+                                <div key={role.id} className="text-sm">
+                                  {role.shareQuantity ? (
+                                    <div className="flex flex-col">
+                                      <span className="font-medium">
+                                        {role.shareQuantity.toLocaleString()} shares
+                                      </span>
+                                      <span className="text-muted-foreground text-xs">
+                                        {role.shareType} {role.shareClass && `• ${role.shareClass}`}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-muted-foreground">No shares specified</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         <span className="text-muted-foreground text-sm">
