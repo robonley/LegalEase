@@ -72,7 +72,7 @@ export const people = pgTable("people", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   email: text("email"),
-  dob: timestamp("dob"),
+  dateOfBirth: timestamp("dob"),
   addressId: varchar("address_id").references(() => addresses.id),
   kycId: text("kyc_id"), // external ref
   createdAt: timestamp("created_at").defaultNow(),
@@ -84,7 +84,7 @@ export const personOnOrgs = pgTable("person_on_orgs", {
   personId: varchar("person_id").notNull().references(() => people.id),
   role: text("role").notNull(), // "Director" | "Officer" | "Shareholder"
   title: text("title"), // e.g., "President"
-  startAt: timestamp("start_at"),
+  startDate: timestamp("start_at"),
   endAt: timestamp("end_at"),
 });
 

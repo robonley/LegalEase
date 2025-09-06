@@ -29,7 +29,7 @@ const personWithRolesSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  dob: z.string().optional(),
+  dateOfBirth: z.string().optional(),
   // Address fields
   includeAddress: z.boolean().default(false),
   addressLine1: z.string().optional(),
@@ -42,7 +42,7 @@ const personWithRolesSchema = z.object({
   roles: z.array(z.object({
     role: z.enum(["Director", "Officer", "Shareholder"]),
     title: z.string().optional(),
-    startAt: z.string().optional(),
+    startDate: z.string().optional(),
     // Shareholder-specific fields
     shareQuantity: z.string().optional(),
     shareType: z.enum(["Common", "Preferred"]).optional(),
@@ -81,11 +81,11 @@ const officerTitles = [
 export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData, hideButtons = false }: PersonFormProps) {
   const form = useForm<PersonWithRolesForm>({
     resolver: zodResolver(personWithRolesSchema),
-    defaultValues: {
+  defaultValues: {
       firstName: "",
       lastName: "",
       email: "",
-      dob: "",
+      dateOfBirth: "",
       includeAddress: false,
       addressLine1: "",
       addressLine2: "",
@@ -94,8 +94,8 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
       country: "",
       postal: "",
       roles: [
-        { role: "Director" as const, title: "", startAt: new Date().toISOString().split('T')[0] },
-        { role: "Shareholder" as const, title: "", startAt: new Date().toISOString().split('T')[0], shareQuantity: "", shareType: "Common" as const, shareClass: "" }
+        { role: "Director" as const, title: "", startDate: new Date().toISOString().split('T')[0] },
+        { role: "Shareholder" as const, title: "", startDate: new Date().toISOString().split('T')[0], shareQuantity: "", shareType: "Common" as const, shareClass: "" }
       ],
     },
   });
@@ -113,7 +113,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
         firstName: data.firstName,
         lastName: data.lastName,
         email: data.email || undefined,
-        dob: data.dob ? new Date(data.dob) : null,
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
         address: data.includeAddress ? {
           line1: data.addressLine1!,
           line2: data.addressLine2 || undefined,
@@ -126,7 +126,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
       roles: data.roles.map(role => ({
         role: role.role,
         title: role.title || undefined,
-        startAt: role.startAt || new Date().toISOString(),
+        startDate: role.startDate ? new Date(role.startDate) : new Date(),
         // Include shareholder-specific data if applicable
         ...(role.role === "Shareholder" && {
           shareQuantity: role.shareQuantity ? parseInt(role.shareQuantity) : undefined,
@@ -140,7 +140,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
   };
 
   const addRole = () => {
-    appendRole({ role: "Director" as const, title: "", startAt: new Date().toISOString().split('T')[0] });
+    appendRole({ role: "Director" as const, title: "", startDate: new Date().toISOString().split('T')[0] });
   };
 
   return (
@@ -202,7 +202,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
 
             <FormField
               control={form.control}
-              name="dob"
+              name="dateOfBirth"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Date of Birth (Optional)</FormLabel>
@@ -210,7 +210,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                     <Input 
                       type="date" 
                       {...field}
-                      data-testid="input-dob"
+                      data-testid="input-date-of-birth"
                     />
                   </FormControl>
                   <FormMessage />
@@ -350,7 +350,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                         form.setValue("roles", [...roles, { 
                           role: "Director" as const, 
                           title: "", 
-                          startAt: new Date().toISOString().split('T')[0] 
+                          startDate: new Date().toISOString().split('T')[0]
                         }]);
                       }
                     } else {
@@ -373,7 +373,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                         form.setValue("roles", [...roles, { 
                           role: "Shareholder" as const, 
                           title: "", 
-                          startAt: new Date().toISOString().split('T')[0],
+                          startDate: new Date().toISOString().split('T')[0],
                           shareQuantity: "",
                           shareType: "Common" as const,
                           shareClass: ""
@@ -399,7 +399,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                         form.setValue("roles", [...roles, { 
                           role: "Officer" as const, 
                           title: "", 
-                          startAt: new Date().toISOString().split('T')[0] 
+                          startDate: new Date().toISOString().split('T')[0]
                         }]);
                       }
                     } else {
@@ -508,7 +508,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
 
                 <FormField
                   control={form.control}
-                  name={`roles.${index}.startAt`}
+                  name={`roles.${index}.startDate`}
                   render={({ field }) => {
                     const selectedRole = form.watch(`roles.${index}.role`);
                     const isShareHolder = selectedRole === "Shareholder";
