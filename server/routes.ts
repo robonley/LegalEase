@@ -499,6 +499,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Corporate shareholder routes
+  app.post('/api/orgs/:orgId/corporate-shareholders', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { entityShareholderId, shareClassId, quantity, certNumber, issuePrice, issueDate } = req.body;
+      const orgId = req.params.orgId;
+
+      // Validate that entityShareholderId is not the same as orgId
+      if (entityShareholderId === orgId) {
+        return res.status(400).json({ message: "An entity cannot be a shareholder of itself" });
+      }
+
+      // Create the share issuance for corporate shareholder
+      const shareIssuance = await storage.createShareIssuance({
+        orgId,
+        shareholderType: "entity",
+        entityShareholderId,
+        shareClassId,
+        quantity: parseInt(quantity),
+        certNumber,
+        issuePrice: issuePrice ? parseFloat(issuePrice) : null,
+        issueDate: new Date(issueDate),
+      });
+
+      // Create audit log
+      await storage.createAuditLog({
+        orgId,
+        actorId: userId,
+        action: "ADD_CORPORATE_SHAREHOLDER",
+        payload: { 
+          shareIssuanceId: shareIssuance.id,
+          entityShareholderId,
+          quantity: parseInt(quantity),
+          shareClassId
+        }
+      });
+
+      res.status(201).json(shareIssuance);
+    } catch (error) {
+      console.error("Error creating corporate shareholder:", error);
+      res.status(500).json({ message: "Failed to create corporate shareholder" });
+    }
+  });
+
+  // Get corporate shareholdings for an organization
+  app.get('/api/orgs/:orgId/corporate-shareholders', isAuthenticated, async (req, res) => {
+    try {
+      const orgId = req.params.orgId;
+      
+      // Get share issuances with entity shareholders
+      const shareIssuances = await storage.getShareIssuancesByOrg(orgId);
+      const corporateShareholdings = shareIssuances.filter(issuance => issuance.shareholderType === 'entity');
+      
+      res.json(corporateShareholdings);
+    } catch (error) {
+      console.error("Error fetching corporate shareholders:", error);
+      res.status(500).json({ message: "Failed to fetch corporate shareholders" });
+    }
+  });
+
   // Document routes
   app.get('/api/documents/:orgId?', isAuthenticated, async (req, res) => {
     try {

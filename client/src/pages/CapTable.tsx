@@ -40,10 +40,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PersonForm } from "@/components/PersonForm";
+import { CorporateShareholderForm } from "@/components/CorporateShareholderForm";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { Person, PersonOnOrg } from "@shared/schema";
+import type { Person, PersonOnOrg, ShareIssuance, Org } from "@shared/schema";
 
 interface PersonWithRoles extends Person {
   roles: PersonOnOrg[];
@@ -54,6 +55,7 @@ export default function CapTable() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCorporateDialogOpen, setIsCorporateDialogOpen] = useState(false);
   const [editingPerson, setEditingPerson] = useState<PersonWithRoles | null>(null);
   const [viewingPerson, setViewingPerson] = useState<PersonWithRoles | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
