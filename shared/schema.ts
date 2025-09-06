@@ -55,6 +55,13 @@ export const orgs = pgTable("orgs", {
   formationAt: timestamp("formation_at"),
   registeredOfficeId: varchar("registered_office_id").references(() => addresses.id),
   recordsOfficeId: varchar("records_office_id").references(() => addresses.id),
+  mailingAddressId: varchar("mailing_address_id").references(() => addresses.id),
+  // Authorized Representative fields
+  authRepName: text("auth_rep_name"),
+  authRepCompany: text("auth_rep_company"),
+  authRepAddressId: varchar("auth_rep_address_id").references(() => addresses.id),
+  authRepEmail: text("auth_rep_email"),
+  authRepPhone: text("auth_rep_phone"),
   createdById: varchar("created_by_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -158,6 +165,16 @@ export const orgsRelations = relations(orgs, ({ one, many }) => ({
     fields: [orgs.recordsOfficeId],
     references: [addresses.id],
     relationName: "recordsOffice",
+  }),
+  mailingAddress: one(addresses, {
+    fields: [orgs.mailingAddressId],
+    references: [addresses.id],
+    relationName: "mailingAddress",
+  }),
+  authRepAddress: one(addresses, {
+    fields: [orgs.authRepAddressId],
+    references: [addresses.id],
+    relationName: "authRepAddress",
   }),
   createdBy: one(users, {
     fields: [orgs.createdById],

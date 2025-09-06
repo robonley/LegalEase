@@ -108,8 +108,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (processedBody.formationAt) {
         processedBody.formationAt = new Date(processedBody.formationAt);
       }
+
+      // Handle address creation and linking
+      const orgUpdates: any = { ...processedBody };
+
+      // Create registered office address if provided
+      if (processedBody.registeredOffice && processedBody.registeredOffice.line1) {
+        const registeredOffice = await storage.createAddress(processedBody.registeredOffice);
+        orgUpdates.registeredOfficeId = registeredOffice.id;
+      }
+      delete orgUpdates.registeredOffice;
+
+      // Create mailing address if provided
+      if (processedBody.mailingAddress && processedBody.mailingAddress.line1) {
+        const mailingAddress = await storage.createAddress(processedBody.mailingAddress);
+        orgUpdates.mailingAddressId = mailingAddress.id;
+      }
+      delete orgUpdates.mailingAddress;
+
+      // Create authorized representative address if provided
+      if (processedBody.authRepAddress && processedBody.authRepAddress.line1) {
+        const authRepAddress = await storage.createAddress(processedBody.authRepAddress);
+        orgUpdates.authRepAddressId = authRepAddress.id;
+      }
+      delete orgUpdates.authRepAddress;
       
-      const updates = insertOrgSchema.partial().parse(processedBody);
+      const updates = insertOrgSchema.partial().parse(orgUpdates);
       const org = await storage.updateOrg(req.params.id, updates);
       
       await storage.createAuditLog({

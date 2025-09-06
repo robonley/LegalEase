@@ -16,12 +16,30 @@ import { insertOrgSchema } from "@shared/schema";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import type { Org } from "@shared/schema";
 
-const formSchema = insertOrgSchema.omit({ 
-  createdById: true, 
-  createdAt: true, 
-  updatedAt: true,
-  registeredOfficeId: true,
-  recordsOfficeId: true
+// Enhanced schema for entity editing with addresses and authorized rep
+const addressSchema = z.object({
+  line1: z.string().min(1, "Address line 1 is required"),
+  line2: z.string().optional(),
+  city: z.string().min(1, "City is required"),
+  region: z.string().min(1, "Region/State is required"),
+  country: z.string().min(1, "Country is required"),
+  postal: z.string().min(1, "Postal code is required"),
+});
+
+const formSchema = z.object({
+  // Basic entity fields
+  name: z.string().min(1, "Entity name is required"),
+  number: z.string().optional(),
+  jurisdiction: z.string().min(1, "Jurisdiction is required"),
+  formationAt: z.date().optional(),
+  authRepName: z.string().optional(),
+  authRepCompany: z.string().optional(),
+  authRepEmail: z.string().email().optional().or(z.literal("")),
+  authRepPhone: z.string().optional(),
+  // Address fields
+  registeredOffice: addressSchema.optional(),
+  mailingAddress: addressSchema.optional(),
+  authRepAddress: addressSchema.optional(),
 });
 
 export default function EntityEdit() {
@@ -77,6 +95,34 @@ export default function EntityEdit() {
       number: "",
       jurisdiction: "",
       formationAt: undefined,
+      authRepName: "",
+      authRepCompany: "",
+      authRepEmail: "",
+      authRepPhone: "",
+      registeredOffice: {
+        line1: "",
+        line2: "",
+        city: "",
+        region: "",
+        country: "",
+        postal: "",
+      },
+      mailingAddress: {
+        line1: "",
+        line2: "",
+        city: "",
+        region: "",
+        country: "",
+        postal: "",
+      },
+      authRepAddress: {
+        line1: "",
+        line2: "",
+        city: "",
+        region: "",
+        country: "",
+        postal: "",
+      },
     },
   });
 
@@ -88,6 +134,34 @@ export default function EntityEdit() {
         number: entity.number || "",
         jurisdiction: entity.jurisdiction || "",
         formationAt: entity.formationAt ? new Date(entity.formationAt) : undefined,
+        authRepName: entity.authRepName || "",
+        authRepCompany: entity.authRepCompany || "",
+        authRepEmail: entity.authRepEmail || "",
+        authRepPhone: entity.authRepPhone || "",
+        registeredOffice: {
+          line1: "",
+          line2: "",
+          city: "",
+          region: "",
+          country: "",
+          postal: "",
+        },
+        mailingAddress: {
+          line1: "",
+          line2: "",
+          city: "",
+          region: "",
+          country: "",
+          postal: "",
+        },
+        authRepAddress: {
+          line1: "",
+          line2: "",
+          city: "",
+          region: "",
+          country: "",
+          postal: "",
+        },
       });
     }
   }, [entity, form]);
@@ -248,6 +322,328 @@ export default function EntityEdit() {
                       </FormItem>
                     )}
                   />
+                </div>
+
+                {/* Registered Office */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Registered Office</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="registeredOffice.line1"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Address Line 1</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-reg-office-line1" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="registeredOffice.line2"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Address Line 2 (Optional)</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-reg-office-line2" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="registeredOffice.city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>City</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-reg-office-city" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="registeredOffice.region"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Province/State</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-reg-office-region" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="registeredOffice.postal"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Postal Code</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-reg-office-postal" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="registeredOffice.country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-reg-office-country" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Mailing Address */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Mailing Address</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="mailingAddress.line1"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Address Line 1</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-mailing-line1" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="mailingAddress.line2"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Address Line 2 (Optional)</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-mailing-line2" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="mailingAddress.city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>City</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-mailing-city" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="mailingAddress.region"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Province/State</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-mailing-region" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="mailingAddress.postal"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Postal Code</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-mailing-postal" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="mailingAddress.country"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Country</FormLabel>
+                        <FormControl>
+                          <Input {...field} data-testid="input-mailing-country" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {/* Authorized Representative */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Authorized Representative</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="authRepName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Full Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-auth-rep-name" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="authRepCompany"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Company Name</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-auth-rep-company" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="authRepEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email Address</FormLabel>
+                          <FormControl>
+                            <Input type="email" {...field} data-testid="input-auth-rep-email" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="authRepPhone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Phone Number</FormLabel>
+                          <FormControl>
+                            <Input type="tel" {...field} data-testid="input-auth-rep-phone" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  {/* Authorized Representative Address */}
+                  <div className="space-y-4">
+                    <h4 className="text-md font-medium text-muted-foreground">Representative Address</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="authRepAddress.line1"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Address Line 1</FormLabel>
+                            <FormControl>
+                              <Input {...field} data-testid="input-auth-rep-line1" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="authRepAddress.line2"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Address Line 2 (Optional)</FormLabel>
+                            <FormControl>
+                              <Input {...field} data-testid="input-auth-rep-line2" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="authRepAddress.city"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>City</FormLabel>
+                            <FormControl>
+                              <Input {...field} data-testid="input-auth-rep-city" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="authRepAddress.region"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Province/State</FormLabel>
+                            <FormControl>
+                              <Input {...field} data-testid="input-auth-rep-region" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="authRepAddress.postal"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Postal Code</FormLabel>
+                            <FormControl>
+                              <Input {...field} data-testid="input-auth-rep-postal" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="authRepAddress.country"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Country</FormLabel>
+                          <FormControl>
+                            <Input {...field} data-testid="input-auth-rep-country" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
 
                 <div className="flex justify-end gap-3">
