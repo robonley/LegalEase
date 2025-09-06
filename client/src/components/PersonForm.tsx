@@ -434,7 +434,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className={form.watch(`roles.${index}.role`) === "Shareholder" ? "grid grid-cols-1 gap-4" : "grid grid-cols-2 gap-4"}>
                   <FormField
                     control={form.control}
                     name={`roles.${index}.role`}
@@ -463,63 +463,69 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name={`roles.${index}.title`}
-                    render={({ field }) => {
-                      const selectedRole = form.watch(`roles.${index}.role`);
-                      return (
-                        <FormItem>
-                          <FormLabel>
-                            {selectedRole === "Officer" ? "Officer Title" : "Specific Title (Optional)"}
-                          </FormLabel>
-                          {selectedRole === "Officer" ? (
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  {form.watch(`roles.${index}.role`) !== "Shareholder" && (
+                    <FormField
+                      control={form.control}
+                      name={`roles.${index}.title`}
+                      render={({ field }) => {
+                        const selectedRole = form.watch(`roles.${index}.role`);
+                        return (
+                          <FormItem>
+                            <FormLabel>
+                              {selectedRole === "Officer" ? "Officer Title" : "Specific Title (Optional)"}
+                            </FormLabel>
+                            {selectedRole === "Officer" ? (
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger data-testid={`select-title-${index}`}>
+                                    <SelectValue placeholder="Select officer title" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {officerTitles.map((title) => (
+                                    <SelectItem key={title} value={title}>
+                                      {title}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
                               <FormControl>
-                                <SelectTrigger data-testid={`select-title-${index}`}>
-                                  <SelectValue placeholder="Select officer title" />
-                                </SelectTrigger>
+                                <Input 
+                                  placeholder={selectedRole === "Director" ? "Lead Director" : "Title"}
+                                  {...field}
+                                  data-testid={`input-title-${index}`}
+                                />
                               </FormControl>
-                              <SelectContent>
-                                {officerTitles.map((title) => (
-                                  <SelectItem key={title} value={title}>
-                                    {title}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <FormControl>
-                              <Input 
-                                placeholder={selectedRole === "Director" ? "Lead Director" : "Title"}
-                                {...field}
-                                data-testid={`input-title-${index}`}
-                              />
-                            </FormControl>
-                          )}
-                          <FormMessage />
-                        </FormItem>
-                      );
-                    }}
-                  />
+                            )}
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
+                    />
+                  )}
                 </div>
 
                 <FormField
                   control={form.control}
                   name={`roles.${index}.startAt`}
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Start Date</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="date" 
-                          {...field}
-                          data-testid={`input-start-date-${index}`}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    const selectedRole = form.watch(`roles.${index}.role`);
+                    const isShareHolder = selectedRole === "Shareholder";
+                    return (
+                      <FormItem>
+                        <FormLabel>{isShareHolder ? "Share Issue Date" : "Start Date"}</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="date" 
+                            {...field}
+                            data-testid={`input-start-date-${index}`}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
 
                 {/* Shareholder-specific fields */}
