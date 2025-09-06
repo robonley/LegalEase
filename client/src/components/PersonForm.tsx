@@ -23,30 +23,27 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { insertPersonSchema, insertPersonOnOrgSchema } from "@shared/schema";
 
-// Form schema combining person and roles
+// Simple form schema
 const personWithRolesSchema = z.object({
-  person: insertPersonSchema.omit({ createdAt: true }).extend({
-    address: z.object({
-      line1: z.string().min(1, "Address line 1 is required"),
-      line2: z.string().optional(),
-      city: z.string().min(1, "City is required"),
-      region: z.string().min(1, "Province/State is required"),
-      country: z.string().min(1, "Country is required"),
-      postal: z.string().min(1, "Postal code is required"),
-    }).optional(),
-  }),
-  roles: z.array(
-    insertPersonOnOrgSchema.omit({ 
-      orgId: true, 
-      personId: true 
-    }).extend({
-      role: z.enum(["Director", "Officer", "Shareholder"], {
-        required_error: "Please select a role",
-      }),
-    })
-  ).min(1, "At least one role is required"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email address").optional().or(z.literal("")),
+  dob: z.string().optional(),
+  // Address fields
+  includeAddress: z.boolean().default(false),
+  addressLine1: z.string().optional(),
+  addressLine2: z.string().optional(),
+  city: z.string().optional(),
+  region: z.string().optional(),
+  country: z.string().optional(),
+  postal: z.string().optional(),
+  // Roles
+  roles: z.array(z.object({
+    role: z.enum(["Director", "Officer", "Shareholder"]),
+    title: z.string().optional(),
+    startAt: z.string().optional(),
+  })).min(1, "At least one role is required"),
 });
 
 type PersonWithRolesForm = z.infer<typeof personWithRolesSchema>;
@@ -77,21 +74,25 @@ const officerTitles = [
 ];
 
 export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData }: PersonFormProps) {
-  const [includeAddress, setIncludeAddress] = useState(false);
-
   const form = useForm<PersonWithRolesForm>({
     resolver: zodResolver(personWithRolesSchema),
     defaultValues: {
-      person: {
-        firstName: "",
-        lastName: "",
-        email: "",
-        dob: undefined,
-        ...initialData?.person,
-      },
-      roles: initialData?.roles || [{ role: "Director" as const, title: "", startAt: new Date() }],
+      firstName: "",
+      lastName: "",
+      email: "",
+      dob: "",
+      includeAddress: false,
+      addressLine1: "",
+      addressLine2: "",
+      city: "",
+      region: "",
+      country: "",
+      postal: "",
+      roles: [{ role: "Director" as const, title: "", startAt: new Date().toISOString().split('T')[0] }],
     },
   });
+
+  const includeAddress = form.watch("includeAddress");
 
   const { fields: roleFields, append: appendRole, remove: removeRole } = useFieldArray({
     control: form.control,
@@ -101,12 +102,23 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
   const handleSubmit = (data: PersonWithRolesForm) => {
     const submitData = {
       person: {
-        ...data.person,
-        dob: data.person.dob || null,
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email || undefined,
+        dob: data.dob ? new Date(data.dob) : null,
+        address: data.includeAddress ? {
+          line1: data.addressLine1!,
+          line2: data.addressLine2 || undefined,
+          city: data.city!,
+          region: data.region!,
+          country: data.country!,
+          postal: data.postal!,
+        } : undefined,
       },
       roles: data.roles.map(role => ({
-        ...role,
-        startAt: role.startAt || new Date(),
+        role: role.role,
+        title: role.title || undefined,
+        startAt: role.startAt ? new Date(role.startAt) : new Date(),
       })),
     };
     
@@ -114,7 +126,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
   };
 
   const addRole = () => {
-    appendRole({ role: "Director" as const, title: "", startAt: new Date() });
+    appendRole({ role: "Director" as const, title: "", startAt: new Date().toISOString().split('T')[0] });
   };
 
   return (
@@ -129,7 +141,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="person.firstName"
+                name="firstName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>First Name</FormLabel>
@@ -142,7 +154,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
               />
               <FormField
                 control={form.control}
-                name="person.lastName"
+                name="lastName"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Last Name</FormLabel>
@@ -157,7 +169,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
 
             <FormField
               control={form.control}
-              name="person.email"
+              name="email"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Email Address</FormLabel>
@@ -176,7 +188,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
 
             <FormField
               control={form.control}
-              name="person.dob"
+              name="dob"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Date of Birth (Optional)</FormLabel>
@@ -184,8 +196,6 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
                     <Input 
                       type="date" 
                       {...field}
-                      value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
-                      onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
                       data-testid="input-dob"
                     />
                   </FormControl>
@@ -196,22 +206,29 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
 
             {/* Address Section */}
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="include-address"
-                  checked={includeAddress}
-                  onChange={(e) => setIncludeAddress(e.target.checked)}
-                  className="rounded"
-                />
-                <Label htmlFor="include-address">Include address information</Label>
-              </div>
+              <FormField
+                control={form.control}
+                name="includeAddress"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl>
+                      <input
+                        type="checkbox"
+                        checked={field.value}
+                        onChange={field.onChange}
+                        className="rounded"
+                      />
+                    </FormControl>
+                    <FormLabel>Include address information</FormLabel>
+                  </FormItem>
+                )}
+              />
 
               {includeAddress && (
                 <div className="space-y-4 p-4 border rounded-lg">
                   <FormField
                     control={form.control}
-                    name="person.address.line1"
+                    name="addressLine1"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Address Line 1</FormLabel>
@@ -225,7 +242,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
 
                   <FormField
                     control={form.control}
-                    name="person.address.line2"
+                    name="addressLine2"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Address Line 2 (Optional)</FormLabel>
@@ -240,7 +257,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="person.address.city"
+                      name="city"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>City</FormLabel>
@@ -254,7 +271,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
 
                     <FormField
                       control={form.control}
-                      name="person.address.region"
+                      name="region"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Province/State</FormLabel>
@@ -270,7 +287,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
-                      name="person.address.country"
+                      name="country"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Country</FormLabel>
@@ -284,7 +301,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
 
                     <FormField
                       control={form.control}
-                      name="person.address.postal"
+                      name="postal"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Postal Code</FormLabel>
@@ -411,8 +428,6 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData 
                         <Input 
                           type="date" 
                           {...field}
-                          value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
-                          onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : new Date())}
                           data-testid={`input-start-date-${index}`}
                         />
                       </FormControl>
