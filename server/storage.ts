@@ -170,12 +170,12 @@ export class DatabaseStorage implements IStorage {
 
   async getPeopleByOrg(orgId: string): Promise<Person[]> {
     return await db
-      .select({ 
+      .select({
         id: people.id,
         firstName: people.firstName,
         lastName: people.lastName,
         email: people.email,
-        dob: people.dob,
+        dateOfBirth: people.dateOfBirth,
         addressId: people.addressId,
         kycId: people.kycId,
         createdAt: people.createdAt,

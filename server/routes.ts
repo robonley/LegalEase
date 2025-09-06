@@ -172,12 +172,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const { person: personData, roles } = req.body;
-      
+
       // Create address if provided
       if (personData.address) {
         const address = await storage.createAddress(personData.address);
         personData.addressId = address.id;
         delete personData.address;
+      }
+
+      // Convert dates to Date objects
+      if (personData.dateOfBirth) {
+        personData.dateOfBirth = new Date(personData.dateOfBirth);
       }
 
       const person = await storage.createPerson(insertPersonSchema.parse(personData));
@@ -186,11 +191,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const createdRoles = [];
       for (const role of roles || []) {
         console.log("Role data received:", role);
-        console.log("Role startAt type:", typeof role.startAt, role.startAt);
-        
+        console.log("Role startDate type:", typeof role.startDate, role.startDate);
+
         const relationData = insertPersonOnOrgSchema.parse({
           ...role,
-          startAt: role.startAt ? new Date(role.startAt) : new Date(),
+          startDate: role.startDate ? new Date(role.startDate) : new Date(),
           orgId: req.params.orgId,
           personId: person.id
         });
@@ -519,7 +524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         shareClassId,
         quantity: parseInt(quantity),
         certNumber,
-        issuePrice: issuePrice ? parseFloat(issuePrice) : null,
+        issuePrice: issuePrice ? parseFloat(issuePrice).toString() : null,
         issueDate: new Date(issueDate),
       });
 
@@ -674,7 +679,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: templateConfig.name,
           code: templateConfig.code,
           scope: templateConfig.scope,
-          fileKey: null, // No actual file yet
+          fileKey: "", // No actual file yet
           schema: {},
           ownerId: userId,
         });
@@ -736,7 +741,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             name: templateConfig.name,
             code: templateConfig.code,
             scope: templateConfig.scope,
-            fileKey: null, // No actual file yet
+            fileKey: "", // No actual file yet
             schema: {},
             ownerId: userId,
           });
