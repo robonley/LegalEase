@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { EntitySelector } from "@/components/EntitySelector";
 import { useEntityContext } from "@/hooks/useEntityContext";
+import { useTheme } from "@/hooks/useTheme";
 import type { User } from "@shared/schema";
 
 // Navigation items will be dynamically generated based on entity context
@@ -16,6 +17,7 @@ export function Sidebar() {
   const { user, isAuthenticated } = useAuth();
   const [location] = useLocation();
   const { currentEntity, clearCurrentEntity } = useEntityContext();
+  const { theme, toggleTheme } = useTheme();
 
   // Generate navigation items based on entity context
   const getNavigationItems = () => {
@@ -119,6 +121,24 @@ export function Sidebar() {
             </div>
           )}
         </nav>
+
+        {/* Theme Toggle */}
+        <div className="p-4 border-t border-border">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleTheme}
+            className="w-full justify-start gap-3 h-9"
+            data-testid="theme-toggle"
+          >
+            <div className="w-4 h-4 flex items-center justify-center">
+              <i className={theme === 'dark' ? "fas fa-sun" : "fas fa-moon"}></i>
+            </div>
+            <span className="text-sm">
+              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            </span>
+          </Button>
+        </div>
 
         {/* User Profile */}
         <div className="p-4 border-t border-border">

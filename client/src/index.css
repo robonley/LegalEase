@@ -51,6 +51,37 @@
   --spacing: 0.25rem;
 }
 
+/* Light mode colors */
+:root.light {
+  --background: hsl(0, 0%, 100%);
+  --foreground: hsl(222.2, 84%, 4.9%);
+  --card: hsl(0, 0%, 100%);
+  --card-foreground: hsl(222.2, 84%, 4.9%);
+  --popover: hsl(0, 0%, 100%);
+  --popover-foreground: hsl(222.2, 84%, 4.9%);
+  --primary: hsl(217.2, 91.2%, 59.8%);
+  --primary-foreground: hsl(210, 40%, 98%);
+  --secondary: hsl(210, 40%, 96%);
+  --secondary-foreground: hsl(222.2, 84%, 4.9%);
+  --muted: hsl(210, 40%, 96%);
+  --muted-foreground: hsl(215.4, 16.3%, 46.9%);
+  --accent: hsl(210, 40%, 96%);
+  --accent-foreground: hsl(222.2, 84%, 4.9%);
+  --destructive: hsl(0, 84.2%, 60.2%);
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --border: hsl(214.3, 31.8%, 91.4%);
+  --input: hsl(214.3, 31.8%, 91.4%);
+  --ring: hsl(217.2, 91.2%, 59.8%);
+  --sidebar: hsl(0, 0%, 100%);
+  --sidebar-foreground: hsl(222.2, 84%, 4.9%);
+  --sidebar-primary: hsl(217.2, 91.2%, 59.8%);
+  --sidebar-primary-foreground: hsl(210, 40%, 98%);
+  --sidebar-accent: hsl(210, 40%, 96%);
+  --sidebar-accent-foreground: hsl(222.2, 84%, 4.9%);
+  --sidebar-border: hsl(214.3, 31.8%, 91.4%);
+  --sidebar-ring: hsl(217.2, 91.2%, 59.8%);
+}
+
 @layer base {
   * {
     @apply border-border;

@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import { EntityProvider } from "@/hooks/useEntityContext";
+import { ThemeProvider } from "@/hooks/useTheme";
 import { Layout } from "@/components/Layout";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
@@ -58,10 +59,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <ThemeProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
