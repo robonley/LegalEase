@@ -6,15 +6,7 @@ import { EntitySelector } from "@/components/EntitySelector";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import type { User } from "@shared/schema";
 
-const navigationItems = [
-  { href: "/", icon: "fas fa-tachometer-alt", label: "Dashboard" },
-  { href: "/entities", icon: "fas fa-building", label: "Entities" },
-  { href: "/people", icon: "fas fa-users", label: "People & Roles" },
-  { href: "/cap-table", icon: "fas fa-chart-pie", label: "Cap Table" },
-  { href: "/documents", icon: "fas fa-file-alt", label: "Documents" },
-  { href: "/templates", icon: "fas fa-folder", label: "Templates" },
-  { href: "/minute-books", icon: "fas fa-book", label: "Minute Books" },
-];
+// Navigation items will be dynamically generated based on entity context
 
 const adminItems = [
   { href: "/audit-log", icon: "fas fa-history", label: "Audit Log" },
@@ -24,6 +16,29 @@ export function Sidebar() {
   const { user, isAuthenticated } = useAuth();
   const [location] = useLocation();
   const { currentEntity, clearCurrentEntity } = useEntityContext();
+
+  // Generate navigation items based on entity context
+  const getNavigationItems = () => {
+    if (currentEntity) {
+      // Entity-specific navigation
+      return [
+        { href: "/", icon: "fas fa-tachometer-alt", label: "Dashboard" },
+        { href: "/people", icon: "fas fa-users", label: "People & Roles" },
+        { href: "/cap-table", icon: "fas fa-chart-pie", label: "Cap Table" },
+        { href: "/documents", icon: "fas fa-file-alt", label: "Documents" },
+        { href: "/minute-books", icon: "fas fa-book", label: "Minute Books" },
+      ];
+    } else {
+      // Global navigation
+      return [
+        { href: "/", icon: "fas fa-tachometer-alt", label: "Dashboard" },
+        { href: "/entities", icon: "fas fa-building", label: "Entities" },
+        { href: "/templates", icon: "fas fa-folder", label: "Templates" },
+      ];
+    }
+  };
+
+  const navigationItems = getNavigationItems();
 
   if (!isAuthenticated || !user) {
     return null;
@@ -54,6 +69,18 @@ export function Sidebar() {
           
           {/* Entity Selector */}
           <EntitySelector />
+          
+          {/* Entity Context Indicator */}
+          {currentEntity && (
+            <div className="mt-3 p-2 bg-accent rounded-lg">
+              <div className="text-xs font-medium text-accent-foreground">
+                Entity Mode
+              </div>
+              <div className="text-xs text-muted-foreground">
+                All actions apply to this entity
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Navigation Menu */}
