@@ -44,11 +44,50 @@ import { useEntityContext } from "@/hooks/useEntityContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Person, PersonOnOrg } from "@shared/schema";
-import { PersonForm } from "../components/PersonForm";
+import { PersonForm, type PersonWithRolesForm } from "../components/PersonForm";
 
 interface PersonWithRoles extends Person {
-  roles: PersonOnOrg[];
+  phone?: string | null;
+  address?: any;
+  dateOfBirth?: string | null;
+  roles: (PersonOnOrg & {
+    startDate?: string | null;
+    shareQuantity?: number | null;
+    shareType?: string | null;
+    shareClass?: string | null;
+    shareIssueDate?: string | null;
+  })[];
 }
+
+const toPersonFormData = (person: PersonWithRoles): Partial<PersonWithRolesForm> => ({
+  firstName: person.firstName,
+  lastName: person.lastName,
+  email: person.email ?? "",
+  dob: (person as any).dateOfBirth
+    ? new Date((person as any).dateOfBirth).toISOString().split("T")[0]
+    : person.dob
+    ? new Date(person.dob).toISOString().split("T")[0]
+    : "",
+  includeAddress: !!(person as any).address,
+  addressLine1: (person as any).address?.line1 ?? "",
+  addressLine2: (person as any).address?.line2 ?? "",
+  city: (person as any).address?.city ?? "",
+  region: (person as any).address?.region ?? "",
+  country: (person as any).address?.country ?? "",
+  postal: (person as any).address?.postal ?? "",
+  roles: person.roles.map(r => ({
+    role: r.role as any,
+    title: r.title ?? "",
+    startAt: (r as any).startAt
+      ? new Date((r as any).startAt).toISOString().split("T")[0]
+      : (r as any).startDate
+      ? new Date((r as any).startDate).toISOString().split("T")[0]
+      : "",
+    shareQuantity: (r as any).shareQuantity ? String((r as any).shareQuantity) : "",
+    shareType: ((r as any).shareType as any) ?? "Common",
+    shareClass: (r as any).shareClass ?? "",
+  })),
+});
 
 export default function People() {
   const { currentEntity } = useEntityContext();
@@ -68,9 +107,7 @@ export default function People() {
   // Delete person mutation
   const deleteMutation = useMutation({
     mutationFn: async (personId: string) => {
-      await apiRequest(`/api/orgs/${currentEntity?.id}/people/${personId}`, {
-        method: "DELETE",
-      });
+      await apiRequest("DELETE", `/api/orgs/${currentEntity?.id}/people/${personId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -133,6 +170,12 @@ export default function People() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  const updatePersonMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { person: any; roles: any[] } }) => {
+      return await apiRequest("PUT", `/api/orgs/${currentEntity?.id}/people/${id}`, data);
     },
   });
 
@@ -523,20 +566,33 @@ export default function People() {
               isEditMode ? (
                 // Edit Mode - Show PersonForm
                 <PersonForm
-                  mode="edit"
-                  initialData={viewingPerson}
-                  onSuccess={() => {
-                    setIsEditMode(false);
-                    queryClient.invalidateQueries({
-                      queryKey: ["/api/orgs", currentEntity?.id, "people"],
-                    });
-                    toast({
-                      title: "Success",
-                      description: "Person updated successfully",
-                    });
-                  }}
+                  initialData={toPersonFormData(viewingPerson)}
+                  onSubmit={(data) =>
+                    updatePersonMutation.mutate(
+                      { id: viewingPerson.id, data },
+                      {
+                        onSuccess: () => {
+                          setIsEditMode(false);
+                          queryClient.invalidateQueries({
+                            queryKey: ["/api/orgs", currentEntity?.id, "people"],
+                          });
+                          toast({
+                            title: "Success",
+                            description: "Person updated successfully",
+                          });
+                        },
+                        onError: (error: Error) => {
+                          toast({
+                            title: "Error",
+                            description: error.message,
+                            variant: "destructive",
+                          });
+                        },
+                      }
+                    )
+                  }
                   onCancel={() => setIsEditMode(false)}
-                  hideButtons={true}
+                  isLoading={updatePersonMutation.isPending}
                 />
               ) : (
                 // View Mode - Show person details
@@ -640,15 +696,33 @@ export default function People() {
             </DialogHeader>
             {editingPerson && (
               <PersonForm
-                mode="edit"
-                initialData={editingPerson}
-                onSuccess={() => {
-                  setEditingPerson(null);
-                  queryClient.invalidateQueries({
-                    queryKey: ["/api/orgs", currentEntity?.id, "people"],
-                  });
-                }}
+                initialData={toPersonFormData(editingPerson)}
+                onSubmit={(data) =>
+                  updatePersonMutation.mutate(
+                    { id: editingPerson.id, data },
+                    {
+                      onSuccess: () => {
+                        setEditingPerson(null);
+                        queryClient.invalidateQueries({
+                          queryKey: ["/api/orgs", currentEntity?.id, "people"],
+                        });
+                        toast({
+                          title: "Success",
+                          description: "Person updated successfully",
+                        });
+                      },
+                      onError: (error: Error) => {
+                        toast({
+                          title: "Error",
+                          description: error.message,
+                          variant: "destructive",
+                        });
+                      },
+                    }
+                  )
+                }
                 onCancel={() => setEditingPerson(null)}
+                isLoading={updatePersonMutation.isPending}
               />
             )}
           </DialogContent>

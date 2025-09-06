@@ -39,7 +39,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PersonForm } from "@/components/PersonForm";
+import { PersonForm, type PersonWithRolesForm } from "@/components/PersonForm";
 import { CorporateShareholderForm } from "@/components/CorporateShareholderForm";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { useToast } from "@/hooks/use-toast";
@@ -47,8 +47,47 @@ import { apiRequest } from "@/lib/queryClient";
 import type { Person, PersonOnOrg, ShareIssuance, Org } from "@shared/schema";
 
 interface PersonWithRoles extends Person {
-  roles: PersonOnOrg[];
+  phone?: string | null;
+  address?: any;
+  dateOfBirth?: string | null;
+  roles: (PersonOnOrg & {
+    startDate?: string | null;
+    shareQuantity?: number | null;
+    shareType?: string | null;
+    shareClass?: string | null;
+    shareIssueDate?: string | null;
+  })[];
 }
+
+const toPersonFormData = (person: PersonWithRoles): Partial<PersonWithRolesForm> => ({
+  firstName: person.firstName,
+  lastName: person.lastName,
+  email: person.email ?? "",
+  dob: (person as any).dateOfBirth
+    ? new Date((person as any).dateOfBirth).toISOString().split("T")[0]
+    : person.dob
+    ? new Date(person.dob).toISOString().split("T")[0]
+    : "",
+  includeAddress: !!(person as any).address,
+  addressLine1: (person as any).address?.line1 ?? "",
+  addressLine2: (person as any).address?.line2 ?? "",
+  city: (person as any).address?.city ?? "",
+  region: (person as any).address?.region ?? "",
+  country: (person as any).address?.country ?? "",
+  postal: (person as any).address?.postal ?? "",
+  roles: person.roles.map(r => ({
+    role: r.role as any,
+    title: r.title ?? "",
+    startAt: (r as any).startAt
+      ? new Date((r as any).startAt).toISOString().split("T")[0]
+      : (r as any).startDate
+      ? new Date((r as any).startDate).toISOString().split("T")[0]
+      : "",
+    shareQuantity: (r as any).shareQuantity ? String((r as any).shareQuantity) : "",
+    shareType: ((r as any).shareType as any) ?? "Common",
+    shareClass: (r as any).shareClass ?? "",
+  })),
+});
 
 export default function CapTable() {
   const { currentEntity } = useEntityContext();
@@ -59,6 +98,19 @@ export default function CapTable() {
   const [editingPerson, setEditingPerson] = useState<PersonWithRoles | null>(null);
   const [viewingPerson, setViewingPerson] = useState<PersonWithRoles | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const shareholderDefaults: Partial<PersonWithRolesForm> = {
+    roles: [
+      {
+        role: "Shareholder",
+        title: "",
+        startAt: new Date().toISOString().split("T")[0],
+        shareQuantity: "",
+        shareType: "Common",
+        shareClass: "",
+      },
+    ],
+  };
 
   const { data: people = [], isLoading } = useQuery<PersonWithRoles[]>({
     queryKey: ["/api/orgs", currentEntity?.id, "people"],
@@ -85,9 +137,7 @@ export default function CapTable() {
   // Delete person mutation
   const deleteMutation = useMutation({
     mutationFn: async (personId: string) => {
-      await apiRequest(`/api/orgs/${currentEntity?.id}/people/${personId}`, {
-        method: "DELETE",
-      });
+      await apiRequest("DELETE", `/api/orgs/${currentEntity?.id}/people/${personId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -104,6 +154,18 @@ export default function CapTable() {
         description: error.message || "Failed to delete shareholder",
         variant: "destructive",
       });
+    },
+  });
+
+  const createPersonMutation = useMutation({
+    mutationFn: async (data: { person: any; roles: any[] }) => {
+      return await apiRequest("POST", `/api/orgs/${currentEntity?.id}/people`, data);
+    },
+  });
+
+  const updatePersonMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: { person: any; roles: any[] } }) => {
+      return await apiRequest("PUT", `/api/orgs/${currentEntity?.id}/people/${id}`, data);
     },
   });
 
@@ -159,15 +221,30 @@ export default function CapTable() {
                 </DialogDescription>
               </DialogHeader>
               <PersonForm
-                mode="create"
-                defaultRoles={['Shareholder']} // Default to shareholder role
-                onSuccess={() => {
-                  setIsCreateDialogOpen(false);
-                  queryClient.invalidateQueries({
-                    queryKey: ["/api/orgs", currentEntity?.id, "people"],
-                  });
-                }}
+                initialData={shareholderDefaults}
+                onSubmit={(data) =>
+                  createPersonMutation.mutate(data, {
+                    onSuccess: () => {
+                      setIsCreateDialogOpen(false);
+                      queryClient.invalidateQueries({
+                        queryKey: ["/api/orgs", currentEntity?.id, "people"],
+                      });
+                      toast({
+                        title: "Success",
+                        description: "Shareholder added successfully",
+                      });
+                    },
+                    onError: (error: Error) => {
+                      toast({
+                        title: "Error",
+                        description: error.message,
+                        variant: "destructive",
+                      });
+                    },
+                  })
+                }
                 onCancel={() => setIsCreateDialogOpen(false)}
+                isLoading={createPersonMutation.isPending}
               />
             </DialogContent>
           </Dialog>
@@ -205,15 +282,30 @@ export default function CapTable() {
                     </DialogDescription>
                   </DialogHeader>
                   <PersonForm
-                    mode="create"
-                    defaultRoles={['Shareholder']}
-                    onSuccess={() => {
-                      setIsCreateDialogOpen(false);
-                      queryClient.invalidateQueries({
-                        queryKey: ["/api/orgs", currentEntity?.id, "people"],
-                      });
-                    }}
+                    initialData={shareholderDefaults}
+                    onSubmit={(data) =>
+                      createPersonMutation.mutate(data, {
+                        onSuccess: () => {
+                          setIsCreateDialogOpen(false);
+                          queryClient.invalidateQueries({
+                            queryKey: ["/api/orgs", currentEntity?.id, "people"],
+                          });
+                          toast({
+                            title: "Success",
+                            description: "Shareholder added successfully",
+                          });
+                        },
+                        onError: (error: Error) => {
+                          toast({
+                            title: "Error",
+                            description: error.message,
+                            variant: "destructive",
+                          });
+                        },
+                      })
+                    }
                     onCancel={() => setIsCreateDialogOpen(false)}
+                    isLoading={createPersonMutation.isPending}
                   />
                 </DialogContent>
               </Dialog>
@@ -462,7 +554,7 @@ export default function CapTable() {
                               </div>
                             )}
                             <div>
-                              <span className="font-medium">Start Date:</span> {formatDate(role.startDate)}
+                              <span className="font-medium">Start Date:</span> {role.startDate ? formatDate(role.startDate) : "Not set"}
                             </div>
                           </div>
                         </div>
@@ -486,15 +578,33 @@ export default function CapTable() {
             </DialogHeader>
             {editingPerson && (
               <PersonForm
-                mode="edit"
-                initialData={editingPerson}
-                onSuccess={() => {
-                  setEditingPerson(null);
-                  queryClient.invalidateQueries({
-                    queryKey: ["/api/orgs", currentEntity?.id, "people"],
-                  });
-                }}
+                initialData={toPersonFormData(editingPerson)}
+                onSubmit={(data) =>
+                  updatePersonMutation.mutate(
+                    { id: editingPerson.id, data },
+                    {
+                      onSuccess: () => {
+                        setEditingPerson(null);
+                        queryClient.invalidateQueries({
+                          queryKey: ["/api/orgs", currentEntity?.id, "people"],
+                        });
+                        toast({
+                          title: "Success",
+                          description: "Shareholder updated successfully",
+                        });
+                      },
+                      onError: (error: Error) => {
+                        toast({
+                          title: "Error",
+                          description: error.message,
+                          variant: "destructive",
+                        });
+                      },
+                    }
+                  )
+                }
                 onCancel={() => setEditingPerson(null)}
+                isLoading={updatePersonMutation.isPending}
               />
             )}
           </DialogContent>
