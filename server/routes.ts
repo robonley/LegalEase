@@ -161,8 +161,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create person-org relationships
       const createdRoles = [];
       for (const role of roles || []) {
+        console.log("Role data received:", role);
+        console.log("Role startAt type:", typeof role.startAt, role.startAt);
+        
         const relationData = insertPersonOnOrgSchema.parse({
           ...role,
+          startAt: role.startAt ? new Date(role.startAt) : new Date(),
           orgId: req.params.orgId,
           personId: person.id
         });

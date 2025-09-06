@@ -119,7 +119,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
       roles: data.roles.map(role => ({
         role: role.role,
         title: role.title || undefined,
-        startAt: role.startAt ? new Date(role.startAt) : new Date(),
+        startAt: role.startAt || new Date().toISOString(),
       })),
     };
     

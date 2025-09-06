@@ -25,7 +25,7 @@ import { useEntityContext } from "@/hooks/useEntityContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Person, PersonOnOrg } from "@shared/schema";
-import { PersonForm } from "@/components/PersonForm";
+import { PersonForm } from "../components/PersonForm";
 
 interface PersonWithRoles extends Person {
   roles: PersonOnOrg[];
