@@ -71,6 +71,22 @@ export default function Entities() {
       number: "",
       jurisdiction: "",
       formationAt: undefined,
+      registeredOffice: {
+        line1: "",
+        line2: "",
+        city: "",
+        region: "",
+        country: "",
+        postal: "",
+      },
+      recordsOffice: {
+        line1: "",
+        line2: "",
+        city: "",
+        region: "",
+        country: "",
+        postal: "",
+      },
     },
   });
 
