@@ -16,6 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useEntityContext } from "@/hooks/useEntityContext";
 import { insertOrgSchema } from "@shared/schema";
 import { PDFIngestion } from "@/components/PDFIngestion";
 import { ExtractionResultsModal } from "@/components/ExtractionResultsModal";
@@ -43,6 +44,7 @@ export default function Entities() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
+  const { setCurrentEntity } = useEntityContext();
 
   const { data: orgs = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/orgs"],
@@ -186,6 +188,16 @@ export default function Entities() {
   };
 
   const handleViewEntity = (entityId: string) => {
+    // Find the entity data to set in context
+    const entity = orgs.find((org: any) => org.id === entityId);
+    if (entity) {
+      setCurrentEntity({
+        id: entity.id,
+        name: entity.name,
+        jurisdiction: entity.jurisdiction,
+        number: entity.number || undefined
+      });
+    }
     // Navigate to entity detail view page
     setLocation(`/entities/${entityId}`);
   };
