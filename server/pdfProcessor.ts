@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import pdfParse from 'pdf-parse';
+// Dynamic import to avoid pdf-parse initialization issues
 import { createWorker } from 'tesseract.js';
-import { FileTypeResult, fromBuffer } from 'file-type';
+import { fileTypeFromBuffer } from 'file-type';
 
 export interface ParsedDocument {
   text: string;
@@ -23,7 +23,7 @@ export interface OCROptions {
 export class PDFProcessor {
   async parseFile(filePath: string): Promise<ParsedDocument> {
     const buffer = fs.readFileSync(filePath);
-    const fileType = await fromBuffer(buffer);
+    const fileType = await fileTypeFromBuffer(buffer);
     
     if (!fileType) {
       throw new Error('Unable to determine file type');
@@ -45,7 +45,8 @@ export class PDFProcessor {
 
   private async parsePDF(buffer: Buffer): Promise<ParsedDocument> {
     try {
-      const data = await pdfParse(buffer);
+      const pdfParse = await import('pdf-parse');
+      const data = await pdfParse.default(buffer);
       
       // Check if PDF has extractable text
       if (data.text && data.text.trim().length > 50) {
@@ -116,7 +117,7 @@ export class PDFProcessor {
       }
 
       const buffer = fs.readFileSync(filePath);
-      const fileType = await fromBuffer(buffer);
+      const fileType = await fileTypeFromBuffer(buffer);
       
       if (!fileType) {
         return { valid: false, error: 'Unable to determine file type' };

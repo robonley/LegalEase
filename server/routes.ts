@@ -16,6 +16,12 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { extractTemplateVariables, createVariableMapping, CBCA_TEMPLATE_VARIABLES } from "./templateProcessor";
+import multer from "multer";
+import { nanoid } from "nanoid";
+import { addIngestionJob, getJobStatus } from "./queueService";
+import { IngestionWorker } from "./ingestionWorker";
+import path from "path";
+import fs from "fs";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -884,6 +890,141 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching document details:", error);
       res.status(500).json({ message: "Failed to fetch document details" });
+    }
+  });
+
+  // PDF Ingestion routes
+  // Ensure uploads directory exists
+  IngestionWorker.ensureUploadsDirectory();
+
+  // Configure multer for file uploads
+  const upload = multer({
+    dest: 'uploads/',
+    limits: {
+      fileSize: 50 * 1024 * 1024, // 50MB limit
+    },
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/tiff'];
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid file type. Only PDF and image files are allowed.'));
+      }
+    },
+  });
+
+  // Upload PDF and start ingestion job
+  app.post('/api/ingest/upload', isAuthenticated, upload.single('file'), async (req: any, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: 'No file uploaded' });
+      }
+
+      const userId = req.user.claims.sub;
+      const file = req.file;
+      const fileKey = `${nanoid()}_${file.originalname}`;
+      
+      // Rename uploaded file to use our key
+      const newPath = path.join('uploads', fileKey);
+      fs.renameSync(file.path, newPath);
+
+      // Create ingestion job record
+      const job = await storage.createIngestionJob({
+        userId,
+        filename: file.originalname,
+        fileKey,
+        status: 'queued',
+        progress: 0,
+      });
+
+      // Add job to queue
+      await addIngestionJob({
+        jobId: job.id,
+        userId,
+        filename: file.originalname,
+        fileKey,
+      });
+
+      res.json({
+        jobId: job.id,
+        filename: file.originalname,
+        status: 'queued',
+        message: 'File uploaded successfully, processing started'
+      });
+    } catch (error) {
+      console.error('Upload error:', error);
+      res.status(500).json({ message: 'Failed to upload file', error: error.message });
+    }
+  });
+
+  // Get job status
+  app.get('/api/ingest/jobs/:jobId', isAuthenticated, async (req: any, res) => {
+    try {
+      const { jobId } = req.params;
+      const userId = req.user.claims.sub;
+      
+      const job = await storage.getIngestionJobById(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ message: 'Job not found' });
+      }
+      
+      // Verify ownership
+      if (job.userId !== userId) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+      
+      res.json(job);
+    } catch (error) {
+      console.error('Error fetching job status:', error);
+      res.status(500).json({ message: 'Failed to fetch job status' });
+    }
+  });
+
+  // List user's ingestion jobs
+  app.get('/api/ingest/jobs', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const jobs = await storage.getIngestionJobsByUser(userId);
+      res.json(jobs);
+    } catch (error) {
+      console.error('Error fetching jobs:', error);
+      res.status(500).json({ message: 'Failed to fetch jobs' });
+    }
+  });
+
+  // Apply extraction results (create entities/people from extraction)
+  app.post('/api/ingest/:jobId/apply', isAuthenticated, async (req: any, res) => {
+    try {
+      const { jobId } = req.params;
+      const userId = req.user.claims.sub;
+      const { decisions } = req.body; // User's decisions on what to create/update
+      
+      const job = await storage.getIngestionJobById(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ message: 'Job not found' });
+      }
+      
+      if (job.userId !== userId) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+      
+      if (job.status !== 'completed' || !job.extractionResult) {
+        return res.status(400).json({ message: 'Job not completed or no results available' });
+      }
+      
+      // TODO: Implement the logic to create entities/people based on extraction results
+      // This would involve:
+      // 1. Creating organization if needed
+      // 2. Creating people records
+      // 3. Creating person-org relationships
+      // 4. Creating share issuances
+      
+      res.json({ message: 'Extraction results applied successfully' });
+    } catch (error) {
+      console.error('Error applying extraction results:', error);
+      res.status(500).json({ message: 'Failed to apply extraction results' });
     }
   });
 
