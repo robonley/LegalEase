@@ -85,9 +85,10 @@ export default function CapTable() {
   // Delete person mutation
   const deleteMutation = useMutation({
     mutationFn: async (personId: string) => {
-      await apiRequest(`/api/orgs/${currentEntity?.id}/people/${personId}`, {
-        method: "DELETE",
-      });
+      await apiRequest(
+        "DELETE",
+        `/api/orgs/${currentEntity?.id}/people/${personId}`
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -160,8 +161,7 @@ export default function CapTable() {
               </DialogHeader>
               <PersonForm
                 mode="create"
-                defaultRoles={['Shareholder']} // Default to shareholder role
-                onSuccess={() => {
+                onSubmit={() => {
                   setIsCreateDialogOpen(false);
                   queryClient.invalidateQueries({
                     queryKey: ["/api/orgs", currentEntity?.id, "people"],
@@ -204,17 +204,16 @@ export default function CapTable() {
                       Create the first shareholder for {currentEntity.name}
                     </DialogDescription>
                   </DialogHeader>
-                  <PersonForm
-                    mode="create"
-                    defaultRoles={['Shareholder']}
-                    onSuccess={() => {
-                      setIsCreateDialogOpen(false);
-                      queryClient.invalidateQueries({
-                        queryKey: ["/api/orgs", currentEntity?.id, "people"],
-                      });
-                    }}
-                    onCancel={() => setIsCreateDialogOpen(false)}
-                  />
+              <PersonForm
+                mode="create"
+                onSubmit={() => {
+                  setIsCreateDialogOpen(false);
+                  queryClient.invalidateQueries({
+                    queryKey: ["/api/orgs", currentEntity?.id, "people"],
+                  });
+                }}
+                onCancel={() => setIsCreateDialogOpen(false)}
+              />
                 </DialogContent>
               </Dialog>
             </CardContent>
@@ -249,7 +248,6 @@ export default function CapTable() {
                     <TableHead>Shares</TableHead>
                     <TableHead>Share Type</TableHead>
                     <TableHead>Ownership %</TableHead>
-                    <TableHead>Issue Date</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -289,11 +287,6 @@ export default function CapTable() {
                         <TableCell>
                           <span className="font-medium">
                             {formatPercentage(role.shareQuantity || 0)}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">
-                            {role.shareIssueDate ? formatDate(role.shareIssueDate) : "Not specified"}
                           </span>
                         </TableCell>
                         <TableCell>
@@ -411,26 +404,7 @@ export default function CapTable() {
                       <label className="text-sm font-medium text-muted-foreground">Email</label>
                       <p className="mt-1">{viewingPerson.email || "Not provided"}</p>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Phone</label>
-                      <p className="mt-1">{viewingPerson.phone || "Not provided"}</p>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
-                      <p className="mt-1">
-                        {viewingPerson.dateOfBirth 
-                          ? formatDate(viewingPerson.dateOfBirth) 
-                          : "Not provided"
-                        }
-                      </p>
-                    </div>
                   </div>
-                  {viewingPerson.address && (
-                    <div className="mt-4">
-                      <label className="text-sm font-medium text-muted-foreground">Address</label>
-                      <p className="mt-1">{viewingPerson.address}</p>
-                    </div>
-                  )}
                 </div>
 
                 {/* Share Holdings */}
@@ -456,14 +430,9 @@ export default function CapTable() {
                             <div>
                               <span className="font-medium">Ownership:</span> {formatPercentage(role.shareQuantity || 0)}
                             </div>
-                            {role.shareIssueDate && (
                               <div>
-                                <span className="font-medium">Issue Date:</span> {formatDate(role.shareIssueDate)}
+                                <span className="font-medium">Start Date:</span> {role.startAt ? formatDate(role.startAt) : "Not set"}
                               </div>
-                            )}
-                            <div>
-                              <span className="font-medium">Start Date:</span> {formatDate(role.startDate)}
-                            </div>
                           </div>
                         </div>
                       ))
@@ -484,19 +453,19 @@ export default function CapTable() {
                 Update shareholding information for {editingPerson?.firstName} {editingPerson?.lastName}
               </DialogDescription>
             </DialogHeader>
-            {editingPerson && (
-              <PersonForm
-                mode="edit"
-                initialData={editingPerson}
-                onSuccess={() => {
-                  setEditingPerson(null);
-                  queryClient.invalidateQueries({
-                    queryKey: ["/api/orgs", currentEntity?.id, "people"],
-                  });
-                }}
-                onCancel={() => setEditingPerson(null)}
-              />
-            )}
+              {editingPerson && (
+                <PersonForm
+                  mode="edit"
+                  initialData={editingPerson as any}
+                  onSubmit={() => {
+                    setEditingPerson(null);
+                    queryClient.invalidateQueries({
+                      queryKey: ["/api/orgs", currentEntity?.id, "people"],
+                    });
+                  }}
+                  onCancel={() => setEditingPerson(null)}
+                />
+              )}
           </DialogContent>
         </Dialog>
       </div>

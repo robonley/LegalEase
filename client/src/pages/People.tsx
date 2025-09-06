@@ -68,9 +68,10 @@ export default function People() {
   // Delete person mutation
   const deleteMutation = useMutation({
     mutationFn: async (personId: string) => {
-      await apiRequest(`/api/orgs/${currentEntity?.id}/people/${personId}`, {
-        method: "DELETE",
-      });
+      await apiRequest(
+        "DELETE",
+        `/api/orgs/${currentEntity?.id}/people/${personId}`
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -91,28 +92,9 @@ export default function People() {
   });
 
   // Clone person function
-  const handleClonePerson = (person: PersonWithRoles) => {
-    // Create a copy of the person data for the form
-    const clonedData = {
-      firstName: `${person.firstName} (Copy)`,
-      lastName: person.lastName,
-      email: "", // Clear email to avoid conflicts
-      phone: person.phone,
-      address: person.address,
-      dateOfBirth: person.dateOfBirth,
-      roles: person.roles.map(role => ({
-        role: role.role,
-        title: role.title,
-        startDate: role.startDate,
-        shareQuantity: role.shareQuantity,
-        shareType: role.shareType,
-        shareClass: role.shareClass,
-        shareIssueDate: role.shareIssueDate,
-      })),
-    };
-    // You would pass this data to PersonForm in create mode
+  const handleClonePerson = () => {
+    // Open the create dialog with default data
     setIsCreateDialogOpen(true);
-    // Note: PersonForm would need to accept initialData prop for this to work
   };
 
   const createPersonMutation = useMutation({
@@ -415,7 +397,7 @@ export default function People() {
                             
                             {/* Clone Person */}
                             <DropdownMenuItem
-                              onClick={() => handleClonePerson(person)}
+                              onClick={handleClonePerson}
                               data-testid={`clone-person-${person.id}`}
                             >
                               <i className="fas fa-copy mr-2"></i>
@@ -432,17 +414,6 @@ export default function People() {
                               >
                                 <i className="fas fa-envelope mr-2"></i>
                                 Send Email
-                              </DropdownMenuItem>
-                            )}
-                            
-                            {/* Call */}
-                            {person.phone && (
-                              <DropdownMenuItem
-                                onClick={() => window.open(`tel:${person.phone}`, '_blank')}
-                                data-testid={`call-person-${person.id}`}
-                              >
-                                <i className="fas fa-phone mr-2"></i>
-                                Call
                               </DropdownMenuItem>
                             )}
                             
@@ -524,8 +495,8 @@ export default function People() {
                 // Edit Mode - Show PersonForm
                 <PersonForm
                   mode="edit"
-                  initialData={viewingPerson}
-                  onSuccess={() => {
+                  initialData={viewingPerson as any}
+                  onSubmit={() => {
                     setIsEditMode(false);
                     queryClient.invalidateQueries({
                       queryKey: ["/api/orgs", currentEntity?.id, "people"],
@@ -553,26 +524,7 @@ export default function People() {
                         <label className="text-sm font-medium text-muted-foreground">Email</label>
                         <p className="mt-1">{viewingPerson.email || "Not provided"}</p>
                       </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Phone</label>
-                        <p className="mt-1">{viewingPerson.phone || "Not provided"}</p>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
-                        <p className="mt-1">
-                          {viewingPerson.dateOfBirth 
-                            ? formatDate(viewingPerson.dateOfBirth) 
-                            : "Not provided"
-                          }
-                        </p>
-                      </div>
                     </div>
-                    {viewingPerson.address && (
-                      <div className="mt-4">
-                        <label className="text-sm font-medium text-muted-foreground">Address</label>
-                        <p className="mt-1">{viewingPerson.address}</p>
-                      </div>
-                    )}
                   </div>
 
                   {/* Roles and Responsibilities */}
@@ -589,7 +541,7 @@ export default function People() {
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
-                              <span className="font-medium">Start Date:</span> {role.startDate ? formatDate(role.startDate) : "Not set"}
+                              <span className="font-medium">Start Date:</span> {role.startAt ? formatDate(role.startAt) : "Not set"}
                             </div>
                             {role.role === 'Shareholder' && role.shareQuantity && (
                               <>
@@ -602,11 +554,6 @@ export default function People() {
                                 {role.shareClass && (
                                   <div>
                                     <span className="font-medium">Share Class:</span> {role.shareClass}
-                                  </div>
-                                )}
-                                {role.shareIssueDate && (
-                                  <div>
-                                    <span className="font-medium">Issue Date:</span> {formatDate(role.shareIssueDate)}
                                   </div>
                                 )}
                               </>
@@ -641,8 +588,8 @@ export default function People() {
             {editingPerson && (
               <PersonForm
                 mode="edit"
-                initialData={editingPerson}
-                onSuccess={() => {
+                initialData={editingPerson as any}
+                onSubmit={() => {
                   setEditingPerson(null);
                   queryClient.invalidateQueries({
                     queryKey: ["/api/orgs", currentEntity?.id, "people"],

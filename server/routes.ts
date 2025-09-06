@@ -185,14 +185,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create person-org relationships
       const createdRoles = [];
       for (const role of roles || []) {
-        console.log("Role data received:", role);
-        console.log("Role startAt type:", typeof role.startAt, role.startAt);
-        
         const relationData = insertPersonOnOrgSchema.parse({
           ...role,
+          // Normalize shareholder fields
+          shareQuantity: role.shareQuantity ?? undefined,
+          shareType: role.shareType ?? undefined,
+          shareClass: role.shareClass ?? undefined,
           startAt: role.startAt ? new Date(role.startAt) : new Date(),
           orgId: req.params.orgId,
-          personId: person.id
+          personId: person.id,
         });
         const relation = await storage.createPersonOnOrg(relationData);
         createdRoles.push(relation);
@@ -519,7 +520,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         shareClassId,
         quantity: parseInt(quantity),
         certNumber,
-        issuePrice: issuePrice ? parseFloat(issuePrice) : null,
+        issuePrice: issuePrice ? issuePrice : null,
         issueDate: new Date(issueDate),
       });
 
@@ -674,7 +675,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name: templateConfig.name,
           code: templateConfig.code,
           scope: templateConfig.scope,
-          fileKey: null, // No actual file yet
+          fileKey: "placeholder.docx", // No actual file yet
           schema: {},
           ownerId: userId,
         });
@@ -736,7 +737,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             name: templateConfig.name,
             code: templateConfig.code,
             scope: templateConfig.scope,
-            fileKey: null, // No actual file yet
+          fileKey: "placeholder.docx", // No actual file yet
             schema: {},
             ownerId: userId,
           });
