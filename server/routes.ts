@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { Readable } from "node:stream";
 import { 
   insertOrgSchema,
   insertPersonSchema,
@@ -404,6 +405,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/docs/:docId', isAuthenticated, async (req, res) => {
+    try {
+      const doc = await storage.getGeneratedDocById(req.params.docId);
+      if (!doc) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      const baseUrl = process.env.OBJECT_STORAGE_URL || '';
+      const fileUrl = doc.fileKey.startsWith('http')
+        ? doc.fileKey
+        : `${baseUrl.replace(/\/$/, '')}/${doc.fileKey}`;
+
+      const response = await fetch(fileUrl);
+      if (!response.ok || !response.body) {
+        return res.status(404).json({ message: 'File not found' });
+      }
+
+      const fileName = doc.fileKey.split('/').pop() || 'document';
+      res.setHeader('Content-Type', response.headers.get('content-type') || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+
+      Readable.fromWeb(response.body as any).pipe(res);
+    } catch (error) {
+      console.error('Error streaming document:', error);
+      res.status(500).json({ message: 'Failed to download document' });
+    }
+  });
+
   // Minute book generation
   app.post('/api/minute-book', isAuthenticated, async (req: any, res) => {
     try {
@@ -416,8 +445,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Simulate minute book generation
-      const fileKey = `minute-books/${orgId}/${Date.now()}.zip`;
-      
+      const fileName = `${Date.now()}.zip`;
+      const fileKey = `minute-books/${orgId}/${fileName}`;
+
       await storage.createAuditLog({
         orgId,
         actorId: userId,
@@ -425,10 +455,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         payload: { bundle, fileKey }
       });
 
-      res.json({ downloadUrl: `/api/minute-books/${fileKey}` });
+      res.json({ downloadUrl: `/api/minute-books/${orgId}/${fileName}` });
     } catch (error) {
       console.error("Error generating minute book:", error);
       res.status(500).json({ message: "Failed to generate minute book" });
+    }
+  });
+
+  app.get('/api/minute-books/:orgId/:fileKey', isAuthenticated, async (req, res) => {
+    try {
+      const { orgId, fileKey } = req.params;
+      const baseUrl = process.env.OBJECT_STORAGE_URL || '';
+      const key = `minute-books/${orgId}/${fileKey}`;
+      const fileUrl = key.startsWith('http')
+        ? key
+        : `${baseUrl.replace(/\/$/, '')}/${key}`;
+
+      const response = await fetch(fileUrl);
+      if (!response.ok || !response.body) {
+        return res.status(404).json({ message: 'File not found' });
+      }
+
+      res.setHeader('Content-Type', response.headers.get('content-type') || 'application/octet-stream');
+      res.setHeader('Content-Disposition', `attachment; filename="${fileKey}"`);
+
+      Readable.fromWeb(response.body as any).pipe(res);
+    } catch (error) {
+      console.error('Error streaming minute book:', error);
+      res.status(500).json({ message: 'Failed to download minute book' });
     }
   });
 
