@@ -130,7 +130,7 @@ export const templates = pgTable("templates", {
   name: text("name").notNull(), // "Bylaw No.1 (CBCA)"
   code: text("code").notNull(), // "BYLAW_CBCA_1"
   scope: text("scope").notNull(), // "organization" | "annual" | "resolution" | "register"
-  fileKey: text("file_key").notNull(), // storage key for .docx
+  fileKey: text("file_key"), // storage key for .docx
   schema: json("schema").notNull(), // required fields map
   ownerId: varchar("owner_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),

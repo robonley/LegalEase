@@ -1,0 +1,1 @@
+ALTER TABLE "templates" ALTER COLUMN "file_key" DROP NOT NULL;
