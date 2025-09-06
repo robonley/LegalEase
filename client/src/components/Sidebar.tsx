@@ -128,17 +128,17 @@ export function Sidebar() {
             variant="ghost"
             size="sm"
             onClick={toggleTheme}
-            className="w-8 h-8 p-0"
+            className="w-8 h-8 p-0 text-muted-foreground hover:text-foreground"
             data-testid="theme-toggle"
           >
-            <i className={theme === 'dark' ? "fas fa-sun" : "fas fa-moon"}></i>
+            <i className={`text-sm ${theme === 'dark' ? "fas fa-sun" : "fas fa-moon"}`}></i>
           </Button>
         </div>
 
         {/* User Profile */}
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border pb-6">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+            <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
               <span className="text-sm font-medium text-primary-foreground">
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
               </span>
