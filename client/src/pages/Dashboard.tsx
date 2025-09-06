@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useEffect } from "react";
+import { useLocation } from "wouter";
 
 interface StatsData {
   activeEntities: number;
@@ -35,6 +36,7 @@ interface Entity {
 export default function Dashboard() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -124,7 +126,10 @@ export default function Dashboard() {
                 data-testid="search-input"
               />
             </div>
-            <Button data-testid="new-entity-button">
+            <Button 
+              onClick={() => setLocation('/entities')}
+              data-testid="new-entity-button"
+            >
               <i className="fas fa-plus mr-2"></i>
               New Entity
             </Button>
@@ -256,7 +261,7 @@ export default function Dashboard() {
                             {JSON.stringify(log.payload)}
                           </p>
                           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                            <span>by {user?.firstName} {user?.lastName}</span>
+                            <span>by {user?.firstName || 'Unknown'} {user?.lastName || 'User'}</span>
                             <span>{getTimeAgo(log.createdAt)}</span>
                           </div>
                         </div>

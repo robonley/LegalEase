@@ -39,7 +39,7 @@ export default function Entities() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: orgs = [], isLoading } = useQuery({
+  const { data: orgs = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/orgs"],
   });
 
@@ -138,7 +138,7 @@ export default function Entities() {
                         <FormItem>
                           <FormLabel>Registration Number</FormLabel>
                           <FormControl>
-                            <Input {...field} data-testid="input-registration-number" />
+                            <Input {...field} value={field.value || ""} data-testid="input-registration-number" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

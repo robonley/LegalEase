@@ -56,9 +56,9 @@ export function Sidebar() {
           <div className="space-y-1">
             {navigationItems.map((item) => (
               <Link key={item.href} href={item.href}>
-                <a
+                <div
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                    "flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer",
                     location === item.href
                       ? "bg-accent text-accent-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-accent"
@@ -67,13 +67,13 @@ export function Sidebar() {
                 >
                   <i className={`${item.icon} w-4`}></i>
                   {item.label}
-                </a>
+                </div>
               </Link>
             ))}
           </div>
 
           {/* Admin Navigation */}
-          {(user.role === 'admin' || user.role === 'lawyer') && (
+          {(user?.role === 'admin' || user?.role === 'lawyer') && (
             <div className="mt-8 pt-4 border-t border-border">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">
                 Administration
@@ -81,9 +81,9 @@ export function Sidebar() {
               <div className="space-y-1">
                 {adminItems.map((item) => (
                   <Link key={item.href} href={item.href}>
-                    <a
+                    <div
                       className={cn(
-                        "flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg",
+                        "flex items-center gap-3 px-3 py-2 text-sm transition-colors rounded-lg cursor-pointer",
                         location === item.href
                           ? "bg-accent text-accent-foreground"
                           : "text-muted-foreground hover:text-foreground hover:bg-accent"
@@ -92,7 +92,7 @@ export function Sidebar() {
                     >
                       <i className={`${item.icon} w-4`}></i>
                       {item.label}
-                    </a>
+                    </div>
                   </Link>
                 ))}
               </div>
@@ -105,15 +105,15 @@ export function Sidebar() {
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
               <span className="text-sm font-medium text-primary-foreground">
-                {user.firstName?.[0]}{user.lastName?.[0]}
+                {user?.firstName?.[0]}{user?.lastName?.[0]}
               </span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">
-                {user.firstName} {user.lastName}
+                {user?.firstName} {user?.lastName}
               </p>
               <p className="text-xs text-muted-foreground truncate capitalize">
-                {user.role}
+                {user?.role}
               </p>
             </div>
             <Button
