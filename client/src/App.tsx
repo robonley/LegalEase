@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
+import { EntityProvider } from "@/hooks/useEntityContext";
 import { Layout } from "@/components/Layout";
 import NotFound from "@/pages/not-found";
 import Landing from "@/pages/Landing";
@@ -34,18 +35,20 @@ function Router() {
       {!isAuthenticated ? (
         <Route path="/" component={Landing} />
       ) : (
-        <Layout>
-          <Route path="/" component={Dashboard} />
-          <Route path="/entities" component={Entities} />
-          <Route path="/entities/:id" component={EntityDetail} />
-          <Route path="/entities/:id/edit" component={EntityEdit} />
-          <Route path="/people" component={People} />
-          <Route path="/cap-table" component={CapTable} />
-          <Route path="/documents" component={Documents} />
-          <Route path="/templates" component={Templates} />
-          <Route path="/minute-books" component={MinuteBooks} />
-          <Route path="/audit-log" component={AuditLog} />
-        </Layout>
+        <EntityProvider>
+          <Layout>
+            <Route path="/" component={Dashboard} />
+            <Route path="/entities" component={Entities} />
+            <Route path="/entities/:id" component={EntityDetail} />
+            <Route path="/entities/:id/edit" component={EntityEdit} />
+            <Route path="/people" component={People} />
+            <Route path="/cap-table" component={CapTable} />
+            <Route path="/documents" component={Documents} />
+            <Route path="/templates" component={Templates} />
+            <Route path="/minute-books" component={MinuteBooks} />
+            <Route path="/audit-log" component={AuditLog} />
+          </Layout>
+        </EntityProvider>
       )}
       <Route component={NotFound} />
     </Switch>
