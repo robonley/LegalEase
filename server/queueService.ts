@@ -36,8 +36,34 @@ export interface IngestionJobResult {
   processingTimeMs?: number;
 }
 
+// In-memory job processor for development
+let inMemoryProcessor: ((job: Job<IngestionJobData>) => Promise<IngestionJobResult>) | null = null;
+
 // Add a job to the ingestion queue
 export async function addIngestionJob(data: IngestionJobData): Promise<Job<IngestionJobData>> {
+  if (!redis && inMemoryProcessor) {
+    // Process immediately in development
+    console.log('Processing job immediately in development mode:', data.jobId);
+    
+    // Create a mock job object
+    const mockJob = {
+      id: data.jobId,
+      data,
+      progress: (progress: number) => console.log(`Job ${data.jobId} progress: ${progress}%`),
+    } as Job<IngestionJobData>;
+    
+    // Process the job immediately
+    setTimeout(async () => {
+      try {
+        await inMemoryProcessor!(mockJob);
+      } catch (error) {
+        console.error('Error processing job in development:', error);
+      }
+    }, 100);
+    
+    return mockJob;
+  }
+  
   return await ingestionQueue.add('extract', data, {
     attempts: 3,
     backoff: {
@@ -57,7 +83,8 @@ export async function getJobStatus(jobId: string): Promise<Job | null> {
 // Create worker (will be started separately)
 export function createIngestionWorker(processor: (job: Job<IngestionJobData>) => Promise<IngestionJobResult>) {
   if (!redis) {
-    // For development without Redis, process jobs immediately
+    // For development without Redis, store the processor for immediate execution
+    inMemoryProcessor = processor;
     return {
       process: processor,
       start: () => console.log('In-memory worker started'),

@@ -1,17 +1,26 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useEntityContext } from "@/hooks/useEntityContext";
+import { PDFIngestion } from "@/components/PDFIngestion";
+import { ExtractionResultsModal } from "@/components/ExtractionResultsModal";
+import { useToast } from "@/hooks/use-toast";
+import { Upload } from "lucide-react";
 import type { Org } from "@shared/schema";
 
 export default function EntityDetail() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { setCurrentEntity } = useEntityContext();
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [extractionResults, setExtractionResults] = useState<any[]>([]);
+  const [showExtractionModal, setShowExtractionModal] = useState(false);
+  const { toast } = useToast();
 
   const { data: entity, isLoading } = useQuery<Org>({
     queryKey: ["/api/orgs", id],
@@ -42,6 +51,23 @@ export default function EntityDetail() {
 
   const getEntityInitials = (name: string) => {
     return name.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase();
+  };
+
+  const handleExtractionComplete = (results: any[]) => {
+    setExtractionResults(results);
+    if (results.length > 0) {
+      setShowExtractionModal(true);
+    }
+  };
+
+  const handleApplyExtractionResults = (selectedData: any) => {
+    // Here we could update the entity with extracted data
+    // For now, just show a success message
+    toast({
+      title: 'Data Extracted',
+      description: 'Corporate information has been extracted from documents. This feature will be enhanced to auto-update entity records.',
+    });
+    setShowUploadDialog(false);
   };
 
   if (isLoading) {
@@ -106,6 +132,27 @@ export default function EntityDetail() {
             </div>
           </div>
           <div className="flex gap-2">
+            <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline" data-testid="upload-documents-button">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Documents
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Upload Corporate Documents</DialogTitle>
+                  <DialogDescription>
+                    Upload incorporation papers, shareholder agreements, or other corporate documents for {entity.name}
+                  </DialogDescription>
+                </DialogHeader>
+                <PDFIngestion 
+                  onExtractionComplete={handleExtractionComplete}
+                  className="mt-4"
+                />
+              </DialogContent>
+            </Dialog>
+            
             <Button
               onClick={() => setLocation(`/entities/${id}/edit`)}
               data-testid="edit-entity-button"
@@ -262,6 +309,14 @@ export default function EntityDetail() {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Extraction Results Modal */}
+      <ExtractionResultsModal
+        isOpen={showExtractionModal}
+        onClose={() => setShowExtractionModal(false)}
+        results={extractionResults}
+        onApplyResults={handleApplyExtractionResults}
+      />
     </div>
   );
 }

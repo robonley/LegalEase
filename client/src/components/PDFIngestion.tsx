@@ -43,6 +43,7 @@ export function PDFIngestion({ onExtractionComplete, className }: PDFIngestionPr
         const response = await fetch('/api/ingest/upload', {
           method: 'POST',
           body: formData,
+          credentials: 'include',
         });
         
         if (!response.ok) {
@@ -85,7 +86,9 @@ export function PDFIngestion({ onExtractionComplete, className }: PDFIngestionPr
   const pollJobStatus = useCallback(async (jobId: string) => {
     const pollInterval = setInterval(async () => {
       try {
-        const response = await fetch(`/api/ingest/jobs/${jobId}`);
+        const response = await fetch(`/api/ingest/jobs/${jobId}`, {
+          credentials: 'include',
+        });
         if (!response.ok) throw new Error('Failed to fetch job status');
         const jobStatus = await response.json();
         
