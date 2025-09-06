@@ -1,0 +1,279 @@
+Absolutely. Here’s a copy-paste prompt for Replit’s agent that adds AI-driven intake (PDF/scan ingestion → entity/people/shareholder extraction), keeps your repo conventions, and is scalable for SMB use. It assumes you’ve set OPENAI_API_KEY in Replit.
+
+⸻
+
+Prompt for Replit: AI-ready PDF ingestion + auto-populate (match existing structure)
+
+Goal
+Add an AI ingestion pipeline that lets a user upload PDFs (and scans/images) and automatically extracts Entity, People, and Shareholder data to pre-fill our database and document-generation flow. Must reuse current project structure (routing, services, apiRequest method-first calls, modal pattern, auth, error envelope). Keep main stable; ship behind a feature flag if needed.
+
+⸻
+
+0) Discover first (don’t code yet)
+	1.	Scan the repo and summarize:
+	•	Where API routes/controllers live, how middleware/auth/errors are wired.
+	•	Existing file/storage abstraction (local/S3) and where to place uploads.
+	•	Data models/types for Organization/Person/Shareholder; if missing, where types usually live.
+	•	Existing job/queue/background task conventions (if none, we’ll add BullMQ).
+	•	Front-end upload components/modals and API client (apiRequest method-first).
+	2.	List exact paths you’ll touch/create (match naming/layout already used).
+
+⸻
+
+1) Architecture (high level)
+
+Implement a streaming, queue-backed extraction pipeline:
+
+Upload → Create Job → Worker: OCR/Parse → LLM JSON extract → Normalize/Validate/Dedupe → Human Review UI → Commit to DB.
+
+Scalable pieces:
+	•	Storage: use existing abstraction; otherwise add S3-compatible driver later (start with local /storage/uploads).
+	•	Queue: bullmq + Redis (use Upstash Redis URL if defined; else in-memory fallback for dev).
+	•	OCR/Parsing:
+	•	PDFs with text: pdf-parse or pdfjs-dist.
+	•	Scanned PDFs/images: tesseract.js (per page) with auto-rotate; fallback to “send image page to LLM with vision” if OCR fails.
+	•	LLM: OpenAI JSON-structured output for deterministic extraction.
+	•	Validation: zod schemas; normalize dates/addresses; fuzzy-match entities/people to avoid duplicates.
+	•	Human-in-the-loop: show a Review & Apply screen with diffs, confidence, and per-field accept/override.
+	•	Observability: job status, durations, token usage; log PII safely.
+	•	Security: authz on all endpoints, file type/size limits, virus scan stub (hook), PII-at-rest encryption option.
+
+⸻
+
+2) Packages to add (only if not already present)
+
+npm i bullmq ioredis pdf-parse tesseract.js file-type
+npm i zod date-fns string-similarity
+# OpenAI official SDK (node >=18). If already present, reuse it.
+npm i openai
+
+If the repo already standardizes on other libs, reuse those.
+
+⸻
+
+3) Data contracts (extend existing types; otherwise create)
+
+(Place where your models/types normally live; do not duplicate.)
+
+// Minimal shape; extend to match your DB models
+type ExtractedOrganization = {
+  legalName?: string;
+  number?: string;
+  jurisdiction?: string;
+  formationDate?: string; // ISO
+  registeredOffice?: string;
+  recordsOffice?: string;
+};
+
+type ExtractedPerson = {
+  fullName: string;
+  firstName?: string;
+  lastName?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  country?: string;
+  postalCode?: string;
+  email?: string;
+  isDirector?: boolean;
+  isOfficer?: boolean;
+  officerTitle?: string;
+  isShareholder?: boolean;
+  shareClass?: string;
+  shareSeries?: string;
+  shares?: number;
+  issueDate?: string; // ISO
+};
+
+type ExtractionResult = {
+  organization: ExtractedOrganization;
+  people: ExtractedPerson[];
+  shareholders: ExtractedPerson[]; // subset where isShareholder=true
+  confidence: number; // 0..1 overall
+  confidences?: Record<string, number>; // per-field
+  sourceMeta: { filename: string; pages: number };
+};
+
+Zod schemas must validate/normalize and coerce dates to ISO.
+
+⸻
+
+4) API surface (match your routing/middleware)
+	•	POST /api/ingest/upload
+	•	Multipart upload (pdf/docx/png/jpg; max size 20–50MB).
+	•	Stores file → enqueues ingestion:extract job → returns { jobId, uploadId, status: "queued" }.
+	•	GET /api/ingest/jobs/:jobId
+	•	Returns { status, progress, result? }.
+	•	POST /api/ingest/:jobId/apply
+	•	Body: { decisions: { …final merged fields… } } from the review UI.
+	•	Upserts Organization/People/Shareholders; returns updated records.
+	•	Reuse existing auth + error envelope; rate-limit uploads.
+
+⸻
+
+5) Worker pipeline (BullMQ)
+
+Queue name: ingestion
+Job ingestion:extract steps:
+	1.	Load file from storage.
+	2.	Parse text:
+	•	If PDF has text layer → pdf-parse.
+	•	Else if image/scanned → run tesseract.js per page (detect rotation).
+If OCR fails, fallback: call OpenAI Vision (image input) for a page or two.
+	3.	LLM extraction:
+	•	Call OpenAI with structured JSON output (function-call / JSON schema).
+	•	Model: a cost-efficient JSON-capable model (e.g., gpt-4o-mini or your project’s default).
+	•	Send system prompt (below) + the flattened text (paged; chunk if very large; merge).
+	4.	Validate/Normalize with zod:
+	•	Normalize dates (date-fns parse heuristics).
+	•	Title-case names, uppercase postal codes, strip punctuation.
+	5.	Deduplicate/Match:
+	•	Compare against existing org/people by name+number and string similarity.
+	•	Return matches: {candidateId, score} so UI can link or create new.
+	6.	Produce result:
+	•	{ extraction: ExtractionResult, matches, warnings } and store to a temporary table or JSON blob keyed by jobId.
+
+OpenAI extraction call (Node):
+
+import OpenAI from "openai";
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Use JSON schema (responses API) if available; otherwise function-calling.
+const schema = {
+  type: "object",
+  properties: {
+    organization: {
+      type: "object",
+      properties: {
+        legalName: { type: "string" },
+        number: { type: "string" },
+        jurisdiction: { type: "string" },
+        formationDate: { type: "string" },
+        registeredOffice: { type: "string" },
+        recordsOffice: { type: "string" }
+      },
+      additionalProperties: false
+    },
+    people: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          fullName: { type: "string" },
+          firstName: { type: "string" },
+          lastName: { type: "string" },
+          address: { type: "string" },
+          city: { type: "string" },
+          province: { type: "string" },
+          country: { type: "string" },
+          postalCode: { type: "string" },
+          email: { type: "string" },
+          isDirector: { type: "boolean" },
+          isOfficer: { type: "boolean" },
+          officerTitle: { type: "string" },
+          isShareholder: { type: "boolean" },
+          shareClass: { type: "string" },
+          shareSeries: { type: "string" },
+          shares: { type: "number" },
+          issueDate: { type: "string" }
+        },
+        required: ["fullName"],
+        additionalProperties: false
+      }
+    },
+    shareholders: { type: "array", items: { $ref: "#/properties/people/items" } },
+    confidence: { type: "number" },
+    confidences: { type: "object", additionalProperties: { type: "number" } },
+    sourceMeta: {
+      type: "object",
+      properties: { filename: { type: "string" }, pages: { type: "number" } },
+      required: ["filename", "pages"]
+    }
+  },
+  required: ["organization", "people", "shareholders", "confidence", "sourceMeta"],
+  additionalProperties: false
+};
+
+const system = `
+You extract clean, normalized corporate registry data from PDFs (minute books, registers, share certificates).
+Return only JSON conforming to the provided schema. Do not invent data.
+For dates, output ISO (YYYY-MM-DD) if a complete date exists; else omit the field.
+Set role flags: isDirector/isOfficer/isShareholder. officerTitle if present.
+Map share details: class, series, shares (number), issueDate (ISO).
+Extract addresses as single lines when possible; put city/province/postalCode separately if explicitly present.
+Include per-field confidences between 0 and 1.
+`;
+
+const user = `
+Document text (first 60k chars): 
+--- BEGIN ---
+${text.slice(0, 60000)}
+--- END ---
+If content exceeds limit, we may call you again with the rest.
+`;
+
+// If using Responses API with JSON schema:
+const response = await client.responses.create({
+  model: "gpt-4o-mini", // or your standard model
+  input: [
+    { role: "system", content: system },
+    { role: "user", content: user }
+  ],
+  response_format: { type: "json_schema", json_schema: { name: "ExtractionResult", schema, strict: true } }
+});
+const json = JSON.parse(response.output_text);
+
+(If Responses API isn’t available, use Chat Completions with tools/function-calling and enforce JSON parsing.)
+
+⸻
+
+6) Front-end (respect existing patterns)
+	•	Add an “Import from PDF” button near the Entity or Documents area.
+	•	Flow:
+	1.	Upload → show Job ID and Processing… state.
+	2.	Poll GET /api/ingest/jobs/:jobId with React Query until status === "completed".
+	3.	Render a Review & Apply panel:
+	•	Left: Extracted fields grouped (Organization / Directors / Officers / Shareholders).
+	•	Middle: confidence badges; allow per-field accept/edit.
+	•	Right: existing records (if matches found) → “Link to existing” or “Create new”.
+	4.	Submit to POST /api/ingest/:jobId/apply, then toast success and update local caches.
+	•	Use existing toasts, form components, and the apiRequest(method, url, body?) helper.
+
+⸻
+
+7) Normalization, matching & dedupe
+	•	Normalize names (trim, collapse spaces), title-case; strip commas from corporation numbers; uppercase postal codes; normalize province codes (e.g., Ontario → ON).
+	•	Use string-similarity to propose:
+	•	Org name match; number exact match = high confidence.
+	•	Person name + email/address fuzzy match.
+	•	Return matches list with { type: "organization"|"person", candidateId, label, score }.
+
+⸻
+
+8) Limits, costs, safety
+	•	Hard limit: pages processed (e.g., first 50 pages, configurable).
+	•	Chunk long PDFs and make multiple LLM calls (accumulate entities and reconcile).
+	•	Rate-limit uploads per user/tenant.
+	•	Log token usage per job (approximate word count × calls).
+	•	PII: store raw text for 24–48h max (configurable) for debugging; then purge.
+
+⸻
+
+9) Observability & admin
+	•	Job dashboard (if you have an admin panel): list recent ingestion jobs with status, duration, pages, token usage.
+	•	Error traces stored with redaction of PII where possible.
+
+⸻
+
+10) Acceptance criteria
+	•	Uploading a typical minute book PDF produces a Review UI in ≤ 60 seconds for ≤ 25 pages.
+	•	At least name, jurisdiction, number for org and ≥80% of directors/officers/shareholders are correctly extracted on common templates.
+	•	User can accept/override and commit to DB; subsequent document generation sees the new data.
+	•	Queue can process multiple jobs concurrently (configurable concurrency).
+	•	All new code passes type-check/lint and follows existing patterns; apiRequest method-first preserved.
+
+Non-goals now: PDF→DOCX or PDF→HTML conversion; auto-merging changes without review; deep address validation APIs.
+
+⸻
+
+If any repo convention conflicts arise, prefer adapting to existing patterns and ask before introducing a new library or folder layout.
