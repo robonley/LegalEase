@@ -198,19 +198,39 @@ export default function EntityDetail() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button variant="outline" className="h-auto flex-col gap-2 p-4" data-testid="manage-people-button">
+              <Button 
+                variant="outline" 
+                className="h-auto flex-col gap-2 p-4" 
+                onClick={() => setLocation('/people')}
+                data-testid="manage-people-button"
+              >
                 <i className="fas fa-users text-xl"></i>
                 <span className="text-sm">Manage People</span>
               </Button>
-              <Button variant="outline" className="h-auto flex-col gap-2 p-4" data-testid="cap-table-button">
+              <Button 
+                variant="outline" 
+                className="h-auto flex-col gap-2 p-4"
+                onClick={() => setLocation('/cap-table')}
+                data-testid="cap-table-button"
+              >
                 <i className="fas fa-chart-pie text-xl"></i>
                 <span className="text-sm">Cap Table</span>
               </Button>
-              <Button variant="outline" className="h-auto flex-col gap-2 p-4" data-testid="documents-button">
+              <Button 
+                variant="outline" 
+                className="h-auto flex-col gap-2 p-4"
+                onClick={() => setLocation('/documents')}
+                data-testid="documents-button"
+              >
                 <i className="fas fa-file-alt text-xl"></i>
                 <span className="text-sm">Documents</span>
               </Button>
-              <Button variant="outline" className="h-auto flex-col gap-2 p-4" data-testid="minute-book-button">
+              <Button 
+                variant="outline" 
+                className="h-auto flex-col gap-2 p-4"
+                onClick={() => setLocation('/minute-books')}
+                data-testid="minute-book-button"
+              >
                 <i className="fas fa-book text-xl"></i>
                 <span className="text-sm">Minute Book</span>
               </Button>
