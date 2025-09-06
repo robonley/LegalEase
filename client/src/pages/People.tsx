@@ -21,6 +21,25 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -36,12 +55,64 @@ export default function People() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [editingPerson, setEditingPerson] = useState<PersonWithRoles | null>(null);
+  const [viewingPerson, setViewingPerson] = useState<PersonWithRoles | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: people = [], isLoading } = useQuery<PersonWithRoles[]>({
     queryKey: ["/api/orgs", currentEntity?.id, "people"],
     enabled: !!currentEntity?.id,
   });
+
+  // Delete person mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (personId: string) => {
+      await apiRequest(`/api/orgs/${currentEntity?.id}/people/${personId}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["/api/orgs", currentEntity?.id, "people"],
+      });
+      toast({
+        title: "Success",
+        description: "Person deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete person",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Clone person function
+  const handleClonePerson = (person: PersonWithRoles) => {
+    // Create a copy of the person data for the form
+    const clonedData = {
+      firstName: `${person.firstName} (Copy)`,
+      lastName: person.lastName,
+      email: "", // Clear email to avoid conflicts
+      phone: person.phone,
+      address: person.address,
+      dateOfBirth: person.dateOfBirth,
+      roles: person.roles.map(role => ({
+        role: role.role,
+        title: role.title,
+        startDate: role.startDate,
+        shareQuantity: role.shareQuantity,
+        shareType: role.shareType,
+        shareClass: role.shareClass,
+        shareIssueDate: role.shareIssueDate,
+      })),
+    };
+    // You would pass this data to PersonForm in create mode
+    setIsCreateDialogOpen(true);
+    // Note: PersonForm would need to accept initialData prop for this to work
+  };
 
   const createPersonMutation = useMutation({
     mutationFn: async (data: { person: any; roles: any[] }) => {
@@ -303,22 +374,107 @@ export default function People() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            data-testid={`view-person-${person.id}`}
-                          >
-                            <i className="fas fa-eye"></i>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            data-testid={`edit-person-${person.id}`}
-                          >
-                            <i className="fas fa-edit"></i>
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              data-testid={`actions-menu-${person.id}`}
+                            >
+                              <i className="fas fa-ellipsis-h"></i>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            
+                            {/* View Person */}
+                            <DropdownMenuItem
+                              onClick={() => setViewingPerson(person)}
+                              data-testid={`view-person-${person.id}`}
+                            >
+                              <i className="fas fa-eye mr-2"></i>
+                              View Details
+                            </DropdownMenuItem>
+                            
+                            {/* Edit Person */}
+                            <DropdownMenuItem
+                              onClick={() => setEditingPerson(person)}
+                              data-testid={`edit-person-${person.id}`}
+                            >
+                              <i className="fas fa-edit mr-2"></i>
+                              Edit
+                            </DropdownMenuItem>
+                            
+                            {/* Clone Person */}
+                            <DropdownMenuItem
+                              onClick={() => handleClonePerson(person)}
+                              data-testid={`clone-person-${person.id}`}
+                            >
+                              <i className="fas fa-copy mr-2"></i>
+                              Clone
+                            </DropdownMenuItem>
+                            
+                            <DropdownMenuSeparator />
+                            
+                            {/* Send Email */}
+                            {person.email && (
+                              <DropdownMenuItem
+                                onClick={() => window.open(`mailto:${person.email}`, '_blank')}
+                                data-testid={`email-person-${person.id}`}
+                              >
+                                <i className="fas fa-envelope mr-2"></i>
+                                Send Email
+                              </DropdownMenuItem>
+                            )}
+                            
+                            {/* Call */}
+                            {person.phone && (
+                              <DropdownMenuItem
+                                onClick={() => window.open(`tel:${person.phone}`, '_blank')}
+                                data-testid={`call-person-${person.id}`}
+                              >
+                                <i className="fas fa-phone mr-2"></i>
+                                Call
+                              </DropdownMenuItem>
+                            )}
+                            
+                            <DropdownMenuSeparator />
+                            
+                            {/* Delete Person */}
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  onSelect={(e) => e.preventDefault()}
+                                  className="text-destructive focus:text-destructive"
+                                  data-testid={`delete-person-${person.id}`}
+                                >
+                                  <i className="fas fa-trash mr-2"></i>
+                                  Delete
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Person</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to delete {person.firstName} {person.lastName}? 
+                                    This action cannot be undone and will remove all associated roles and share holdings.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => deleteMutation.mutate(person.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    disabled={deleteMutation.isPending}
+                                  >
+                                    {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -327,6 +483,122 @@ export default function People() {
             </CardContent>
           </Card>
         )}
+
+        {/* View Person Dialog */}
+        <Dialog open={!!viewingPerson} onOpenChange={() => setViewingPerson(null)}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Person Details</DialogTitle>
+              <DialogDescription>
+                Detailed information for {viewingPerson?.firstName} {viewingPerson?.lastName}
+              </DialogDescription>
+            </DialogHeader>
+            {viewingPerson && (
+              <div className="space-y-6">
+                {/* Personal Information */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Personal Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Name</label>
+                      <p className="mt-1">{viewingPerson.firstName} {viewingPerson.lastName}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Email</label>
+                      <p className="mt-1">{viewingPerson.email || "Not provided"}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Phone</label>
+                      <p className="mt-1">{viewingPerson.phone || "Not provided"}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
+                      <p className="mt-1">
+                        {viewingPerson.dateOfBirth 
+                          ? formatDate(viewingPerson.dateOfBirth) 
+                          : "Not provided"
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  {viewingPerson.address && (
+                    <div className="mt-4">
+                      <label className="text-sm font-medium text-muted-foreground">Address</label>
+                      <p className="mt-1">{viewingPerson.address}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Roles and Responsibilities */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-3">Roles and Responsibilities</h3>
+                  <div className="space-y-3">
+                    {viewingPerson.roles.map((role) => (
+                      <div key={role.id} className="border rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <Badge variant="outline">{role.role}</Badge>
+                          {role.title && (
+                            <span className="text-sm text-muted-foreground">{role.title}</span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="font-medium">Start Date:</span> {formatDate(role.startDate)}
+                          </div>
+                          {role.role === 'Shareholder' && role.shareQuantity && (
+                            <>
+                              <div>
+                                <span className="font-medium">Shares:</span> {role.shareQuantity.toLocaleString()}
+                              </div>
+                              <div>
+                                <span className="font-medium">Share Type:</span> {role.shareType}
+                              </div>
+                              {role.shareClass && (
+                                <div>
+                                  <span className="font-medium">Share Class:</span> {role.shareClass}
+                                </div>
+                              )}
+                              {role.shareIssueDate && (
+                                <div>
+                                  <span className="font-medium">Issue Date:</span> {formatDate(role.shareIssueDate)}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Person Dialog */}
+        <Dialog open={!!editingPerson} onOpenChange={() => setEditingPerson(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Person</DialogTitle>
+              <DialogDescription>
+                Update information for {editingPerson?.firstName} {editingPerson?.lastName}
+              </DialogDescription>
+            </DialogHeader>
+            {editingPerson && (
+              <PersonForm
+                mode="edit"
+                initialData={editingPerson}
+                onSuccess={() => {
+                  setEditingPerson(null);
+                  queryClient.invalidateQueries({
+                    queryKey: ["/api/orgs", currentEntity?.id, "people"],
+                  });
+                }}
+                onCancel={() => setEditingPerson(null)}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
