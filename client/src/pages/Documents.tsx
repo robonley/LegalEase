@@ -51,6 +51,7 @@ export default function Documents() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api", "audit-logs"] });
       toast({
         title: "Success",
         description: "Document created successfully",
@@ -75,6 +76,7 @@ export default function Documents() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      queryClient.invalidateQueries({ queryKey: ["/api", "audit-logs"] });
       toast({
         title: "Success",
         description: "New Corporation Bundle created successfully",

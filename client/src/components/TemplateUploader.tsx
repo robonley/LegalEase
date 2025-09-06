@@ -130,7 +130,8 @@ export function TemplateUploader({ orgId, onUploadComplete }: TemplateUploaderPr
       queryClient.invalidateQueries({
         queryKey: ["/api/orgs", orgId, "templates"],
       });
-      
+      queryClient.invalidateQueries({ queryKey: ["/api", "audit-logs"] });
+
       onUploadComplete?.();
     } catch (error: any) {
       toast({

@@ -40,6 +40,7 @@ export default function Entities() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/orgs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api", "audit-logs"] });
       setShowCreateDialog(false);
       toast({
         title: "Success",

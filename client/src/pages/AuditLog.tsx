@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 
 export default function AuditLog() {
   const { data: logs = [], isLoading } = useQuery<any[]>({
-    queryKey: ["/api/audit-logs"],
+    queryKey: ["/api", "audit-logs"],
   });
 
   const formatDate = (dateString: string) => {

@@ -95,6 +95,7 @@ export interface IStorage {
   // Audit log operations
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogsByOrg(orgId: string): Promise<AuditLog[]>;
+  getAuditLogs(): Promise<AuditLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -357,6 +358,13 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(auditLogs)
       .where(eq(auditLogs.orgId, orgId))
+      .orderBy(desc(auditLogs.createdAt));
+  }
+
+  async getAuditLogs(): Promise<AuditLog[]> {
+    return await db
+      .select()
+      .from(auditLogs)
       .orderBy(desc(auditLogs.createdAt));
   }
 }

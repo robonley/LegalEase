@@ -443,6 +443,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Global audit logs
+  app.get('/api/audit-logs', isAuthenticated, async (req, res) => {
+    try {
+      const logs = await storage.getAuditLogs();
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch audit logs" });
+    }
+  });
+
   // Audit logs
   app.get('/api/orgs/:orgId/audit-logs', isAuthenticated, async (req, res) => {
     try {

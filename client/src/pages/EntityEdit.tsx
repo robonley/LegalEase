@@ -73,6 +73,7 @@ export default function EntityEdit() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/orgs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/orgs", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api", "audit-logs"] });
       toast({
         title: "Success",
         description: "Entity updated successfully",
