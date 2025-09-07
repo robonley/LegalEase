@@ -67,15 +67,30 @@ const roleOptions = [
 ];
 
 const officerTitles = [
-  "Chief Executive Officer",
-  "Chief Financial Officer", 
-  "Chief Operating Officer",
-  "Chief Technology Officer",
+  "Chief Executive Officer (CEO)",
+  "Chief Financial Officer (CFO)", 
+  "Chief Operating Officer (COO)",
+  "Chief Technology Officer (CTO)",
+  "Chief Legal Officer (CLO)",
+  "Chief Marketing Officer (CMO)",
+  "Chief Human Resources Officer (CHRO)",
   "President",
   "Vice President",
+  "Senior Vice President",
+  "Executive Vice President",
+  "Managing Director",
+  "General Manager",
   "Secretary",
+  "Assistant Secretary",
   "Treasurer",
-  "Other",
+  "Assistant Treasurer",
+  "Controller",
+  "General Counsel",
+  "Director of Operations",
+  "Director of Finance",
+  "Director of Marketing",
+  "Director of Human Resources",
+  "Custom",
 ];
 
 export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData, hideButtons = false }: PersonFormProps) {
@@ -475,20 +490,40 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                               {selectedRole === "Officer" ? "Officer Title" : "Specific Title (Optional)"}
                             </FormLabel>
                             {selectedRole === "Officer" ? (
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger data-testid={`select-title-${index}`}>
-                                    <SelectValue placeholder="Select officer title" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {officerTitles.map((title) => (
-                                    <SelectItem key={title} value={title}>
-                                      {title}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <div className="space-y-2">
+                                <Select 
+                                  onValueChange={(value) => {
+                                    if (value === "Custom") {
+                                      field.onChange(""); // Clear the field for custom input
+                                    } else {
+                                      field.onChange(value);
+                                    }
+                                  }} 
+                                  defaultValue={officerTitles.includes(field.value) ? field.value : "Custom"}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger data-testid={`select-title-${index}`}>
+                                      <SelectValue placeholder="Select officer title" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {officerTitles.map((title) => (
+                                      <SelectItem key={title} value={title}>
+                                        {title}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {(!officerTitles.includes(field.value) || field.value === "" || form.watch(`roles.${index}.title`) === "Custom") && (
+                                  <FormControl>
+                                    <Input 
+                                      placeholder="Enter custom officer title"
+                                      {...field}
+                                      data-testid={`input-custom-title-${index}`}
+                                    />
+                                  </FormControl>
+                                )}
+                              </div>
                             ) : (
                               <FormControl>
                                 <Input 

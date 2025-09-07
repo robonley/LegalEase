@@ -301,6 +301,7 @@ export default function People() {
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Roles</TableHead>
+                    <TableHead>Officer</TableHead>
                     <TableHead>Share Holdings</TableHead>
                     <TableHead>Date Added</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
@@ -346,6 +347,29 @@ export default function People() {
                             </Badge>
                           ))}
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        {(() => {
+                          const officerRoles = person.roles.filter(role => role.role === 'Officer');
+                          if (officerRoles.length === 0) {
+                            return <span className="text-muted-foreground text-sm">-</span>;
+                          }
+                          return (
+                            <div className="space-y-1">
+                              {officerRoles.map((role, idx) => (
+                                <div key={role.id} className="text-sm">
+                                  <Badge 
+                                    variant="secondary" 
+                                    className="text-xs"
+                                    data-testid={`officer-title-${person.id}-${idx}`}
+                                  >
+                                    {role.title || 'Officer'}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         {(() => {
