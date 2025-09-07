@@ -507,6 +507,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Enhanced audit logs endpoint with filtering
+  app.get('/api/audit-logs/filter', isAuthenticated, async (req: any, res) => {
+    try {
+      const {
+        orgId,
+        actorId,
+        action,
+        entityType,
+        entityId,
+        startDate,
+        endDate,
+        fieldName,
+        limit = '50',
+        offset = '0'
+      } = req.query;
+
+      const filters = {
+        orgId,
+        actorId,
+        action,
+        entityType,
+        entityId,
+        startDate: startDate ? new Date(startDate) : undefined,
+        endDate: endDate ? new Date(endDate) : undefined,
+        fieldName,
+        limit: parseInt(limit) || 50,
+        offset: parseInt(offset) || 0
+      };
+
+      const logs = await storage.getFilteredAuditLogs(filters);
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching filtered audit logs:", error);
+      res.status(500).json({ message: "Failed to fetch filtered audit logs" });
+    }
+  });
+
   // Registers endpoint
   app.get('/api/orgs/:orgId/registers', isAuthenticated, async (req, res) => {
     try {

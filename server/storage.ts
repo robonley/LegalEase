@@ -41,7 +41,7 @@ import {
   type InsertOrgNote,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -103,6 +103,30 @@ export interface IStorage {
   // Audit log operations
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
   getAuditLogsByOrg(orgId: string): Promise<AuditLog[]>;
+  createEnhancedAuditLog(params: {
+    orgId?: string;
+    actorId: string;
+    action: string;
+    entityType?: string;
+    entityId?: string;
+    oldValues?: Record<string, any>;
+    newValues?: Record<string, any>;
+    ipAddress?: string;
+    userAgent?: string;
+    additionalContext?: Record<string, any>;
+  }): Promise<AuditLog>;
+  getFilteredAuditLogs(filters?: {
+    orgId?: string;
+    actorId?: string;
+    action?: string;
+    entityType?: string;
+    entityId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    fieldName?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<AuditLog[]>;
   
   // Ingestion job operations
   createIngestionJob(job: InsertIngestionJob): Promise<IngestionJob>;
@@ -381,6 +405,151 @@ export class DatabaseStorage implements IStorage {
       .from(auditLogs)
       .where(eq(auditLogs.orgId, orgId))
       .orderBy(desc(auditLogs.createdAt));
+  }
+
+  // Enhanced audit logging with field-level change tracking
+  async createEnhancedAuditLog({
+    orgId,
+    actorId,
+    action,
+    entityType,
+    entityId,
+    oldValues,
+    newValues,
+    ipAddress,
+    userAgent,
+    additionalContext = {}
+  }: {
+    orgId?: string;
+    actorId: string;
+    action: string;
+    entityType?: string;
+    entityId?: string;
+    oldValues?: Record<string, any>;
+    newValues?: Record<string, any>;
+    ipAddress?: string;
+    userAgent?: string;
+    additionalContext?: Record<string, any>;
+  }): Promise<AuditLog> {
+    // Calculate field changes
+    const fieldChanges: Record<string, { old: any; new: any }> = {};
+    
+    if (oldValues && newValues) {
+      // Compare old and new values to identify changed fields
+      const allKeys = [...new Set([...Object.keys(oldValues), ...Object.keys(newValues)])];
+      
+      for (const key of allKeys) {
+        const oldVal = oldValues[key];
+        const newVal = newValues[key];
+        
+        // Only track actual changes (excluding timestamps and IDs)
+        if (oldVal !== newVal && !['createdAt', 'updatedAt', 'id'].includes(key)) {
+          fieldChanges[key] = {
+            old: oldVal,
+            new: newVal
+          };
+        }
+      }
+    }
+
+    const auditData = {
+      orgId,
+      actorId,
+      action,
+      entityType,
+      entityId,
+      fieldChanges: Object.keys(fieldChanges).length > 0 ? fieldChanges : null,
+      payload: {
+        ...additionalContext,
+        hasFieldChanges: Object.keys(fieldChanges).length > 0,
+        changedFields: Object.keys(fieldChanges),
+        entityType,
+        entityId
+      },
+      ipAddress,
+      userAgent
+    };
+
+    const [created] = await db.insert(auditLogs).values(auditData).returning();
+    return created;
+  }
+
+  // Get audit logs with comprehensive filtering
+  async getFilteredAuditLogs({
+    orgId,
+    actorId,
+    action,
+    entityType,
+    entityId,
+    startDate,
+    endDate,
+    fieldName,
+    limit = 50,
+    offset = 0
+  }: {
+    orgId?: string;
+    actorId?: string;
+    action?: string;
+    entityType?: string;
+    entityId?: string;
+    startDate?: Date;
+    endDate?: Date;
+    fieldName?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<AuditLog[]> {
+    let query = db.select().from(auditLogs).$dynamic();
+    
+    // Apply filters
+    const conditions = [];
+    
+    if (orgId) {
+      conditions.push(eq(auditLogs.orgId, orgId));
+    }
+    
+    if (actorId) {
+      conditions.push(eq(auditLogs.actorId, actorId));
+    }
+    
+    if (action) {
+      conditions.push(eq(auditLogs.action, action));
+    }
+    
+    if (entityType) {
+      conditions.push(eq(auditLogs.entityType, entityType));
+    }
+    
+    if (entityId) {
+      conditions.push(eq(auditLogs.entityId, entityId));
+    }
+    
+    if (startDate) {
+      conditions.push(gte(auditLogs.createdAt, startDate));
+    }
+    
+    if (endDate) {
+      conditions.push(lte(auditLogs.createdAt, endDate));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+    
+    const results = await query
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit)
+      .offset(offset);
+      
+    // Filter by field name in application logic if specified
+    if (fieldName) {
+      return results.filter(log => 
+        log.fieldChanges && 
+        typeof log.fieldChanges === 'object' &&
+        Object.keys(log.fieldChanges).includes(fieldName)
+      );
+    }
+    
+    return results;
   }
 
   // Ingestion job operations
