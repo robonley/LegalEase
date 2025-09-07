@@ -213,7 +213,8 @@ export default function MinuteBooks() {
     return <Badge className={colors[type]}>{type.charAt(0).toUpperCase() + type.slice(1)}</Badge>;
   };
 
-  const formatDate = (date: string) => {
+  const formatDate = (date: string | Date | null) => {
+    if (!date) return 'Unknown';
     return new Date(date).toLocaleDateString();
   };
 

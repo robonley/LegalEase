@@ -13,7 +13,8 @@ import {
   insertTemplateSchema,
   insertGeneratedDocSchema,
   insertAuditLogSchema,
-  insertOrgNoteSchema
+  insertOrgNoteSchema,
+  insertMinuteBookSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { extractTemplateVariables, createVariableMapping, CBCA_TEMPLATE_VARIABLES } from "./templateProcessor";
@@ -978,6 +979,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get minute book templates
+  app.get('/api/templates/minute-book', isAuthenticated, async (req, res) => {
+    try {
+      const templates = await storage.getTemplates();
+      const minuteBookTemplates = templates.filter(t => 
+        t.category === 'minute-book' || 
+        t.scope === 'organization' || 
+        t.scope === 'bylaws' ||
+        t.scope === 'resolution' ||
+        t.isStarter
+      );
+      res.json(minuteBookTemplates);
+    } catch (error) {
+      console.error("Error fetching minute book templates:", error);
+      res.status(500).json({ message: "Failed to fetch minute book templates" });
+    }
+  });
+
   // Template management routes
   app.get('/api/orgs/:orgId/templates', isAuthenticated, async (req, res) => {
     try {
@@ -1458,6 +1477,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error applying extraction results:', error);
       res.status(500).json({ message: 'Failed to apply extraction results' });
+    }
+  });
+
+  // Minute Books API routes
+  app.get('/api/orgs/:orgId/minute-books', isAuthenticated, async (req, res) => {
+    try {
+      const { orgId } = req.params;
+      const minuteBooks = await storage.getMinuteBooks(orgId);
+      res.json(minuteBooks);
+    } catch (error) {
+      console.error("Error fetching minute books:", error);
+      res.status(500).json({ message: "Failed to fetch minute books" });
+    }
+  });
+
+  app.post('/api/orgs/:orgId/minute-books', isAuthenticated, async (req: any, res) => {
+    try {
+      const { orgId } = req.params;
+      const userId = req.user.claims.sub;
+      const { name, type, fiscalYear, description, templateIds } = req.body;
+
+      if (!name || !type || !templateIds || templateIds.length === 0) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const minuteBook = await storage.createMinuteBook({
+        orgId,
+        name,
+        type,
+        fiscalYear,
+        description,
+        status: "draft",
+        createdBy: userId,
+      });
+
+      for (let i = 0; i < templateIds.length; i++) {
+        await storage.createMinuteBookDoc({
+          minuteBookId: minuteBook.id,
+          templateId: templateIds[i],
+          sortOrder: i,
+          status: "pending",
+        });
+      }
+
+      res.status(201).json(minuteBook);
+    } catch (error) {
+      console.error("Error creating minute book:", error);
+      res.status(500).json({ message: "Failed to create minute book" });
+    }
+  });
+
+  app.post('/api/minute-books/:id/generate', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.updateMinuteBook(id, { status: "generating" });
+      
+      setTimeout(async () => {
+        try {
+          await storage.updateMinuteBook(id, { 
+            status: "ready",
+            bundleFileKey: `minute-book-${id}.pdf`
+          });
+        } catch (error) {
+          await storage.updateMinuteBook(id, { status: "error" });
+        }
+      }, 5000);
+
+      res.json({ message: "Generation started" });
+    } catch (error) {
+      console.error("Error generating minute book:", error);
+      res.status(500).json({ message: "Failed to generate minute book" });
+    }
+  });
+
+  app.delete('/api/minute-books/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteMinuteBook(id);
+      res.sendStatus(204);
+    } catch (error) {
+      console.error("Error deleting minute book:", error);
+      res.status(500).json({ message: "Failed to delete minute book" });
     }
   });
 

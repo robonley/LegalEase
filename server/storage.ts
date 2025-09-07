@@ -527,7 +527,7 @@ export class DatabaseStorage implements IStorage {
     
     if (oldValues && newValues) {
       // Compare old and new values to identify changed fields
-      const allKeys = [...new Set([...Object.keys(oldValues), ...Object.keys(newValues)])];
+      const allKeys = Array.from(new Set([...Object.keys(oldValues), ...Object.keys(newValues)]));
       
       for (const key of allKeys) {
         const oldVal = oldValues[key];
