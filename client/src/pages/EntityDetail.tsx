@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { PDFIngestion } from "@/components/PDFIngestion";
 import { ExtractionResultsModal } from "@/components/ExtractionResultsModal";
 import { useToast } from "@/hooks/use-toast";
-import { Upload } from "lucide-react";
-import type { Org } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+import { Upload, MessageSquarePlus } from "lucide-react";
+import type { Org, OrgNote } from "@shared/schema";
 
 export default function EntityDetail() {
   const { id } = useParams();
@@ -20,11 +22,41 @@ export default function EntityDetail() {
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [extractionResults, setExtractionResults] = useState<any[]>([]);
   const [showExtractionModal, setShowExtractionModal] = useState(false);
+  const [showAddNote, setShowAddNote] = useState(false);
+  const [newNoteContent, setNewNoteContent] = useState('');
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: entity, isLoading } = useQuery<Org>({
     queryKey: ["/api/orgs", id],
     enabled: !!id,
+  });
+
+  const { data: notes = [], isLoading: notesLoading } = useQuery<OrgNote[]>({
+    queryKey: ["/api/orgs", id, "notes"],
+    enabled: !!id,
+  });
+
+  const addNoteMutation = useMutation({
+    mutationFn: async (content: string) => {
+      await apiRequest("POST", `/api/orgs/${id}/notes`, { content });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orgs", id, "notes"] });
+      setNewNoteContent('');
+      setShowAddNote(false);
+      toast({
+        title: "Note Added",
+        description: "Your note has been saved successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   // Track this entity as recently accessed when data loads
@@ -203,6 +235,36 @@ export default function EntityDetail() {
                 <p className="text-lg font-medium">{formatDate(entity.updatedAt)}</p>
               </div>
             </div>
+            
+            {/* Amendment Information */}
+            {(entity.amendmentDate || entity.previousCorporationName || entity.amendmentDetails) && (
+              <>
+                <Separator className="my-4" />
+                <div>
+                  <h4 className="text-sm font-medium text-muted-foreground mb-3">Amendment Information</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {entity.amendmentDate && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Amendment Date</label>
+                        <p className="text-lg font-medium">{formatDate(entity.amendmentDate)}</p>
+                      </div>
+                    )}
+                    {entity.previousCorporationName && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Previous Corporation Name</label>
+                        <p className="text-lg font-medium">{entity.previousCorporationName}</p>
+                      </div>
+                    )}
+                  </div>
+                  {entity.amendmentDetails && (
+                    <div className="mt-4">
+                      <label className="text-sm font-medium text-muted-foreground">Amendment Details</label>
+                      <p className="text-base mt-1 text-foreground bg-muted/30 p-3 rounded-md">{entity.amendmentDetails}</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -306,6 +368,97 @@ export default function EntityDetail() {
                 <span className="text-sm">Minute Book</span>
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Notes Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Notes</CardTitle>
+                <CardDescription>Add notes and observations about this entity</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddNote(true)}
+                data-testid="add-note-button"
+              >
+                <MessageSquarePlus className="h-4 w-4 mr-2" />
+                Add Note
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Add Note Form */}
+            {showAddNote && (
+              <div className="space-y-3 p-4 border rounded-lg bg-muted/20">
+                <Textarea
+                  placeholder="Add your note here..."
+                  value={newNoteContent}
+                  onChange={(e) => setNewNoteContent(e.target.value)}
+                  rows={3}
+                  data-testid="new-note-content"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => addNoteMutation.mutate(newNoteContent)}
+                    disabled={!newNoteContent.trim() || addNoteMutation.isPending}
+                    data-testid="save-note-button"
+                  >
+                    {addNoteMutation.isPending ? (
+                      <>
+                        <i className="fas fa-spinner fa-spin mr-2"></i>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-save mr-2"></i>
+                        Save Note
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowAddNote(false);
+                      setNewNoteContent('');
+                    }}
+                    data-testid="cancel-note-button"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Notes List */}
+            {notesLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <i className="fas fa-spinner fa-spin text-muted-foreground"></i>
+              </div>
+            ) : notes.length === 0 ? (
+              <div className="text-center py-8">
+                <i className="fas fa-sticky-note text-4xl text-muted-foreground mb-3"></i>
+                <p className="text-muted-foreground">No notes yet</p>
+                <p className="text-sm text-muted-foreground">Add your first note to track important information about this entity</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {notes.map((note) => (
+                  <div key={note.id} className="border rounded-lg p-4 bg-card" data-testid={`note-${note.id}`}>
+                    <p className="text-foreground mb-2">{note.content}</p>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>Added {formatDate(note.createdAt)}</span>
+                      <span>By {note.createdBy}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
