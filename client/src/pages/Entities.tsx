@@ -24,16 +24,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Search, SortAsc, SortDesc, Filter, ChevronDown } from "lucide-react";
 
-const formSchema = insertOrgSchema.omit({ 
-  createdById: true, 
-  createdAt: true, 
-  updatedAt: true,
-  registeredOfficeId: true,
-  recordsOfficeId: true
-}).extend({
-  amendmentDate: z.string().optional(),
+const formSchema = z.object({
+  name: z.string().min(1, "Entity name is required"),
+  number: z.string().optional(),
+  companyKey: z.string().optional(),
+  jurisdiction: z.string().min(1, "Jurisdiction is required"),
+  formationAt: z.date().optional(),
+  amendmentDate: z.date().optional(),
   previousCorporationName: z.string().optional(),
-  amendmentDetails: z.string().optional()
+  amendmentDetails: z.string().optional(),
+  mailingAddressId: z.string().optional(),
+  authRepName: z.string().optional(),
+  authRepCompany: z.string().optional(),
+  authRepAddressId: z.string().optional(),
+  authRepEmail: z.string().email().optional().or(z.literal("")),
+  authRepPhone: z.string().optional(),
 });
 
 export default function Entities() {
@@ -86,6 +91,12 @@ export default function Entities() {
       amendmentDate: undefined,
       previousCorporationName: "",
       amendmentDetails: "",
+      mailingAddressId: "",
+      authRepName: "",
+      authRepCompany: "",
+      authRepAddressId: "",
+      authRepEmail: "",
+      authRepPhone: "",
     },
   });
 
