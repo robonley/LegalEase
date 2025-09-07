@@ -407,10 +407,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const template = await storage.createTemplate(templateData);
       
-      await storage.createAuditLog({
+      await storage.createEnhancedAuditLog({
         actorId: userId,
         action: "CREATE_TEMPLATE",
-        payload: { templateId: template.id, name: template.name }
+        entityType: "template",
+        entityId: template.id,
+        newValues: template,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: { 
+          name: template.name,
+          isStarter: false,
+          templateType: "custom"
+        }
       });
 
       res.status(201).json(template);
@@ -445,13 +454,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: userId
       });
 
-      await storage.createAuditLog({
+      await storage.createEnhancedAuditLog({
         orgId,
         actorId: userId,
         action: "GENERATE_DOCUMENT",
-        payload: { 
-          docId: generatedDoc.id, 
-          templateName: template.name 
+        entityType: "document",
+        entityId: generatedDoc.id,
+        newValues: generatedDoc,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: { 
+          templateName: template.name,
+          templateId: template.id,
+          fileName: generatedDoc.fileKey,
+          overrides
         }
       });
 
@@ -476,11 +492,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Simulate minute book generation
       const fileKey = `minute-books/${orgId}/${Date.now()}.zip`;
       
-      await storage.createAuditLog({
+      await storage.createEnhancedAuditLog({
         orgId,
         actorId: userId,
         action: "GENERATE_MINUTE_BOOK",
-        payload: { bundle, fileKey }
+        entityType: "document_bundle",
+        entityId: fileKey,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: { 
+          bundle,
+          fileKey,
+          bundleType: "minute-book"
+        }
       });
 
       res.json({ downloadUrl: `/api/minute-books/${fileKey}` });
@@ -723,16 +747,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: description || `Custom ${type} template`,
       });
 
-      // Create audit log
-      await storage.createAuditLog({
+      // Create enhanced audit log
+      await storage.createEnhancedAuditLog({
         orgId,
         actorId: userId,
         action: "UPLOAD_TEMPLATE",
-        payload: { 
-          templateId: template.id,
+        entityType: "template",
+        entityId: template.id,
+        newValues: template,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: { 
           name,
           type,
-          fileName
+          fileName,
+          fileSize: fileSize || 0
         }
       });
 
@@ -831,12 +860,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: userId,
       });
 
-      // Create audit log
-      await storage.createAuditLog({
+      // Create enhanced audit log
+      await storage.createEnhancedAuditLog({
         orgId,
         actorId: userId,
         action: "CREATE_DOCUMENT",
-        payload: { documentId: generatedDoc.id, documentType, templateName: templateConfig.name }
+        entityType: "document",
+        entityId: generatedDoc.id,
+        newValues: generatedDoc,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: { 
+          documentType, 
+          templateName: templateConfig.name,
+          fileName: generatedDoc.fileKey
+        }
       });
 
       res.status(201).json(generatedDoc);
@@ -900,14 +938,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create audit log for bundle creation
-      await storage.createAuditLog({
+      await storage.createEnhancedAuditLog({
         orgId,
         actorId: userId,
         action: "CREATE_DOCUMENT_BUNDLE",
-        payload: { 
-          bundleType: "new-corporation", 
+        entityType: "document_bundle",
+        entityId: `bundle-${Date.now()}`,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: { 
+          bundleType: "new-corporation",
           documentsCreated: createdDocs.length,
-          documentIds: createdDocs.map(d => d.id)
+          documentIds: createdDocs.map(d => d.id),
+          documents: createdDocs.map(d => ({ id: d.id, fileKey: d.fileKey, templateId: d.templateId }))
         }
       });
 
@@ -919,9 +962,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document download route
-  app.get('/api/documents/:docId/download', isAuthenticated, async (req, res) => {
+  app.get('/api/documents/:docId/download', isAuthenticated, async (req: any, res) => {
     try {
       const { docId } = req.params;
+      const userId = req.user.claims.sub;
       
       // Get document details
       const document = await storage.getGeneratedDocById(docId);
@@ -929,6 +973,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
       }
+
+      // Create audit log for document download
+      await storage.createEnhancedAuditLog({
+        orgId: document.orgId,
+        actorId: userId,
+        action: "DOWNLOAD_DOCUMENT",
+        entityType: "document",
+        entityId: docId,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: { 
+          fileName: document.fileKey,
+          downloadTime: new Date().toISOString()
+        }
+      });
 
       // For now, return a placeholder response since we don't have actual file storage yet
       res.set({
@@ -1025,6 +1084,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fileKey,
         status: 'queued',
         progress: 0,
+      });
+
+      // Create audit log for file upload
+      await storage.createEnhancedAuditLog({
+        actorId: userId,
+        action: "UPLOAD_FILE",
+        entityType: "file",
+        entityId: job.id,
+        newValues: {
+          filename: file.originalname,
+          fileKey,
+          fileSize: file.size,
+          mimetype: file.mimetype
+        },
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: {
+          originalName: file.originalname,
+          size: file.size,
+          mimetype: file.mimetype,
+          uploadType: "ingestion"
+        }
       });
 
       // Add job to queue
