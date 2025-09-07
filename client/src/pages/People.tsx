@@ -546,22 +546,42 @@ export default function People() {
             {viewingPerson && (
               isEditMode ? (
                 // Edit Mode - Show PersonForm
-                <PersonForm
-                  mode="edit"
-                  initialData={viewingPerson}
-                  onSuccess={() => {
-                    setIsEditMode(false);
-                    queryClient.invalidateQueries({
-                      queryKey: ["/api/orgs", currentEntity?.id, "people"],
-                    });
-                    toast({
-                      title: "Success",
-                      description: "Person updated successfully",
-                    });
-                  }}
-                  onCancel={() => setIsEditMode(false)}
-                  hideButtons={true}
-                />
+                <div className="space-y-4">
+                  <PersonForm
+                    mode="edit"
+                    initialData={viewingPerson}
+                    onSuccess={() => {
+                      setIsEditMode(false);
+                      queryClient.invalidateQueries({
+                        queryKey: ["/api/orgs", currentEntity?.id, "people"],
+                      });
+                      toast({
+                        title: "Success",
+                        description: "Person updated successfully",
+                      });
+                    }}
+                    onCancel={() => setIsEditMode(false)}
+                    hideButtons={true}
+                  />
+                  {/* Save/Cancel buttons for edit mode */}
+                  <div className="flex justify-end gap-3 pt-6 border-t">
+                    <Button 
+                      type="button"
+                      variant="outline" 
+                      onClick={() => setIsEditMode(false)}
+                      data-testid="cancel-edit-button"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      type="submit"
+                      form="person-form"
+                      data-testid="save-person-button"
+                    >
+                      Save Changes
+                    </Button>
+                  </div>
+                </div>
               ) : (
                 // View Mode - Show person details
                 <div className="space-y-6">
