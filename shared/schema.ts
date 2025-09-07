@@ -160,8 +160,13 @@ export const auditLogs = pgTable("audit_logs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orgId: varchar("org_id").references(() => orgs.id),
   actorId: varchar("actor_id").notNull().references(() => users.id),
-  action: text("action").notNull(), // e.g., "UPDATE_CAP_TABLE"
-  payload: json("payload").notNull(),
+  action: text("action").notNull(), // e.g., "UPDATE_CAP_TABLE", "UPDATE_ENTITY", "CREATE_PERSON"
+  entityType: text("entity_type"), // "organization", "person", "share_class", etc.
+  entityId: varchar("entity_id"), // ID of the affected entity
+  fieldChanges: json("field_changes"), // {"field_name": {"old": "value", "new": "value"}}
+  payload: json("payload").notNull(), // Full context data
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
