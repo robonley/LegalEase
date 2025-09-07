@@ -12,7 +12,8 @@ import {
   insertShareTransferSchema,
   insertTemplateSchema,
   insertGeneratedDocSchema,
-  insertAuditLogSchema
+  insertAuditLogSchema,
+  insertOrgNoteSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { extractTemplateVariables, createVariableMapping, CBCA_TEMPLATE_VARIABLES } from "./templateProcessor";
@@ -57,10 +58,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use a default test user ID for development
       const userId = "test-user-123";
       
-      // Convert formationAt string to Date if provided
+      // Convert date strings to Date objects if provided
       const processedBody = { ...req.body };
       if (processedBody.formationAt) {
         processedBody.formationAt = new Date(processedBody.formationAt);
+      }
+      if (processedBody.amendmentDate) {
+        processedBody.amendmentDate = new Date(processedBody.amendmentDate);
       }
       
       const orgData = insertOrgSchema.parse({ ...processedBody, createdById: userId });
@@ -110,10 +114,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Use a default test user ID for development
       const userId = "test-user-123";
       
-      // Convert formationAt string to Date if provided
+      // Convert date strings to Date objects if provided
       const processedBody = { ...req.body };
       if (processedBody.formationAt) {
         processedBody.formationAt = new Date(processedBody.formationAt);
+      }
+      if (processedBody.amendmentDate) {
+        processedBody.amendmentDate = new Date(processedBody.amendmentDate);
       }
 
       // Handle address creation and linking
@@ -154,6 +161,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating organization:", error);
       res.status(500).json({ message: "Failed to update organization" });
+    }
+  });
+
+  // Organization Notes routes
+  app.get('/api/orgs/:id/notes', async (req, res) => {
+    try {
+      const notes = await storage.getOrgNotes(req.params.id);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error fetching organization notes:", error);
+      res.status(500).json({ message: "Failed to fetch notes" });
+    }
+  });
+
+  app.post('/api/orgs/:id/notes', async (req: any, res) => {
+    try {
+      // Use a default test user ID for development
+      const userId = "test-user-123";
+      
+      const noteData = insertOrgNoteSchema.parse({
+        orgId: req.params.id,
+        content: req.body.content,
+        createdBy: userId
+      });
+      
+      const note = await storage.createOrgNote(noteData);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        orgId: req.params.id,
+        actorId: userId,
+        action: "ADD_NOTE",
+        payload: { noteId: note.id, content: req.body.content }
+      });
+
+      res.status(201).json(note);
+    } catch (error) {
+      console.error("Error creating organization note:", error);
+      res.status(500).json({ message: "Failed to create note" });
     }
   });
 

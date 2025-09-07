@@ -11,6 +11,7 @@ import {
   generatedDocs,
   auditLogs,
   ingestionJobs,
+  orgNotes,
   type User,
   type UpsertUser,
   type Org,
@@ -36,6 +37,8 @@ import {
   type IngestionJob,
   type InsertIngestionJob,
   type ExtractionResult,
+  type OrgNote,
+  type InsertOrgNote,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -106,6 +109,10 @@ export interface IStorage {
   getIngestionJobById(id: string): Promise<IngestionJob | undefined>;
   updateIngestionJob(id: string, updates: Partial<InsertIngestionJob>): Promise<IngestionJob>;
   getIngestionJobsByUser(userId: string): Promise<IngestionJob[]>;
+  
+  // Organization notes operations
+  createOrgNote(note: InsertOrgNote): Promise<OrgNote>;
+  getOrgNotes(orgId: string): Promise<OrgNote[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -402,6 +409,20 @@ export class DatabaseStorage implements IStorage {
       .from(ingestionJobs)
       .where(eq(ingestionJobs.userId, userId))
       .orderBy(desc(ingestionJobs.createdAt));
+  }
+
+  // Organization notes operations
+  async createOrgNote(note: InsertOrgNote): Promise<OrgNote> {
+    const [created] = await db.insert(orgNotes).values(note).returning();
+    return created;
+  }
+
+  async getOrgNotes(orgId: string): Promise<OrgNote[]> {
+    return await db
+      .select()
+      .from(orgNotes)
+      .where(eq(orgNotes.orgId, orgId))
+      .orderBy(desc(orgNotes.createdAt));
   }
 }
 
