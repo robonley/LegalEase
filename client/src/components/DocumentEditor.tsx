@@ -203,7 +203,7 @@ export function DocumentEditor({
                       {entityData.organization.formationAt && (
                         <button
                           className="text-left text-sm hover:bg-muted p-2 rounded w-full"
-                          onClick={() => insertEntityData(format(entityData.organization.formationAt!, 'MMM dd, yyyy'))}
+                          onClick={() => insertEntityData(entityData.organization.formationAt ? format(entityData.organization.formationAt, 'MMM dd, yyyy') : 'Not set')}
                         >
                           <div className="font-medium">{format(entityData.organization.formationAt, 'MMM dd, yyyy')}</div>
                           <div className="text-xs text-muted-foreground">Formation Date</div>
