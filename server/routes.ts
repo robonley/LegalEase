@@ -607,6 +607,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get single document by ID
+  app.get('/api/documents/:documentId', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = req.params.documentId;
+      const document = await storage.getGeneratedDocById(documentId);
+      
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      res.json(document);
+    } catch (error) {
+      console.error("Error fetching document:", error);
+      res.status(500).json({ message: "Failed to fetch document" });
+    }
+  });
+
   // Rename document
   app.put('/api/documents/:documentId/rename', isAuthenticated, async (req: any, res) => {
     try {
@@ -648,6 +665,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error renaming document:", error);
       res.status(500).json({ message: "Failed to rename document" });
+    }
+  });
+
+  // Export document as PDF
+  app.post('/api/documents/:documentId/export-pdf', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = req.params.documentId;
+      const { content } = req.body;
+      const userId = req.user?.claims?.sub || "test-user-123";
+
+      const document = await storage.getGeneratedDocById(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Import html-pdf-node
+      const htmlPdf = require('html-pdf-node');
+      
+      // Create HTML content with proper styling
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+              line-height: 1.6;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 40px 20px;
+              color: #333;
+            }
+            h1, h2, h3, h4, h5, h6 {
+              margin-top: 1.5em;
+              margin-bottom: 0.5em;
+              font-weight: 600;
+            }
+            p {
+              margin-bottom: 1em;
+            }
+            ul, ol {
+              margin-bottom: 1em;
+              padding-left: 1.5em;
+            }
+            strong {
+              font-weight: 600;
+            }
+            em {
+              font-style: italic;
+            }
+            .header {
+              text-align: center;
+              border-bottom: 2px solid #eee;
+              padding-bottom: 20px;
+              margin-bottom: 30px;
+            }
+            .document-title {
+              font-size: 24px;
+              font-weight: 700;
+              margin-bottom: 10px;
+            }
+            .organization-name {
+              color: #666;
+              font-size: 16px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="document-title">${document.fileKey}</div>
+            <div class="organization-name">Generated Document</div>
+          </div>
+          <div class="content">
+            ${content || '<p>No content available</p>'}
+          </div>
+        </body>
+        </html>
+      `;
+
+      const options = {
+        format: 'A4',
+        margin: {
+          top: '20mm',
+          bottom: '20mm',
+          left: '20mm',
+          right: '20mm'
+        }
+      };
+
+      const pdfBuffer = await htmlPdf.generatePdf({ content: htmlContent }, options);
+
+      // Create audit log for PDF export
+      await storage.createEnhancedAuditLog({
+        orgId: document.orgId,
+        actorId: userId,
+        action: "EXPORT_PDF",
+        entityType: "document",
+        entityId: documentId,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: {
+          documentId,
+          fileKey: document.fileKey,
+          exportTime: new Date().toISOString()
+        }
+      });
+
+      // Set headers for PDF download
+      res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${document.fileKey.replace('.docx', '.pdf')}"`,
+        'Content-Length': pdfBuffer.length
+      });
+
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error exporting PDF:", error);
+      res.status(500).json({ message: "Failed to export PDF" });
     }
   });
 

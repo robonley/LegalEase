@@ -100,10 +100,10 @@ export function DocumentEditor({
 
   // Update document name when data is loaded
   useEffect(() => {
-    if (documentData?.fileKey && !documentName) {
+    if (documentData?.fileKey) {
       setDocumentName(documentData.fileKey);
     }
-  }, [documentData, documentName]);
+  }, [documentData]);
 
   const handleSave = async () => {
     if (!onSave) return;
@@ -152,6 +152,59 @@ export function DocumentEditor({
     setIsEditingName(false);
     if (documentData?.fileKey) {
       setDocumentName(documentData.fileKey);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!documentId || !content) {
+      toast({
+        title: "Error",
+        description: "No content to export",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/documents/${documentId}/export-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export PDF');
+      }
+
+      // Get the filename from response headers or use document name
+      const filename = documentData?.fileKey?.replace('.docx', '.pdf') || 'document.pdf';
+      
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: "PDF exported successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to export PDF",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -480,6 +533,21 @@ export function DocumentEditor({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleExportPDF}
+              disabled={isSaving || !content}
+              data-testid="export-pdf"
+              title="Export as PDF"
+              className="text-red-600 hover:text-red-700"
+            >
+              {isSaving ? (
+                <i className="fas fa-spinner fa-spin"></i>
+              ) : (
+                <i className="fas fa-file-pdf"></i>
+              )}
+            </Button>
             <Button
               variant="ghost"
               size="sm"
