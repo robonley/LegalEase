@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useQuery } from "@tanstack/react-query";
-import { formatDate } from "@/lib/utils";
+import { format } from "date-fns";
 import type { Org, Person, ShareClass, ShareIssuance } from "@shared/schema";
 
 interface DocumentEditorProps {
@@ -203,9 +203,9 @@ export function DocumentEditor({
                       {entityData.organization.formationAt && (
                         <button
                           className="text-left text-sm hover:bg-muted p-2 rounded w-full"
-                          onClick={() => insertEntityData(formatDate(entityData.organization.formationAt!))}
+                          onClick={() => insertEntityData(format(entityData.organization.formationAt!, 'MMM dd, yyyy'))}
                         >
-                          <div className="font-medium">{formatDate(entityData.organization.formationAt)}</div>
+                          <div className="font-medium">{format(entityData.organization.formationAt, 'MMM dd, yyyy')}</div>
                           <div className="text-xs text-muted-foreground">Formation Date</div>
                         </button>
                       )}

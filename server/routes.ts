@@ -525,6 +525,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Document editor data endpoint
+  app.get('/api/orgs/:orgId/editor-data', isAuthenticated, async (req, res) => {
+    try {
+      const orgId = req.params.orgId;
+      
+      // Get all data needed for the document editor
+      const [organization, people, shareClasses, shareIssuances, addresses] = await Promise.all([
+        storage.getOrg(orgId),
+        storage.getPeopleByOrg(orgId),
+        storage.getShareClassesByOrg(orgId),
+        storage.getShareIssuancesByOrg(orgId),
+        storage.getAddressesByOrg(orgId)
+      ]);
+
+      res.json({
+        organization,
+        people,
+        shareClasses,
+        shareIssuances,
+        addresses
+      });
+    } catch (error) {
+      console.error("Error fetching editor data:", error);
+      res.status(500).json({ message: "Failed to fetch editor data" });
+    }
+  });
+
+  // Document content endpoint
+  app.get('/api/documents/:documentId/content', isAuthenticated, async (req, res) => {
+    try {
+      const document = await storage.getGeneratedDoc(req.params.documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // For now, return empty content - in the future this could load from file storage
+      res.json({ content: document.content || "" });
+    } catch (error) {
+      console.error("Error fetching document content:", error);
+      res.status(500).json({ message: "Failed to fetch document content" });
+    }
+  });
+
+  // Save document content endpoint
+  app.put('/api/documents/:documentId/content', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = req.params.documentId;
+      const { content } = req.body;
+      const userId = req.user?.claims?.sub || "test-user-123";
+
+      const document = await storage.getGeneratedDoc(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Update document content
+      await storage.updateGeneratedDoc(documentId, { content });
+
+      // Create audit log for content update
+      await storage.createEnhancedAuditLog({
+        orgId: document.orgId,
+        actorId: userId,
+        action: "UPDATE_DOCUMENT_CONTENT",
+        entityType: "document",
+        entityId: documentId,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: {
+          documentId,
+          fileKey: document.fileKey,
+          contentLength: content?.length || 0
+        }
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error saving document content:", error);
+      res.status(500).json({ message: "Failed to save document content" });
+    }
+  });
+
   // Audit logs
   app.get('/api/orgs/:orgId/audit-logs', isAuthenticated, async (req, res) => {
     try {
