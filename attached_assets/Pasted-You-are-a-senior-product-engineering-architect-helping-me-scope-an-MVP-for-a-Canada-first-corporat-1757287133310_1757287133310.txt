@@ -1,0 +1,103 @@
+You are a senior product+engineering architect helping me scope an MVP for a **Canada-first corporate entity-management platform**. Produce a complete, implementation-ready package while avoiding replication of any specific competitor UX, flows, copy, or code.
+
+CONTEXT
+- Target users: law-firm clerks, corporate secretaries, and in-house counsel in Canada.
+- Canadian compliance focus: CBCA ISC/BOI tracking & reminders; Ontario Business Registry (OBR) partner filing gateway; Canadian data residency (Azure Canada regions) and SSO.
+- Tech: Web app (React/TypeScript), backend (Node/TypeScript or Python FastAPI), DB (Postgres), storage (S3-compatible), search (OpenSearch), queues (SQS/RabbitMQ).
+- Integrations: DocuSign and/or Adobe Sign, Slack/Teams webhooks, email (SES/SendGrid).
+- Differentiation: trust, migration ease, “file-while-you-draft” reconciliation, rock-solid imports, and collaboration links—with explicit **non-infringement** guardrails.
+
+ABSOLUTE CONSTRAINTS (DO NOT VIOLATE)
+1) **No competitor replication.** Do not copy MinuteBox, Appara, Athennian, Diligent, or Emergent ET designs, copy, field names en masse, or proprietary workflows. Synthesize **generic industry capabilities** only. When a feature is common industry practice, call it “commodity”.
+2) **Novelty & compliance check.** For every feature, add: “Differentiation angle” and “Non-infringement guardrails” (how our UX/terminology/flow avoids look-alike risk).
+3) **Privacy & residency.** Assume Canadian data residency and tenant isolation from day one.
+4) **No scraping.** Do not quote or mirror private pricing, UI text, or screenshots.
+
+MVP SCOPE (P0 → P1)
+P0 (must-have):
+- Core entity & people model (entities, roles DIR/OFF/SH, classes/series, issuances, transfers) with ledgers/registers PDFs and audit log.
+- Virtual minute book (tabbed sections, PDF upload/OCR, indexing, per-section sharing with expiry/watermark).
+- Word document automation (merge variables, conditional logic, bundles; simple redline/diff after merge).
+- Compliance engine (annual returns, year-ends, director terms, extra-provincial, **CBCA ISC/BOI tracker** + reminders).
+- E-signature integration (DocuSign/Adobe): send, track webhooks, auto-file signed doc.
+- Global search & saved reports (data + PDF OCR).
+- Security: SSO (Google/Microsoft), RBAC, per-tenant encryption, Canada regions.
+
+P1 (fast follower):
+- Org/ownership charts (PNG/PDF export).
+- Basic public API (read/write core objects).
+- **OBR partner filing gateway** (queue submissions; reconcile minute book on confirmation).
+- Targeted AI assists (optional): field validation, typo detection, clause swap suggestions—**no generic chat**.
+
+DELIVERABLES — FORMAT EXACTLY AS SPECIFIED
+
+1) PRODUCT PRD (concise, implementation-ready)
+- For each P0/P1 capability: Problem, Users, Success metrics, Key user stories, Out-of-scope, Differentiation angle, Non-infringement guardrails.
+- Include an **MVP cut line** and a **de-risking plan** (pilot with {{law_firm_pilot_size}} entities).
+
+2) DATA MODEL (Postgres)
+- Output an **Entity-Relationship Diagram** description (textual) and SQL DDL for core tables:
+  entities, entity_names, jurisdictions, classes, series, share_issuances, share_transfers, registers, directors, officers, shareholders, roles, addresses, documents, minute_book_tabs, compliance_items, tasks, webhooks, esign_envelopes, audit_log, tenants, users, roles_permissions.
+- Add constraints, indexes, and sample rows for test fixtures.
+- Include a **permissions matrix** (roles × actions).
+
+3) OPENAPI 3.1 OUTLINE (YAML)
+- Auth (OIDC/SSO), Tenancy headers, Rate limits.
+- CRUD for entities/people/roles/classes/issuances/transfers/registers/documents/compliance_items.
+- Webhooks: esign.status.changed, filing.confirmed, document.ocr.completed, share.link.accessed.
+- Error model (problem+json), pagination, idempotency keys.
+
+4) COMPLIANCE LOGIC (Canada-first)
+- Define data fields and state machine for **CBCA ISC/BOI tracker**: creation, update triggers (director/officer/shareholder changes), reminders, evidence attachments, export pack (CSV + PDF cover sheet).
+- Define OBR gateway abstraction: job schema, retry/backoff, reconciliation rules to update registers/ledgers on confirmation.
+
+5) DOCUMENT AUTOMATION SPEC
+- DOCX template variable naming conventions, conditional logic syntax, merge pipeline, diffing approach, file provenance (hashes), and storage.
+- Provide 2 example template specs: “Organization Package” and “Annual Resolutions Package” with variable lists and conditional rules (no template text—just variables & logic).
+
+6) MIGRATION PLAN
+- CSV/Emergent-style import mapping, field validators, duplicate detection, and a pre-flight “diff & confirm” checklist.
+- Reporting: migration coverage %, missing fields report, checksum on document counts.
+
+7) NON-FUNCTIONAL REQUIREMENTS
+- Performance SLOs: search p95 < 500ms on {{N}} docs, bundle merge p95 < 10s (25 docs), import {{M}} entities/hour/worker.
+- Security: OWASP Top 10, at-rest encryption per tenant, audit log immutability.
+- Availability: 99.9%, blue/green deploy, feature flags.
+- Observability: logs, metrics (Prometheus), traces; dashboards to monitor SLOs.
+
+8) ANALYTICS & EVENTS
+- Define product analytics events (name, payload, trigger, PII notes) for: entity.created, document.bundle.generated, esign.sent/completed, compliance.item.due/overdue, report.exported, share.link.created/viewed.
+- Define **success metrics** for onboarding and activation (“time-to-first-entity”, “time-to-first-bundle”).
+
+9) QA & TEST PLAN
+- Unit, integration, and E2E scenarios (Cypress/Playwright) tied to acceptance criteria.
+- Test data sets (synthetic, Canadian jurisdictions).
+- Security tests (authz bypass, multi-tenant isolation), resilience tests (queue failures, webhook retries).
+
+10) JIRA ARTIFACTS
+- **Epics** and **Stories** with INVEST-style acceptance criteria and Definition of Done.
+- Output **two files**:
+  (A) **JIRA CSV** with columns: Issue Type, Epic Link, Summary, Description, Acceptance Criteria, Priority (P0/P1), Story Points (t-shirt sizes ok), Labels.
+  (B) **JIRA JSON** (array) using fields: {type, epic, summary, description, acceptance, priority, points, labels}.
+- Use clear, remote-friendly descriptions and checklists.
+
+11) RELEASE & LAUNCH CHECKLIST
+- Pilot selection, data migration rehearsal, admin training, clerk training, go-live comms, rollback plan, and DSR (Day-Seven Review) template.
+
+12) RISK REGISTER
+- List top 10 risks (technical, legal/compliance, migration, adoption). For each: likelihood, impact, mitigations, owner.
+
+STYLE & TONE
+- Concise, structured, bullet-forward. No marketing fluff. Use Canadian spelling where applicable.
+- Mark each section with a clear H2 header (e.g., “## Data Model”).
+- At the end, include a “**Clarifying Questions**” section (≤10 items) to resolve unknowns, but produce full drafts without waiting for answers.
+
+VARIABLES
+- {{company_name}}: NotaryPro Entities (placeholder)
+- {{pilot_firm_name}}: {{enter firm}}
+- {{pilot_start_date}}: {{YYYY-MM-DD}}
+- {{N}}: 50,000
+- {{M}}: 1,000
+
+OUTPUT
+Return everything in a single response, in the order above. Make the CSV and JSON blocks valid and directly importable. Do not include any competitor brand names in artifacts; keep them only in this prompt for context.
