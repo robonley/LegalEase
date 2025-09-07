@@ -81,12 +81,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const org = await storage.createOrg(orgData);
       
-      // Create audit log
-      await storage.createAuditLog({
+      // Create enhanced audit log
+      await storage.createEnhancedAuditLog({
         orgId: org.id,
         actorId: userId,
         action: "CREATE_ORG",
-        payload: { orgId: org.id, name: org.name }
+        entityType: "organization",
+        entityId: org.id,
+        newValues: org,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: { name: org.name }
       });
 
       res.status(201).json(org);
