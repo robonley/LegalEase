@@ -46,7 +46,7 @@ export function EntitySelector() {
               </span>
             </div>
             <div className="text-left min-w-0 flex-1">
-              <div className="text-sm font-medium leading-tight break-words">
+              <div className="text-sm font-medium leading-tight truncate">
                 {displayEntity.name}
               </div>
             </div>
@@ -76,7 +76,7 @@ export function EntitySelector() {
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium leading-tight break-words">
+                    <div className="text-sm font-medium leading-tight truncate">
                       {entity.name}
                     </div>
                   </div>
