@@ -54,6 +54,10 @@ export const orgs = pgTable("orgs", {
   companyKey: text("company_key"), // secure key for the company
   jurisdiction: text("jurisdiction").notNull(), // e.g., "CBCA", "OBCA", "DE"
   formationAt: timestamp("formation_at"),
+  // Amendment fields
+  amendmentDate: timestamp("amendment_date"),
+  previousCorporationName: text("previous_corporation_name"),
+  amendmentDetails: text("amendment_details"),
   registeredOfficeId: varchar("registered_office_id").references(() => addresses.id),
   recordsOfficeId: varchar("records_office_id").references(() => addresses.id),
   mailingAddressId: varchar("mailing_address_id").references(() => addresses.id),
@@ -161,6 +165,14 @@ export const auditLogs = pgTable("audit_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const orgNotes = pgTable("org_notes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => orgs.id),
+  content: text("content").notNull(),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const orgsRelations = relations(orgs, ({ one, many }) => ({
   registeredOffice: one(addresses, {
@@ -193,6 +205,7 @@ export const orgsRelations = relations(orgs, ({ one, many }) => ({
   shareTransfers: many(shareTransfers),
   generatedDocs: many(generatedDocs),
   auditLogs: many(auditLogs),
+  notes: many(orgNotes),
   // Entity shareholdings - where this org holds shares in other entities
   entityShareholdings: many(shareIssuances, { relationName: "entityShareholder" }),
 }));
@@ -304,6 +317,17 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   }),
 }));
 
+export const orgNotesRelations = relations(orgNotes, ({ one }) => ({
+  org: one(orgs, {
+    fields: [orgNotes.orgId],
+    references: [orgs.id],
+  }),
+  createdBy: one(users, {
+    fields: [orgNotes.createdBy],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertAddressSchema = createInsertSchema(addresses);
 export const insertOrgSchema = createInsertSchema(orgs).omit({
@@ -339,6 +363,10 @@ export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({
   id: true,
   createdAt: true,
 });
+export const insertOrgNoteSchema = createInsertSchema(orgNotes).omit({
+  id: true,
+  createdAt: true,
+});
 
 // Types
 export type UpsertUser = typeof users.$inferInsert;
@@ -363,6 +391,8 @@ export type GeneratedDoc = typeof generatedDocs.$inferSelect;
 export type InsertGeneratedDoc = z.infer<typeof insertGeneratedDocSchema>;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type OrgNote = typeof orgNotes.$inferSelect;
+export type InsertOrgNote = z.infer<typeof insertOrgNoteSchema>;
 
 // Ingestion Jobs and Results
 export const ingestionJobs = pgTable("ingestion_jobs", {
