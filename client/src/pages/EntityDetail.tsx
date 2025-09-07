@@ -198,41 +198,40 @@ export default function EntityDetail() {
 
       {/* Content */}
       <div className="p-6 space-y-6">
-        {/* Basic Information */}
+        {/* Corporation Information */}
         <Card>
-          <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-            <CardDescription>Core details about this legal entity</CardDescription>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Corporation Information</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Entity Name</label>
-                <p className="text-lg font-medium">{entity.name}</p>
+                <label className="text-xs font-medium text-muted-foreground">Entity Name</label>
+                <p className="text-sm font-medium mt-1">{entity.name}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Registration Number</label>
-                <p className="text-lg font-medium">{entity.number || 'Not set'}</p>
+                <label className="text-xs font-medium text-muted-foreground">Registration Number</label>
+                <p className="text-sm font-medium mt-1">{entity.number || 'Not set'}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Jurisdiction</label>
-                <p className="text-lg font-medium">{entity.jurisdiction}</p>
+                <label className="text-xs font-medium text-muted-foreground">Jurisdiction</label>
+                <p className="text-sm font-medium mt-1">{entity.jurisdiction}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Formation Date</label>
-                <p className="text-lg font-medium">
+                <label className="text-xs font-medium text-muted-foreground">Formation Date</label>
+                <p className="text-sm font-medium mt-1">
                   {formatDate(entity.formationAt)}
                 </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Status</label>
+                <label className="text-xs font-medium text-muted-foreground">Status</label>
                 <div className="mt-1">
-                  <Badge variant="success">Active</Badge>
+                  <Badge variant="success" className="text-xs">Active</Badge>
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium text-muted-foreground">Last Updated</label>
-                <p className="text-lg font-medium">{formatDate(entity.updatedAt)}</p>
+                <label className="text-xs font-medium text-muted-foreground">Last Updated</label>
+                <p className="text-sm font-medium mt-1">{formatDate(entity.updatedAt)}</p>
               </div>
             </div>
             
