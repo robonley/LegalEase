@@ -442,6 +442,8 @@ export default function Documents() {
 
             {/* Template Selector Component */}
             <TemplateSelector 
+              open={false}
+              onOpenChange={() => {}}
               onTemplateSelect={handleTemplateSelect}
               orgId={currentEntity.id}
             />

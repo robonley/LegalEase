@@ -97,6 +97,29 @@ export function DocumentEditor({
     }
   };
 
+  // Keyboard shortcuts for professional editing experience
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + S to save
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+      // Escape to close
+      if (e.key === 'Escape') {
+        onClose?.();
+      }
+      // Ctrl/Cmd + E to toggle fullscreen
+      if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+        e.preventDefault();
+        onToggleFullscreen?.();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleSave, onClose, onToggleFullscreen]);
+
   const insertVariable = (variable: string) => {
     const quill = quillRef.current?.getEditor();
     if (quill) {
