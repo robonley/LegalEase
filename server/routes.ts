@@ -531,20 +531,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orgId = req.params.orgId;
       
       // Get all data needed for the document editor
-      const [organization, people, shareClasses, shareIssuances, addresses] = await Promise.all([
-        storage.getOrg(orgId),
+      const [orgs, people, shareClasses, shareIssuances] = await Promise.all([
+        storage.getOrgs("test-user-123"), // Get orgs to find the specific one
         storage.getPeopleByOrg(orgId),
         storage.getShareClassesByOrg(orgId),
-        storage.getShareIssuancesByOrg(orgId),
-        storage.getAddressesByOrg(orgId)
+        storage.getShareIssuancesByOrg(orgId)
       ]);
+      
+      const organization = orgs.find(org => org.id === orgId);
 
       res.json({
         organization,
         people,
         shareClasses,
         shareIssuances,
-        addresses
+        addresses: [] // No addresses method available yet
       });
     } catch (error) {
       console.error("Error fetching editor data:", error);
@@ -555,7 +556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Document content endpoint
   app.get('/api/documents/:documentId/content', isAuthenticated, async (req, res) => {
     try {
-      const document = await storage.getGeneratedDoc(req.params.documentId);
+      const document = await storage.getGeneratedDocById(req.params.documentId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
       }
@@ -575,7 +576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { content } = req.body;
       const userId = req.user?.claims?.sub || "test-user-123";
 
-      const document = await storage.getGeneratedDoc(documentId);
+      const document = await storage.getGeneratedDocById(documentId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
       }

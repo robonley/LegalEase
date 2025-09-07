@@ -151,6 +151,7 @@ export const generatedDocs = pgTable("generated_docs", {
   templateId: varchar("template_id").notNull().references(() => templates.id),
   fileKey: text("file_key").notNull(), // output .docx
   pdfKey: text("pdf_key"),
+  content: text("content"), // rich text content for editing
   dataUsed: json("data_used").notNull(),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),

@@ -393,6 +393,15 @@ export class DatabaseStorage implements IStorage {
     return doc;
   }
 
+  async updateGeneratedDoc(id: string, updates: Partial<Pick<GeneratedDoc, 'content'>>): Promise<GeneratedDoc> {
+    const [updated] = await db
+      .update(generatedDocs)
+      .set(updates)
+      .where(eq(generatedDocs.id, id))
+      .returning();
+    return updated;
+  }
+
   // Audit log operations
   async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
     const [created] = await db.insert(auditLogs).values(log).returning();

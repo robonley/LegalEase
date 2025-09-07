@@ -25,6 +25,7 @@ import { TemplateSelector } from "@/components/TemplateSelector";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { DocumentEditor } from "@/components/DocumentEditor";
 import type { GeneratedDoc } from "@shared/schema";
 
 export default function Documents() {
@@ -36,6 +37,8 @@ export default function Documents() {
   const [activeTab, setActiveTab] = useState("creator");
   const [selectedDoc, setSelectedDoc] = useState<GeneratedDoc | null>(null);
   const [showDocViewer, setShowDocViewer] = useState(false);
+  const [showDocEditor, setShowDocEditor] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
 
   // Fetch documents for current entity
@@ -92,6 +95,46 @@ export default function Documents() {
       });
     },
   });
+
+  // Save document content mutation
+  const saveDocumentMutation = useMutation({
+    mutationFn: async ({ documentId, content }: { documentId: string; content: string }) => {
+      return await apiRequest("PUT", `/api/documents/${documentId}/content`, { content });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Document saved successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveDocument = async (content: string) => {
+    if (!selectedDoc) return;
+    await saveDocumentMutation.mutateAsync({ documentId: selectedDoc.id, content });
+  };
+
+  const handleOpenEditor = (doc: GeneratedDoc) => {
+    setSelectedDoc(doc);
+    setShowDocEditor(true);
+  };
+
+  const handleCloseEditor = () => {
+    setShowDocEditor(false);
+    setSelectedDoc(null);
+    setIsFullscreen(false);
+  };
+
+  const handleToggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+  };
 
   const handleCreateBundle = async () => {
     setIsCreatingBundle(true);
@@ -305,14 +348,11 @@ export default function Documents() {
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              data-testid={`view-doc-${doc.id}`}
-                              onClick={() => {
-                                setSelectedDoc(doc);
-                                setShowDocViewer(true);
-                              }}
+                              data-testid={`edit-doc-${doc.id}`}
+                              onClick={() => handleOpenEditor(doc)}
                             >
-                              <i className="fas fa-eye mr-2"></i>
-                              View
+                              <i className="fas fa-edit mr-2"></i>
+                              Edit
                             </Button>
                             <Button 
                               variant="outline" 
@@ -452,84 +492,17 @@ export default function Documents() {
         </DialogContent>
       </Dialog>
 
-      {/* Document Viewer Modal */}
-      <Dialog open={showDocViewer} onOpenChange={setShowDocViewer}>
-        <DialogContent className="max-w-4xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <i className="fas fa-file-alt text-primary"></i>
-              {selectedDoc?.fileKey}
-            </DialogTitle>
-            <DialogDescription>
-              Created {selectedDoc && formatDate(selectedDoc.createdAt)} • Template ID: {selectedDoc?.templateId}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedDoc && (
-            <div className="space-y-4">
-              {/* Document Info */}
-              <div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Document ID</label>
-                  <div className="font-mono text-sm">{selectedDoc.id}</div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">File Key</label>
-                  <div className="text-sm">{selectedDoc.fileKey}</div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Template</label>
-                  <div className="text-sm">{selectedDoc.templateId}</div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Created By</label>
-                  <div className="text-sm">{selectedDoc.createdBy}</div>
-                </div>
-              </div>
-
-              {/* Data Used in Document */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Entity Data Used</label>
-                <div className="bg-muted p-4 rounded-lg">
-                  <pre className="text-sm overflow-auto max-h-32">
-                    {JSON.stringify(selectedDoc.dataUsed, null, 2)}
-                  </pre>
-                </div>
-              </div>
-
-              {/* Document Preview Placeholder */}
-              <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
-                <i className="fas fa-file-pdf text-4xl text-muted-foreground mb-4"></i>
-                <div className="text-lg font-medium mb-2">Document Preview</div>
-                <div className="text-muted-foreground mb-4">
-                  PDF preview will be available once document processing is implemented
-                </div>
-                <Button 
-                  variant="outline"
-                  onClick={() => window.open(`/api/documents/${selectedDoc.id}/download`, '_blank')}
-                >
-                  <i className="fas fa-download mr-2"></i>
-                  Download Document
-                </Button>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDocViewer(false)}>
-              Close
-            </Button>
-            <Button onClick={() => {
-              if (selectedDoc) {
-                window.open(`/api/documents/${selectedDoc.id}/download`, '_blank');
-              }
-            }}>
-              <i className="fas fa-download mr-2"></i>
-              Download
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Document Editor Modal */}
+      {showDocEditor && selectedDoc && (
+        <DocumentEditor
+          documentId={selectedDoc.id}
+          orgId={currentEntity.id}
+          onSave={handleSaveDocument}
+          onClose={handleCloseEditor}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={handleToggleFullscreen}
+        />
+      )}
 
       {/* Template Selector */}
       <TemplateSelector
