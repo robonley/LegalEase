@@ -607,6 +607,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Rename document
+  app.put('/api/documents/:documentId/rename', isAuthenticated, async (req: any, res) => {
+    try {
+      const documentId = req.params.documentId;
+      const { fileKey } = req.body;
+      const userId = req.user?.claims?.sub || "test-user-123";
+
+      if (!fileKey || !fileKey.trim()) {
+        return res.status(400).json({ message: "File name is required" });
+      }
+
+      const document = await storage.getGeneratedDocById(documentId);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+
+      const oldName = document.fileKey;
+      
+      // Update document name
+      await storage.updateGeneratedDoc(documentId, { fileKey: fileKey.trim() });
+
+      // Create audit log for rename
+      await storage.createEnhancedAuditLog({
+        orgId: document.orgId,
+        actorId: userId,
+        action: "RENAME_DOCUMENT",
+        entityType: "document",
+        entityId: documentId,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: {
+          documentId,
+          oldName,
+          newName: fileKey.trim()
+        }
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error renaming document:", error);
+      res.status(500).json({ message: "Failed to rename document" });
+    }
+  });
+
   // Audit logs
   app.get('/api/orgs/:orgId/audit-logs', isAuthenticated, async (req, res) => {
     try {

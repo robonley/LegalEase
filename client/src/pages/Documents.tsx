@@ -336,7 +336,13 @@ export default function Documents() {
                             <i className={`${getDocumentTypeIcon(doc.templateId)} text-primary`}></i>
                           </div>
                           <div>
-                            <h3 className="font-semibold text-lg">{doc.fileKey}</h3>
+                            <h3 
+                              className="font-semibold text-lg cursor-pointer hover:text-primary transition-colors"
+                              onClick={() => handleOpenEditor(doc)}
+                              data-testid={`doc-name-${doc.id}`}
+                            >
+                              {doc.fileKey}
+                            </h3>
                             <p className="text-sm text-muted-foreground">
                               Created {formatDate(doc.createdAt)}
                             </p>

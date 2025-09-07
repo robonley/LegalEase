@@ -73,6 +73,8 @@ export function DocumentEditor({
 }: DocumentEditorProps) {
   const [content, setContent] = useState(initialContent);
   const [isSaving, setIsSaving] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [documentName, setDocumentName] = useState("");
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     company: true,
     people: true,
@@ -80,12 +82,26 @@ export function DocumentEditor({
     variables: false,
   });
   const quillRef = useRef<ReactQuill>(null);
+  const { toast } = useToast();
+
+  // Fetch document data
+  const { data: documentData } = useQuery({
+    queryKey: ["/api/documents", documentId],
+    enabled: !!documentId,
+  });
 
   // Fetch entity data for variable insertion
   const { data: entityData, isLoading } = useQuery<EntityData>({
     queryKey: ["/api/orgs", orgId, "editor-data"],
     enabled: !!orgId,
   });
+
+  // Update document name when data is loaded
+  useEffect(() => {
+    if (documentData?.fileKey && !documentName) {
+      setDocumentName(documentData.fileKey);
+    }
+  }, [documentData, documentName]);
 
   const handleSave = async () => {
     if (!onSave) return;
@@ -94,6 +110,43 @@ export function DocumentEditor({
       await onSave(content);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleNameSave = async () => {
+    if (!documentName.trim()) return;
+    
+    setIsSaving(true);
+    try {
+      await apiRequest("PUT", `/api/documents/${documentId}/rename`, {
+        fileKey: documentName.trim()
+      });
+      
+      toast({
+        title: "Success",
+        description: "Document renamed successfully",
+      });
+      
+      setIsEditingName(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to rename document",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleNameEdit = () => {
+    setIsEditingName(true);
+  };
+
+  const handleNameCancel = () => {
+    setIsEditingName(false);
+    if (documentData?.fileKey) {
+      setDocumentName(documentData.fileKey);
     }
   };
 
@@ -365,17 +418,55 @@ export function DocumentEditor({
             >
               <i className="fas fa-arrow-left"></i>
             </Button>
-            <div>
-              <h1 className="text-xl font-semibold">Document Editor</h1>
-              <p className="text-sm text-muted-foreground">
-                {entityData?.organization?.name}
-                {isLoading && (
-                  <Badge variant="secondary" className="ml-2">
-                    <i className="fas fa-spinner fa-spin mr-1"></i>
-                    Loading data...
-                  </Badge>
-                )}
-              </p>
+            <div className="flex-1">
+              {isEditingName ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    value={documentName}
+                    onChange={(e) => setDocumentName(e.target.value)}
+                    className="text-xl font-semibold bg-transparent border-b border-primary focus:outline-none flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleNameSave();
+                      if (e.key === 'Escape') handleNameCancel();
+                    }}
+                    autoFocus
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleNameSave}
+                    disabled={isSaving}
+                  >
+                    <i className="fas fa-check text-green-600"></i>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleNameCancel}
+                  >
+                    <i className="fas fa-times text-red-600"></i>
+                  </Button>
+                </div>
+              ) : (
+                <div>
+                  <h1 
+                    className="text-xl font-semibold cursor-pointer hover:text-primary transition-colors"
+                    onClick={handleNameEdit}
+                    title="Click to rename document"
+                  >
+                    {documentName || "Document Editor"}
+                  </h1>
+                  <p className="text-sm text-muted-foreground">
+                    {entityData?.organization?.name}
+                    {isLoading && (
+                      <Badge variant="secondary" className="ml-2">
+                        <i className="fas fa-spinner fa-spin mr-1"></i>
+                        Loading data...
+                      </Badge>
+                    )}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-2">
