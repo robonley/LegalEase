@@ -130,9 +130,12 @@ export function DocumentEditor({
       });
       
       setIsEditingName(false);
+      
+      // Refresh the document data to get the updated name
+      window.location.reload();
     } catch (error) {
       toast({
-        title: "Error",
+        title: "Error", 
         description: "Failed to rename document",
         variant: "destructive",
       });
@@ -451,13 +454,18 @@ export function DocumentEditor({
                 </div>
               ) : (
                 <div>
-                  <h1 
-                    className="text-xl font-semibold cursor-pointer hover:text-primary transition-colors"
-                    onClick={handleNameEdit}
-                    title="Click to rename document"
-                  >
-                    {documentName || "Document Editor"}
-                  </h1>
+                  <div className="flex items-center gap-2">
+                    <h1 
+                      className="text-xl font-semibold cursor-pointer hover:text-primary transition-colors"
+                      onClick={handleNameEdit}
+                      title="Click to rename document"
+                    >
+                      {documentName || "Document Editor"}
+                    </h1>
+                    <Badge variant="outline" className="text-xs">
+                      .docx
+                    </Badge>
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     {entityData?.organization?.name}
                     {isLoading && (
