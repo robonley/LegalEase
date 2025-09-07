@@ -150,9 +150,14 @@ export function DocumentEditor({
   };
 
   return (
-    <div className={`flex h-full ${isFullscreen ? 'fixed inset-0 z-50 bg-background' : ''}`}>
-      {/* Data Panel Sidebar */}
-      <div className="w-80 border-r bg-muted/30 flex flex-col">
+    <>
+      {/* Full-screen backdrop overlay */}
+      <div className="fixed inset-0 z-50 bg-black/50 animate-in fade-in-0" onClick={onClose} />
+      
+      {/* Document Editor Modal */}
+      <div className={`fixed inset-4 z-50 bg-background border rounded-lg shadow-2xl animate-in slide-in-from-bottom-4 duration-300 ${isFullscreen ? 'inset-0 rounded-none' : ''} flex h-[calc(100vh-2rem)]`}>
+        {/* Data Panel Sidebar */}
+        <div className="w-80 border-r bg-muted/30 flex flex-col">
         <div className="p-4 border-b bg-background">
           <h3 className="font-semibold text-lg">Document Data</h3>
           <p className="text-sm text-muted-foreground">Insert data into your document</p>
@@ -205,7 +210,7 @@ export function DocumentEditor({
                           className="text-left text-sm hover:bg-muted p-2 rounded w-full"
                           onClick={() => insertEntityData(entityData.organization.formationAt ? format(entityData.organization.formationAt, 'MMM dd, yyyy') : 'Not set')}
                         >
-                          <div className="font-medium">{format(entityData.organization.formationAt, 'MMM dd, yyyy')}</div>
+                          <div className="font-medium">{entityData.organization.formationAt ? format(entityData.organization.formationAt, 'MMM dd, yyyy') : 'Not set'}</div>
                           <div className="text-xs text-muted-foreground">Formation Date</div>
                         </button>
                       )}
@@ -322,79 +327,90 @@ export function DocumentEditor({
             </Collapsible>
           </div>
         </ScrollArea>
-      </div>
+        </div>
 
-      {/* Editor Panel */}
-      <div className="flex-1 flex flex-col">
-        {/* Toolbar */}
-        <div className="border-b bg-background p-4 flex items-center justify-between">
+        {/* Editor Panel */}
+        <div className="flex-1 flex flex-col">
+        {/* Enhanced Header */}
+        <div className="border-b bg-background px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <h2 className="font-semibold">Document Editor</h2>
-            {isLoading && (
-              <Badge variant="secondary">
-                <i className="fas fa-spinner fa-spin mr-1"></i>
-                Loading data...
-              </Badge>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="p-2 hover:bg-muted rounded-full"
+            >
+              <i className="fas fa-arrow-left"></i>
+            </Button>
+            <div>
+              <h1 className="text-xl font-semibold">Document Editor</h1>
+              <p className="text-sm text-muted-foreground">
+                {entityData?.organization?.name}
+                {isLoading && (
+                  <Badge variant="secondary" className="ml-2">
+                    <i className="fas fa-spinner fa-spin mr-1"></i>
+                    Loading data...
+                  </Badge>
+                )}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={onToggleFullscreen}
               data-testid="toggle-fullscreen"
+              title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
             >
-              <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'} mr-2`}></i>
-              {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+              <i className={`fas fa-${isFullscreen ? 'compress' : 'expand'}`}></i>
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={handleSave}
               disabled={isSaving}
               data-testid="save-document"
+              className="text-primary hover:text-primary/80"
             >
               {isSaving ? (
-                <>
-                  <i className="fas fa-spinner fa-spin mr-2"></i>
-                  Saving...
-                </>
+                <i className="fas fa-spinner fa-spin"></i>
               ) : (
-                <>
-                  <i className="fas fa-save mr-2"></i>
-                  Save
-                </>
+                <i className="fas fa-save"></i>
               )}
             </Button>
-            {onClose && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onClose}
-                data-testid="close-editor"
-              >
-                <i className="fas fa-times mr-2"></i>
-                Close
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              data-testid="close-editor"
+              title="Close Editor"
+            >
+              <i className="fas fa-times"></i>
+            </Button>
           </div>
         </div>
 
         {/* Rich Text Editor */}
-        <div className="flex-1 p-4">
-          <div className="h-full border rounded-lg overflow-hidden">
+        <div className="flex-1 p-6 bg-white dark:bg-gray-900">
+          <div className="h-full max-w-4xl mx-auto">
             <ReactQuill
               ref={quillRef}
               theme="snow"
               value={content}
               onChange={setContent}
               modules={quillModules}
-              className="h-full"
+              className="h-full border-0 shadow-none"
               placeholder="Start typing your document..."
+              style={{
+                height: '100%',
+                border: 'none'
+              }}
             />
           </div>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
