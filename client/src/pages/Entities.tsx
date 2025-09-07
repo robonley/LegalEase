@@ -30,6 +30,10 @@ const formSchema = insertOrgSchema.omit({
   updatedAt: true,
   registeredOfficeId: true,
   recordsOfficeId: true
+}).extend({
+  amendmentDate: z.string().optional(),
+  previousCorporationName: z.string().optional(),
+  amendmentDetails: z.string().optional()
 });
 
 export default function Entities() {
@@ -79,6 +83,9 @@ export default function Entities() {
       companyKey: "",
       jurisdiction: "",
       formationAt: undefined,
+      amendmentDate: undefined,
+      previousCorporationName: "",
+      amendmentDetails: "",
     },
   });
 
@@ -103,6 +110,16 @@ export default function Entities() {
       }
       if (entity.jurisdiction) {
         form.setValue('jurisdiction', entity.jurisdiction);
+      }
+      // Set amendment fields if available
+      if (entity.amendmentDate) {
+        form.setValue('amendmentDate', entity.amendmentDate);
+      }
+      if (entity.previousCorporationName) {
+        form.setValue('previousCorporationName', entity.previousCorporationName);
+      }
+      if (entity.amendmentDetails) {
+        form.setValue('amendmentDetails', entity.amendmentDetails);
       }
     }
     
@@ -330,6 +347,72 @@ export default function Entities() {
                               data-testid="input-formation-date"
                             />
                           </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* Amendment Information Section */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Amendment Information (Optional)</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="amendmentDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Amendment Date</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="date"
+                                {...field}
+                                value={field.value || ''}
+                                data-testid="input-amendment-date"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Date when entity amendments were made
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="previousCorporationName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Previous Corporation Name</FormLabel>
+                            <FormControl>
+                              <Input {...field} value={field.value || ""} data-testid="input-previous-name" placeholder="Enter previous name if changed" />
+                            </FormControl>
+                            <FormDescription>
+                              Original name if entity was renamed
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="amendmentDetails"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Amendment Details</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              {...field} 
+                              value={field.value || ""} 
+                              data-testid="input-amendment-details" 
+                              placeholder="Describe the nature of amendments made to this entity..."
+                              rows={3}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Additional details about entity amendments
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
