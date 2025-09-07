@@ -179,6 +179,33 @@ export const orgNotes = pgTable("org_notes", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Minute Book Management
+export const minuteBooks = pgTable("minute_books", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => orgs.id),
+  name: text("name").notNull(), // "2024 Annual Minute Book"
+  type: text("type").notNull(), // "incorporation" | "annual" | "special" | "full"
+  status: text("status").notNull().default("draft"), // "draft" | "generating" | "ready" | "error"
+  fiscalYear: integer("fiscal_year"), // 2024
+  description: text("description"),
+  bundleFileKey: text("bundle_file_key"), // combined PDF/ZIP file
+  generationData: json("generation_data"), // entity data at time of generation
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const minuteBookDocs = pgTable("minute_book_docs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  minuteBookId: varchar("minute_book_id").notNull().references(() => minuteBooks.id),
+  templateId: varchar("template_id").notNull().references(() => templates.id),
+  generatedDocId: varchar("generated_doc_id").references(() => generatedDocs.id),
+  sortOrder: integer("sort_order").notNull().default(0),
+  status: text("status").notNull().default("pending"), // "pending" | "generated" | "error"
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const orgsRelations = relations(orgs, ({ one, many }) => ({
   registeredOffice: one(addresses, {
@@ -214,6 +241,7 @@ export const orgsRelations = relations(orgs, ({ one, many }) => ({
   notes: many(orgNotes),
   // Entity shareholdings - where this org holds shares in other entities
   entityShareholdings: many(shareIssuances, { relationName: "entityShareholder" }),
+  minuteBooks: many(minuteBooks),
 }));
 
 export const peopleRelations = relations(people, ({ one, many }) => ({
@@ -297,7 +325,7 @@ export const templatesRelations = relations(templates, ({ one, many }) => ({
   generatedDocs: many(generatedDocs),
 }));
 
-export const generatedDocsRelations = relations(generatedDocs, ({ one }) => ({
+export const generatedDocsRelations = relations(generatedDocs, ({ one, many }) => ({
   org: one(orgs, {
     fields: [generatedDocs.orgId],
     references: [orgs.id],
@@ -309,6 +337,34 @@ export const generatedDocsRelations = relations(generatedDocs, ({ one }) => ({
   createdBy: one(users, {
     fields: [generatedDocs.createdBy],
     references: [users.id],
+  }),
+  minuteBookDocs: many(minuteBookDocs),
+}));
+
+export const minuteBooksRelations = relations(minuteBooks, ({ one, many }) => ({
+  org: one(orgs, {
+    fields: [minuteBooks.orgId],
+    references: [orgs.id],
+  }),
+  createdBy: one(users, {
+    fields: [minuteBooks.createdBy],
+    references: [users.id],
+  }),
+  docs: many(minuteBookDocs),
+}));
+
+export const minuteBookDocsRelations = relations(minuteBookDocs, ({ one }) => ({
+  minuteBook: one(minuteBooks, {
+    fields: [minuteBookDocs.minuteBookId],
+    references: [minuteBooks.id],
+  }),
+  template: one(templates, {
+    fields: [minuteBookDocs.templateId],
+    references: [templates.id],
+  }),
+  generatedDoc: one(generatedDocs, {
+    fields: [minuteBookDocs.generatedDocId],
+    references: [generatedDocs.id],
   }),
 }));
 
@@ -374,31 +430,61 @@ export const insertOrgNoteSchema = createInsertSchema(orgNotes).omit({
   createdAt: true,
 });
 
+export const insertMinuteBookSchema = createInsertSchema(minuteBooks).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
+});
+
+export const insertMinuteBookDocSchema = createInsertSchema(minuteBookDocs).omit({
+  id: true,
+  createdAt: true
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
-export type Address = typeof addresses.$inferSelect;
-export type InsertAddress = z.infer<typeof insertAddressSchema>;
+
+// Core types
 export type Org = typeof orgs.$inferSelect;
-export type InsertOrg = z.infer<typeof insertOrgSchema>;
+export type InsertOrg = typeof orgs.$inferInsert;
+
 export type Person = typeof people.$inferSelect;
-export type InsertPerson = z.infer<typeof insertPersonSchema>;
+export type InsertPerson = typeof people.$inferInsert;
+
 export type PersonOnOrg = typeof personOnOrgs.$inferSelect;
-export type InsertPersonOnOrg = z.infer<typeof insertPersonOnOrgSchema>;
+export type InsertPersonOnOrg = typeof personOnOrgs.$inferInsert;
+
+export type Address = typeof addresses.$inferSelect;
+export type InsertAddress = typeof addresses.$inferInsert;
+
 export type ShareClass = typeof shareClasses.$inferSelect;
-export type InsertShareClass = z.infer<typeof insertShareClassSchema>;
+export type InsertShareClass = typeof shareClasses.$inferInsert;
+
 export type ShareIssuance = typeof shareIssuances.$inferSelect;
-export type InsertShareIssuance = z.infer<typeof insertShareIssuanceSchema>;
+export type InsertShareIssuance = typeof shareIssuances.$inferInsert;
+
 export type ShareTransfer = typeof shareTransfers.$inferSelect;
-export type InsertShareTransfer = z.infer<typeof insertShareTransferSchema>;
+export type InsertShareTransfer = typeof shareTransfers.$inferInsert;
+
 export type Template = typeof templates.$inferSelect;
-export type InsertTemplate = z.infer<typeof insertTemplateSchema>;
+export type InsertTemplate = typeof templates.$inferInsert;
+
 export type GeneratedDoc = typeof generatedDocs.$inferSelect;
-export type InsertGeneratedDoc = z.infer<typeof insertGeneratedDocSchema>;
+export type InsertGeneratedDoc = typeof generatedDocs.$inferInsert;
+
 export type AuditLog = typeof auditLogs.$inferSelect;
-export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type InsertAuditLog = typeof auditLogs.$inferInsert;
+
 export type OrgNote = typeof orgNotes.$inferSelect;
-export type InsertOrgNote = z.infer<typeof insertOrgNoteSchema>;
+export type InsertOrgNote = typeof orgNotes.$inferInsert;
+
+// Minute Book types
+export type MinuteBook = typeof minuteBooks.$inferSelect;
+export type InsertMinuteBook = z.infer<typeof insertMinuteBookSchema>;
+
+export type MinuteBookDoc = typeof minuteBookDocs.$inferSelect;
+export type InsertMinuteBookDoc = z.infer<typeof insertMinuteBookDocSchema>;
 
 // Ingestion Jobs and Results
 export const ingestionJobs = pgTable("ingestion_jobs", {

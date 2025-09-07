@@ -12,6 +12,8 @@ import {
   auditLogs,
   ingestionJobs,
   orgNotes,
+  minuteBooks,
+  minuteBookDocs,
   type User,
   type UpsertUser,
   type Org,
@@ -39,6 +41,10 @@ import {
   type ExtractionResult,
   type OrgNote,
   type InsertOrgNote,
+  type MinuteBook,
+  type InsertMinuteBook,
+  type MinuteBookDoc,
+  type InsertMinuteBookDoc,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
@@ -94,6 +100,18 @@ export interface IStorage {
   getTemplateById(id: string): Promise<Template | undefined>;
   updateTemplate(id: string, updates: Partial<InsertTemplate>): Promise<Template>;
   deleteTemplate(id: string): Promise<void>;
+
+  // Minute Book operations
+  getMinuteBooks(orgId: string): Promise<MinuteBook[]>;
+  getMinuteBookById(id: string): Promise<MinuteBook | undefined>;
+  createMinuteBook(minuteBook: InsertMinuteBook): Promise<MinuteBook>;
+  updateMinuteBook(id: string, updates: Partial<InsertMinuteBook>): Promise<MinuteBook>;
+  deleteMinuteBook(id: string): Promise<void>;
+  
+  // Minute Book Doc operations
+  getMinuteBookDocs(minuteBookId: string): Promise<MinuteBookDoc[]>;
+  createMinuteBookDoc(doc: InsertMinuteBookDoc): Promise<MinuteBookDoc>;
+  updateMinuteBookDoc(id: string, updates: Partial<InsertMinuteBookDoc>): Promise<MinuteBookDoc>;
   
   // Generated document operations
   createGeneratedDoc(doc: InsertGeneratedDoc): Promise<GeneratedDoc>;
@@ -372,6 +390,70 @@ export class DatabaseStorage implements IStorage {
 
   async deleteTemplate(id: string): Promise<void> {
     await db.delete(templates).where(eq(templates.id, id));
+  }
+
+  // Minute Book operations
+  async getMinuteBooks(orgId: string): Promise<MinuteBook[]> {
+    return await db
+      .select()
+      .from(minuteBooks)
+      .where(eq(minuteBooks.orgId, orgId))
+      .orderBy(desc(minuteBooks.createdAt));
+  }
+
+  async getMinuteBookById(id: string): Promise<MinuteBook | undefined> {
+    const [minuteBook] = await db
+      .select()
+      .from(minuteBooks)
+      .where(eq(minuteBooks.id, id));
+    return minuteBook;
+  }
+
+  async createMinuteBook(minuteBook: InsertMinuteBook): Promise<MinuteBook> {
+    const [created] = await db
+      .insert(minuteBooks)
+      .values(minuteBook)
+      .returning();
+    return created;
+  }
+
+  async updateMinuteBook(id: string, updates: Partial<InsertMinuteBook>): Promise<MinuteBook> {
+    const [updated] = await db
+      .update(minuteBooks)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(minuteBooks.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteMinuteBook(id: string): Promise<void> {
+    await db.delete(minuteBooks).where(eq(minuteBooks.id, id));
+  }
+
+  // Minute Book Doc operations
+  async getMinuteBookDocs(minuteBookId: string): Promise<MinuteBookDoc[]> {
+    return await db
+      .select()
+      .from(minuteBookDocs)
+      .where(eq(minuteBookDocs.minuteBookId, minuteBookId))
+      .orderBy(minuteBookDocs.sortOrder);
+  }
+
+  async createMinuteBookDoc(doc: InsertMinuteBookDoc): Promise<MinuteBookDoc> {
+    const [created] = await db
+      .insert(minuteBookDocs)
+      .values(doc)
+      .returning();
+    return created;
+  }
+
+  async updateMinuteBookDoc(id: string, updates: Partial<InsertMinuteBookDoc>): Promise<MinuteBookDoc> {
+    const [updated] = await db
+      .update(minuteBookDocs)
+      .set(updates)
+      .where(eq(minuteBookDocs.id, id))
+      .returning();
+    return updated;
   }
 
   // Generated document operations
