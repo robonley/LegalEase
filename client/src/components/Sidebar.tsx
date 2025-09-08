@@ -20,6 +20,29 @@ export function Sidebar() {
   const { currentEntity, clearCurrentEntity } = useEntityContext();
   const { theme, toggleTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["/documents"]));
+
+  // Document Management sub-items
+  const documentSubItems = [
+    { 
+      href: "/documents/templates", 
+      icon: "fas fa-cog", 
+      label: "Setup Templates",
+      description: "Upload & configure .docx templates"
+    },
+    { 
+      href: "/documents/bundles", 
+      icon: "fas fa-plus-circle", 
+      label: "Generate Bundles",
+      description: "Create minute books"
+    },
+    { 
+      href: "/documents/library", 
+      icon: "fas fa-folder-open", 
+      label: "Document Library",
+      description: "View completed documents"
+    },
+  ];
 
   // Generate navigation items based on entity context
   const getNavigationItems = () => {
@@ -28,7 +51,13 @@ export function Sidebar() {
       return [
         { href: `/entities/${currentEntity.id}`, icon: "fas fa-tachometer-alt", label: "Dashboard" },
         { href: "/people", icon: "fas fa-users", label: "People & Roles" },
-        { href: "/documents", icon: "fas fa-file-alt", label: "Document Management" },
+        { 
+          href: "/documents", 
+          icon: "fas fa-file-alt", 
+          label: "Document Management",
+          hasChildren: true,
+          children: documentSubItems
+        },
         { href: "/cap-table", icon: "fas fa-chart-pie", label: "Cap Table" },
       ];
     } else {
@@ -36,7 +65,13 @@ export function Sidebar() {
       return [
         { href: "/", icon: "fas fa-tachometer-alt", label: "Dashboard" },
         { href: "/entities", icon: "fas fa-building", label: "Entities" },
-        { href: "/documents", icon: "fas fa-file-alt", label: "Document Management" },
+        { 
+          href: "/documents", 
+          icon: "fas fa-file-alt", 
+          label: "Document Management",
+          hasChildren: true,
+          children: documentSubItems
+        },
         { href: "/cap-table", icon: "fas fa-chart-pie", label: "Cap Table" },
       ];
     }
@@ -122,24 +157,103 @@ export function Sidebar() {
         {/* Navigation Menu */}
         <nav className="flex-1 p-4 overflow-y-auto">
           <div className="space-y-1">
-            {navigationItems.map((item) => (
-              <Link key={item.href} href={item.href}>
-                <div
-                  className={cn(
-                    "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer",
-                    isCollapsed ? "justify-center" : "gap-3",
-                    location === item.href
-                      ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+            {navigationItems.map((item) => {
+              const hasChildren = item.hasChildren && item.children;
+              const isExpanded = expandedItems.has(item.href);
+              const isParentActive = hasChildren && item.children?.some(child => location === child.href);
+              const isActive = location === item.href || isParentActive;
+
+              return (
+                <div key={item.href}>
+                  {hasChildren ? (
+                    // Parent item with children
+                    <div
+                      className={cn(
+                        "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer",
+                        isCollapsed ? "justify-center" : "gap-3",
+                        isActive
+                          ? "bg-accent text-accent-foreground"
+                          : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                      )}
+                      onClick={() => {
+                        if (!isCollapsed) {
+                          setExpandedItems(prev => {
+                            const newSet = new Set(prev);
+                            if (newSet.has(item.href)) {
+                              newSet.delete(item.href);
+                            } else {
+                              newSet.add(item.href);
+                            }
+                            return newSet;
+                          });
+                        }
+                      }}
+                      data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                      title={isCollapsed ? item.label : undefined}
+                    >
+                      <i className={`${item.icon} w-4`}></i>
+                      {!isCollapsed && (
+                        <>
+                          <span className="flex-1">{item.label}</span>
+                          <i className={cn(
+                            "fas fa-chevron-right text-xs transition-transform",
+                            isExpanded && "rotate-90"
+                          )}></i>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    // Regular item without children
+                    <Link href={item.href}>
+                      <div
+                        className={cn(
+                          "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer",
+                          isCollapsed ? "justify-center" : "gap-3",
+                          location === item.href
+                            ? "bg-accent text-accent-foreground"
+                            : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                        )}
+                        data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                        title={isCollapsed ? item.label : undefined}
+                      >
+                        <i className={`${item.icon} w-4`}></i>
+                        {!isCollapsed && item.label}
+                      </div>
+                    </Link>
                   )}
-                  data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  <i className={`${item.icon} w-4`}></i>
-                  {!isCollapsed && item.label}
+                  
+                  {/* Child items */}
+                  {hasChildren && isExpanded && !isCollapsed && (
+                    <div className="ml-4 mt-1 space-y-1 border-l-2 border-border pl-3">
+                      {item.children?.map((child) => (
+                        <Link key={child.href} href={child.href}>
+                          <div
+                            className={cn(
+                              "flex items-center gap-3 px-3 py-2 text-sm rounded-lg transition-colors cursor-pointer",
+                              location === child.href
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                            )}
+                            data-testid={`nav-${child.label.toLowerCase().replace(/\s+/g, '-')}`}
+                          >
+                            <i className={`${child.icon} w-4 text-xs`}></i>
+                            <div className="flex-1">
+                              <div className="font-medium">{child.label}</div>
+                              <div className={cn(
+                                "text-xs",
+                                location === child.href ? "text-primary-foreground/70" : "text-muted-foreground"
+                              )}>
+                                {child.description}
+                              </div>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
 
           {/* Admin Navigation */}
