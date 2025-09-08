@@ -95,10 +95,21 @@ export function DocumentEditor({
   });
 
   // Fetch entity data for variable insertion
-  const { data: entityData, isLoading } = useQuery<EntityData>({
+  const { data: entityData, isLoading, error } = useQuery<EntityData>({
     queryKey: ["/api/orgs", orgId, "editor-data"],
     enabled: !!orgId,
   });
+
+  // Debug logging
+  useEffect(() => {
+    console.log('DocumentEditor Debug:', {
+      orgId,
+      entityData,
+      isLoading,
+      error,
+      queryEnabled: !!orgId
+    });
+  }, [orgId, entityData, isLoading, error]);
 
   // Update document name when data is loaded or initial title provided
   useEffect(() => {

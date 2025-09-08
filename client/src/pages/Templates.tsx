@@ -223,6 +223,21 @@ export default function Templates() {
   const starterTemplatesForEntity = getStarterTemplatesForEntity();
 
   const handleOpenStarterTemplate = (template: any) => {
+    console.log('Templates Debug:', {
+      template: template.name,
+      currentEntity,
+      entityId: currentEntity?.id
+    });
+    
+    if (!currentEntity?.id) {
+      toast({
+        title: "No Entity Selected",
+        description: "Please select an entity from the sidebar to use templates with entity data.",
+        variant: "destructive",
+      });
+      // Still allow opening the editor but with limited functionality
+    }
+    
     setSelectedStarterTemplate(template);
     setShowDocumentEditor(true);
   };

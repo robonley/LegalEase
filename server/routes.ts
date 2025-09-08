@@ -527,19 +527,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document editor data endpoint
-  app.get('/api/orgs/:orgId/editor-data', isAuthenticated, async (req, res) => {
+  app.get('/api/orgs/:orgId/editor-data', isAuthenticated, async (req: any, res) => {
     try {
       const orgId = req.params.orgId;
+      const userId = req.user?.claims?.sub || "test-user-123";
       
       // Get all data needed for the document editor
       const [orgs, people, shareClasses, shareIssuances] = await Promise.all([
-        storage.getOrgs("test-user-123"), // Get orgs to find the specific one
+        storage.getOrgs(userId), // Get orgs for the authenticated user
         storage.getPeopleByOrg(orgId),
         storage.getShareClassesByOrg(orgId),
         storage.getShareIssuancesByOrg(orgId)
       ]);
       
       const organization = orgs.find(org => org.id === orgId);
+
+      console.log('Editor data endpoint:', {
+        userId,
+        orgId,
+        organization: organization ? `Found: ${organization.name}` : 'Not found',
+        peopleCount: people.length,
+        shareClassCount: shareClasses.length,
+        shareIssuanceCount: shareIssuances.length
+      });
 
       res.json({
         organization,
