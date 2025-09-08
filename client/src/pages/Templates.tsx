@@ -278,16 +278,6 @@ export default function Templates() {
 
           <TabsContent value="custom">
             <Card>
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Custom Templates</CardTitle>
-                    <CardDescription>
-                      Templates you've uploaded and created for your organization
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
               <CardContent className="p-0">
                 <div className="border-b p-6">
                   <TemplateUploader orgId={currentEntity?.id || ''} />
