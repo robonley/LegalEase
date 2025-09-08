@@ -572,11 +572,12 @@ export default function Templates() {
       {/* Document Editor Modal */}
       {showDocumentEditor && selectedStarterTemplate && (
         <Dialog open={showDocumentEditor} onOpenChange={setShowDocumentEditor}>
-          <DialogContent className="max-w-6xl max-h-[90vh] p-0">
+          <DialogContent className="max-w-6xl max-h-[90vh] p-0 top-[5%] translate-y-0">
             <DocumentEditor
               documentId={null}
               orgId={currentEntity?.id || ''}
               initialContent={selectedStarterTemplate.content}
+              initialTitle={selectedStarterTemplate.name}
               onSave={handleSaveDocument}
               onClose={() => {
                 setShowDocumentEditor(false);

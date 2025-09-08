@@ -14,9 +14,10 @@ import { format } from "date-fns";
 import type { Org, Person, ShareClass, ShareIssuance } from "@shared/schema";
 
 interface DocumentEditorProps {
-  documentId: string;
+  documentId: string | null;
   orgId: string;
   initialContent?: string;
+  initialTitle?: string;
   onSave?: (content: string) => Promise<void>;
   onClose?: () => void;
   isFullscreen?: boolean;
@@ -68,6 +69,7 @@ export function DocumentEditor({
   documentId,
   orgId,
   initialContent = "",
+  initialTitle = "",
   onSave,
   onClose,
   isFullscreen = false,
@@ -98,12 +100,14 @@ export function DocumentEditor({
     enabled: !!orgId,
   });
 
-  // Update document name when data is loaded
+  // Update document name when data is loaded or initial title provided
   useEffect(() => {
-    if (documentData?.fileKey) {
+    if (documentData && 'fileKey' in documentData && documentData.fileKey) {
       setDocumentName(documentData.fileKey);
+    } else if (initialTitle) {
+      setDocumentName(initialTitle);
     }
-  }, [documentData]);
+  }, [documentData, initialTitle]);
 
   const handleSave = async () => {
     if (!onSave) return;
@@ -116,7 +120,7 @@ export function DocumentEditor({
   };
 
   const handleNameSave = async () => {
-    if (!documentName.trim()) return;
+    if (!documentName.trim() || !documentId) return;
     
     setIsSaving(true);
     try {
@@ -150,7 +154,7 @@ export function DocumentEditor({
 
   const handleNameCancel = () => {
     setIsEditingName(false);
-    if (documentData?.fileKey) {
+    if (documentData && 'fileKey' in documentData && documentData.fileKey) {
       setDocumentName(documentData.fileKey);
     }
   };
