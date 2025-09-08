@@ -18,7 +18,16 @@ Preferred communication style: Simple, everyday language.
 - **State Management**: TanStack Query for server state management
 - **Forms**: React Hook Form with Zod validation
 
-The frontend follows a component-based architecture with reusable UI components. The application uses a sidebar navigation layout with role-based access control. Pages are organized by functionality (Dashboard, Entities, People, Cap Table, Documents, Templates, Minute Books, Audit Log).
+The frontend follows a component-based architecture with reusable UI components. The application uses a sidebar navigation layout with role-based access control. Pages are organized by functionality:
+
+- **Dashboard**: Overview of entities and recent activity
+- **Entities**: Legal entity management (corporations, partnerships)
+- **People**: Director, officer, and shareholder management
+- **Cap Table**: Share class and issuance tracking
+- **Documents**: Generated document library with editing capabilities
+- **Templates**: .docx template upload and management with variable mapping
+- **Minute Books**: Document bundle generation for corporate compliance
+- **Audit Log**: Complete activity tracking for legal compliance
 
 ### Backend Architecture
 - **Runtime**: Node.js with Express framework
@@ -39,6 +48,7 @@ The backend follows a layered architecture with separate concerns for routing, b
   - People and PersonOnOrg (individuals and their roles)
   - Share Classes and Share Issuances (cap table management)
   - Templates and Generated Documents (document management)
+  - Minute Books and Minute Book Documents (bundle generation)
   - Audit Logs (compliance and tracking)
 
 The database uses UUID primary keys and includes proper relationships between entities. The schema supports multi-tenancy through organization-scoped data.
@@ -50,12 +60,35 @@ The database uses UUID primary keys and includes proper relationships between en
 - **Security**: HTTP-only cookies with CSRF protection
 
 ### Document Generation System
-The application is designed to support document templating with:
-- Upload and management of .docx templates
-- Placeholder variable substitution ({{variable}} syntax)
-- Support for loops and conditionals in templates
-- PDF generation capabilities
-- Minute book bundle generation
+The application includes a comprehensive template and document generation system:
+
+#### Template Management
+- **Template Upload**: Support for .docx template file uploads with variable extraction
+- **Template Categories**: Bylaws, resolutions, minute-book, incorporation, and organization templates
+- **Variable System**: Automatic extraction and mapping of {{variable}} placeholders to entity data
+- **Starter Templates**: Pre-built templates for common legal documents (CBCA, bylaws, resolutions)
+
+#### Minute Book Generation
+- **Bundle Creation**: Generate complete minute book packages containing multiple documents
+- **Entity Data Integration**: Automatically populate templates with organization, director, officer, and shareholder data
+- **Document Status Tracking**: Track generation progress (draft, generating, ready, error)
+- **Professional Formatting**: HTML-to-document conversion with legal document styling
+
+#### Variable Mapping
+Template variables are mapped to entity data as follows:
+- `{{CompanyName}}` → Organization name
+- `{{Jurisdiction}}` → Incorporation jurisdiction  
+- `{{FormationDate}}` → Date of incorporation
+- `{{DirectorNames}}` → List of current directors
+- `{{Officers}}` → List of officers with titles
+- `{{AuthorizedShares}}` → Total authorized share capital
+- `{{ShareClasses}}` → Names of share classes
+- `{{RegisteredOffice}}` → Registered office address
+
+#### Core Components
+- **DocumentGeneratorService**: Handles template processing and variable substitution
+- **TemplateProcessor**: Extracts variables from uploaded templates
+- **MinuteBooks API**: RESTful endpoints for minute book CRUD operations
 
 ### Data Validation & Types
 - **Schema Validation**: Zod schemas for runtime type checking
