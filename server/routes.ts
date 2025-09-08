@@ -25,71 +25,9 @@ import { IngestionWorker } from "./ingestionWorker";
 import path from "path";
 import fs from "fs";
 
-// Create sample starter templates for testing
-async function createSampleTemplates() {
-  try {
-    const existingTemplates = await storage.getTemplates();
-    if (existingTemplates.length > 0) {
-      console.log('Templates already exist, skipping sample creation');
-      return;
-    }
-
-    console.log('Creating sample starter templates...');
-
-    // CBCA Minute Book Template
-    await storage.createTemplate({
-      name: "CBCA Minute Book - Federal Corporation",
-      code: "CBCA_MINUTE_BOOK",
-      scope: "minute-book",
-      category: "minute-book",
-      description: "Complete minute book bundle for Canadian federal corporations including bylaws, resolutions, and corporate registers",
-      variables: Object.keys(CBCA_TEMPLATE_VARIABLES),
-      schema: CBCA_TEMPLATE_VARIABLES,
-      isStarter: true,
-      fileKey: null,
-      ownerId: "system"
-    });
-
-    // Corporate Bylaws Template
-    await storage.createTemplate({
-      name: "Corporate Bylaws",
-      code: "CORPORATE_BYLAWS",
-      scope: "bylaws",
-      category: "bylaws",
-      description: "Standard corporate bylaws template with company-specific variables",
-      variables: Object.keys(CBCA_TEMPLATE_VARIABLES),
-      schema: CBCA_TEMPLATE_VARIABLES,
-      isStarter: true,
-      fileKey: null,
-      ownerId: "system"
-    });
-
-    // Directors' Resolution Template
-    await storage.createTemplate({
-      name: "Directors' Resolution",
-      code: "DIRECTORS_RESOLUTION",
-      scope: "resolution",
-      category: "resolution",
-      description: "Standard directors' resolution template for corporate decisions",
-      variables: Object.keys(CBCA_TEMPLATE_VARIABLES),
-      schema: CBCA_TEMPLATE_VARIABLES,
-      isStarter: true,
-      fileKey: null,
-      ownerId: "system"
-    });
-
-    console.log('Sample starter templates created successfully');
-  } catch (error) {
-    console.error('Error creating sample templates:', error);
-  }
-}
-
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
-
-  // Create sample starter templates if none exist
-  await createSampleTemplates();
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -450,7 +388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Template routes
-  app.get('/api/templates', async (req, res) => {
+  app.get('/api/templates', isAuthenticated, async (req, res) => {
     try {
       const templates = await storage.getTemplates();
       res.json(templates);
@@ -1030,7 +968,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get('/api/templates/starter', async (req, res) => {
+  app.get('/api/templates/starter', isAuthenticated, async (req, res) => {
     try {
       const templates = await storage.getTemplates();
       const starterTemplates = templates.filter(t => t.isStarter);
@@ -1042,7 +980,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get minute book templates
-  app.get('/api/templates/minute-book', async (req, res) => {
+  app.get('/api/templates/minute-book', isAuthenticated, async (req, res) => {
     try {
       const templates = await storage.getTemplates();
       const minuteBookTemplates = templates.filter(t => 
