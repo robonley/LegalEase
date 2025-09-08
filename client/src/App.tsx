@@ -15,9 +15,7 @@ import EntityDetail from "@/pages/EntityDetail";
 import EntityEdit from "@/pages/EntityEdit";
 import People from "@/pages/People";
 import CapTable from "@/pages/CapTable";
-import Documents from "@/pages/Documents";
-import Templates from "@/pages/Templates";
-import MinuteBooks from "@/pages/MinuteBooks";
+import DocumentManagement from "@/pages/DocumentManagement";
 import AuditLog from "@/pages/AuditLog";
 
 function Router() {
@@ -43,10 +41,9 @@ function Router() {
             <Route path="/entities/:id" component={EntityDetail} />
             <Route path="/entities/:id/edit" component={EntityEdit} />
             <Route path="/people" component={People} />
+            <Route path="/documents/:rest*" component={DocumentManagement} />
+            <Route path="/documents" component={DocumentManagement} />
             <Route path="/cap-table" component={CapTable} />
-            <Route path="/documents" component={Documents} />
-            <Route path="/templates" component={Templates} />
-            <Route path="/minute-books" component={MinuteBooks} />
             <Route path="/audit-log" component={AuditLog} />
           </Layout>
         </EntityProvider>

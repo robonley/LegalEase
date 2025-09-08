@@ -24,20 +24,20 @@ export function Sidebar() {
   // Generate navigation items based on entity context
   const getNavigationItems = () => {
     if (currentEntity) {
-      // Entity-specific navigation - Dashboard should stay in entity context
+      // Entity-specific navigation with reorganized document management
       return [
         { href: `/entities/${currentEntity.id}`, icon: "fas fa-tachometer-alt", label: "Dashboard" },
         { href: "/people", icon: "fas fa-users", label: "People & Roles" },
+        { href: "/documents", icon: "fas fa-file-alt", label: "Document Management" },
         { href: "/cap-table", icon: "fas fa-chart-pie", label: "Cap Table" },
-        { href: "/documents", icon: "fas fa-file-alt", label: "Documents" },
-        { href: "/minute-books", icon: "fas fa-book", label: "Minute Books" },
       ];
     } else {
       // Global navigation
       return [
         { href: "/", icon: "fas fa-tachometer-alt", label: "Dashboard" },
         { href: "/entities", icon: "fas fa-building", label: "Entities" },
-        { href: "/templates", icon: "fas fa-folder", label: "Templates" },
+        { href: "/documents", icon: "fas fa-file-alt", label: "Document Management" },
+        { href: "/cap-table", icon: "fas fa-chart-pie", label: "Cap Table" },
       ];
     }
   };
