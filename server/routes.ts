@@ -533,14 +533,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user?.claims?.sub || "test-user-123";
       
       // Get all data needed for the document editor
-      const [orgs, people, shareClasses, shareIssuances] = await Promise.all([
+      const [orgs, people, shareClasses, shareIssuances, personOrgRelations] = await Promise.all([
         storage.getOrgs(userId), // Get orgs for the authenticated user
         storage.getPeopleByOrg(orgId),
         storage.getShareClassesByOrg(orgId),
-        storage.getShareIssuancesByOrg(orgId)
+        storage.getShareIssuancesByOrg(orgId),
+        storage.getPersonOrgRelations(orgId)
       ]);
       
       const organization = orgs.find(org => org.id === orgId);
+
+      // Enrich people with their roles from personOnOrgs table
+      const peopleWithRoles = people.map(person => {
+        const roles = personOrgRelations.filter(rel => rel.personId === person.id);
+        return {
+          ...person,
+          roles: roles
+        };
+      });
 
       console.log('Editor data endpoint:', {
         userId,
@@ -548,18 +558,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         organization: organization ? `Found: ${organization.name}` : 'Not found',
         peopleCount: people.length,
         shareClassCount: shareClasses.length,
-        shareIssuanceCount: shareIssuances.length
+        shareIssuanceCount: shareIssuances.length,
+        roleRelationsCount: personOrgRelations.length
       });
 
       res.json({
         organization,
-        people,
+        people: peopleWithRoles,
         shareClasses,
         shareIssuances,
         addresses: [] // No addresses method available yet
       });
     } catch (error) {
-      console.error("Error fetching editor data:", error);
+      console.error("Error fetching editor data:", error instanceof Error ? error.message : 'Unknown error');
       res.status(500).json({ message: "Failed to fetch editor data" });
     }
   });
@@ -911,7 +922,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         shareClassId,
         quantity: parseInt(quantity),
         certNumber,
-        issuePrice: issuePrice ? parseFloat(issuePrice) : null,
+        issuePrice: issuePrice ? parseFloat(issuePrice).toString() : null,
         issueDate: new Date(issueDate),
       });
 
@@ -1314,17 +1325,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const org = await storage.getOrgById(document.orgId);
       const people = await storage.getPeopleByOrg(document.orgId);
       const template = await storage.getTemplateById(document.templateId);
+      const personOrgRelations = await storage.getPersonOrgRelations(document.orgId);
+
+      // Enrich people with their roles from personOnOrgs table
+      const peopleWithRoles = people.map(person => {
+        const roles = personOrgRelations.filter(rel => rel.personId === person.id);
+        return {
+          ...person,
+          roles: roles
+        };
+      });
 
       res.json({
         ...document,
         organization: org,
-        people: people,
+        people: peopleWithRoles,
         template: template,
         entityDataSnapshot: {
           orgName: org?.name,
           peopleCount: people.length,
-          directors: people.filter(p => p.orgRoles?.some(r => r.role === 'director')),
-          officers: people.filter(p => p.orgRoles?.some(r => r.role === 'officer'))
+          directors: peopleWithRoles.filter(p => p.roles.some(r => r.role === 'director')),
+          officers: peopleWithRoles.filter(p => p.roles.some(r => r.role === 'officer'))
         }
       });
     } catch (error) {
@@ -1415,7 +1436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Upload error:', error);
-      res.status(500).json({ message: 'Failed to upload file', error: error.message });
+      res.status(500).json({ message: 'Failed to upload file', error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 

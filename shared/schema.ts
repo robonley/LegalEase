@@ -554,3 +554,16 @@ export type InsertIngestionJob = z.infer<typeof insertIngestionJobSchema>;
 export type ExtractedOrganization = z.infer<typeof extractedOrganizationSchema>;
 export type ExtractedPerson = z.infer<typeof extractedPersonSchema>;
 export type ExtractionResult = z.infer<typeof extractionResultSchema>;
+
+// Document Editor types
+export interface PersonWithRoles extends Person {
+  roles: PersonOnOrg[];
+}
+
+export interface EntityData {
+  organization: Org;
+  people: PersonWithRoles[];
+  shareClasses: ShareClass[];
+  shareIssuances: ShareIssuance[];
+  addresses: Address[];
+}

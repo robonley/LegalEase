@@ -475,7 +475,7 @@ export class DatabaseStorage implements IStorage {
     return doc;
   }
 
-  async updateGeneratedDoc(id: string, updates: Partial<Pick<GeneratedDoc, 'content'>>): Promise<GeneratedDoc> {
+  async updateGeneratedDoc(id: string, updates: Partial<Pick<GeneratedDoc, 'content' | 'fileKey'>>): Promise<GeneratedDoc> {
     const [updated] = await db
       .update(generatedDocs)
       .set(updates)

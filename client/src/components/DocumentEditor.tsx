@@ -11,7 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
-import type { Org, Person, ShareClass, ShareIssuance } from "@shared/schema";
+import type { Org, ShareClass, ShareIssuance, EntityData } from "@shared/schema";
 
 interface DocumentEditorProps {
   documentId: string | null;
@@ -22,14 +22,6 @@ interface DocumentEditorProps {
   onClose?: () => void;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
-}
-
-interface EntityData {
-  organization: Org;
-  people: Person[];
-  shareClasses: ShareClass[];
-  shareIssuances: ShareIssuance[];
-  addresses: any[];
 }
 
 const TEMPLATE_VARIABLES = {
@@ -100,21 +92,11 @@ export function DocumentEditor({
     enabled: !!orgId,
   });
 
-  // Debug logging
-  useEffect(() => {
-    console.log('DocumentEditor Debug:', {
-      orgId,
-      entityData,
-      isLoading,
-      error,
-      queryEnabled: !!orgId
-    });
-  }, [orgId, entityData, isLoading, error]);
 
   // Update document name when data is loaded or initial title provided
   useEffect(() => {
-    if (documentData && 'fileKey' in documentData && documentData.fileKey) {
-      setDocumentName(documentData.fileKey);
+    if (documentData && typeof documentData === 'object' && 'fileKey' in documentData && documentData.fileKey) {
+      setDocumentName(documentData.fileKey as string);
     } else if (initialTitle) {
       setDocumentName(initialTitle);
     }
@@ -165,8 +147,8 @@ export function DocumentEditor({
 
   const handleNameCancel = () => {
     setIsEditingName(false);
-    if (documentData && 'fileKey' in documentData && documentData.fileKey) {
-      setDocumentName(documentData.fileKey);
+    if (documentData && typeof documentData === 'object' && 'fileKey' in documentData && documentData.fileKey) {
+      setDocumentName(documentData.fileKey as string);
     }
   };
 
@@ -195,7 +177,9 @@ export function DocumentEditor({
       }
 
       // Get the filename from response headers or use document name
-      const filename = documentData?.fileKey?.replace('.docx', '.pdf') || 'document.pdf';
+      const filename = (documentData && typeof documentData === 'object' && 'fileKey' in documentData && documentData.fileKey 
+        ? (documentData.fileKey as string).replace('.docx', '.pdf') 
+        : 'document.pdf');
       
       // Create blob and download
       const blob = await response.blob();
@@ -341,7 +325,7 @@ export function DocumentEditor({
                       {entityData.organization.number && (
                         <button
                           className="text-left text-sm hover:bg-muted p-2 rounded w-full"
-                          onClick={() => insertEntityData(entityData.organization.number)}
+                          onClick={() => insertEntityData(entityData.organization.number || '')}
                         >
                           <div className="font-medium">{entityData.organization.number}</div>
                           <div className="text-xs text-muted-foreground">Corporation Number</div>
@@ -383,21 +367,120 @@ export function DocumentEditor({
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3 space-y-2">
                 {entityData?.people && entityData.people.length > 0 ? (
-                  <Card>
-                    <CardContent className="p-3 space-y-2">
-                      {entityData.people.map((person) => (
-                        <button
-                          key={person.id}
-                          className="text-left text-sm hover:bg-muted p-2 rounded w-full"
-                          onClick={() => insertEntityData(`${person.firstName} ${person.lastName}`)}
-                          data-testid={`insert-person-${person.id}`}
-                        >
-                          <div className="font-medium">{person.firstName} {person.lastName}</div>
-                          <div className="text-xs text-muted-foreground">{person.email}</div>
-                        </button>
-                      ))}
-                    </CardContent>
-                  </Card>
+                  <div className="space-y-3">
+                    {/* Directors */}
+                    {entityData.people.filter(p => p.roles.some(r => r.role.toLowerCase() === 'director')).length > 0 && (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-primary">Directors</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0 space-y-2">
+                          {entityData.people
+                            .filter(p => p.roles.some(r => r.role.toLowerCase() === 'director'))
+                            .map((person) => (
+                              <button
+                                key={`director-${person.id}`}
+                                className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                                onClick={() => insertEntityData(`${person.firstName} ${person.lastName}`)}
+                                data-testid={`insert-director-${person.id}`}
+                              >
+                                <div className="font-medium">{person.firstName} {person.lastName}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {person.email}
+                                  <span className="ml-2 text-primary">
+                                    {person.roles.filter(r => r.role.toLowerCase() === 'director').map(r => r.title).filter(Boolean).join(', ')}
+                                  </span>
+                                </div>
+                              </button>
+                            ))}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Officers */}
+                    {entityData.people.filter(p => p.roles.some(r => r.role.toLowerCase() === 'officer')).length > 0 && (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-primary">Officers</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0 space-y-2">
+                          {entityData.people
+                            .filter(p => p.roles.some(r => r.role.toLowerCase() === 'officer'))
+                            .map((person) => (
+                              <button
+                                key={`officer-${person.id}`}
+                                className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                                onClick={() => insertEntityData(`${person.firstName} ${person.lastName}`)}
+                                data-testid={`insert-officer-${person.id}`}
+                              >
+                                <div className="font-medium">{person.firstName} {person.lastName}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {person.email}
+                                  <span className="ml-2 text-primary">
+                                    {person.roles.filter(r => r.role.toLowerCase() === 'officer').map(r => r.title).filter(Boolean).join(', ')}
+                                  </span>
+                                </div>
+                              </button>
+                            ))}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Shareholders */}
+                    {entityData.people.filter(p => p.roles.some(r => r.role.toLowerCase() === 'shareholder')).length > 0 && (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-primary">Shareholders</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0 space-y-2">
+                          {entityData.people
+                            .filter(p => p.roles.some(r => r.role.toLowerCase() === 'shareholder'))
+                            .map((person) => (
+                              <button
+                                key={`shareholder-${person.id}`}
+                                className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                                onClick={() => insertEntityData(`${person.firstName} ${person.lastName}`)}
+                                data-testid={`insert-shareholder-${person.id}`}
+                              >
+                                <div className="font-medium">{person.firstName} {person.lastName}</div>
+                                <div className="text-xs text-muted-foreground">{person.email}</div>
+                              </button>
+                            ))}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* All People (fallback) */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">All People</CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-0 space-y-2">
+                        {entityData.people.map((person) => (
+                          <button
+                            key={person.id}
+                            className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                            onClick={() => insertEntityData(`${person.firstName} ${person.lastName}`)}
+                            data-testid={`insert-person-${person.id}`}
+                          >
+                            <div className="font-medium">{person.firstName} {person.lastName}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {person.email}
+                              {person.roles.length > 0 && (
+                                <div className="mt-1">
+                                  {person.roles.map(role => (
+                                    <Badge key={role.id} variant="secondary" className="text-xs mr-1">
+                                      {role.title || role.role}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </div>
                 ) : (
                   <div className="text-sm text-muted-foreground italic">No people found</div>
                 )}
