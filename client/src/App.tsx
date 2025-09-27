@@ -17,6 +17,7 @@ import People from "@/pages/People";
 import CapTable from "@/pages/CapTable";
 import DocumentManagement from "@/pages/DocumentManagement";
 import AuditLog from "@/pages/AuditLog";
+import BillingSettings from "@/pages/BillingSettings";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -45,6 +46,7 @@ function Router() {
             <Route path="/documents" component={DocumentManagement} />
             <Route path="/cap-table" component={CapTable} />
             <Route path="/audit-log" component={AuditLog} />
+            <Route path="/billing" component={BillingSettings} />
           </Layout>
         </EntityProvider>
       )}

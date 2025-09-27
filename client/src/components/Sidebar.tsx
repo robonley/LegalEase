@@ -12,6 +12,7 @@ import type { User } from "@shared/schema";
 
 const adminItems = [
   { href: "/audit-log", icon: "fas fa-history", label: "Audit Log" },
+  { href: "/billing", icon: "fas fa-credit-card", label: "Billing" },
 ];
 
 export function Sidebar() {
