@@ -23,6 +23,7 @@ import { ExtractionResultsModal } from "@/components/ExtractionResultsModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Search, SortAsc, SortDesc, Filter, ChevronDown } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const formSchema = z.object({
   name: z.string().min(1, "Entity name is required"),
@@ -279,21 +280,47 @@ export default function Entities() {
               
               <Tabs defaultValue="manual" className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="manual">Manual Entry</TabsTrigger>
-                  <TabsTrigger value="scan">Scan PDF Documents</TabsTrigger>
+                  <TabsTrigger value="manual" data-testid="tab-manual-entry">
+                    <i className="fas fa-keyboard mr-2"></i>
+                    Manual Entry
+                  </TabsTrigger>
+                  <TabsTrigger value="scan" data-testid="tab-pdf-scan">
+                    <i className="fas fa-file-pdf mr-2"></i>
+                    Scan PDF Documents
+                  </TabsTrigger>
                 </TabsList>
                 
-                <TabsContent value="scan" className="space-y-4">
+                <TabsContent value="scan" className="space-y-6">
+                  <div className="text-center bg-blue-50 dark:bg-blue-950 p-6 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <i className="fas fa-magic text-white text-xl"></i>
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">Smart Document Extraction</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Upload incorporation documents or articles of organization to automatically extract entity information and save time
+                    </p>
+                  </div>
                   <PDFIngestion 
                     onExtractionComplete={handleExtractionComplete}
                     className="mt-4"
                   />
                 </TabsContent>
                 
-                <TabsContent value="manual" className="space-y-4">
+                <TabsContent value="manual" className="space-y-6">
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-2 gap-4">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                  {/* Basic Information Section */}
+                  <div className="space-y-4">
+                    <div className="border-b border-border pb-3">
+                      <h3 className="text-lg font-medium flex items-center">
+                        <i className="fas fa-info-circle mr-2 text-primary"></i>
+                        Basic Information
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Essential details about your legal entity
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="name"
@@ -320,9 +347,21 @@ export default function Entities() {
                         </FormItem>
                       )}
                     />
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Corporate Details Section */}
+                  <div className="space-y-4">
+                    <div className="border-b border-border pb-3">
+                      <h3 className="text-lg font-medium flex items-center">
+                        <i className="fas fa-building mr-2 text-primary"></i>
+                        Corporate Details
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Jurisdiction and registration information
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={form.control}
                       name="companyKey"
@@ -381,7 +420,15 @@ export default function Entities() {
 
                   {/* Amendment Information Section */}
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Amendment Information (Optional)</h3>
+                    <div className="border-b border-border pb-3">
+                      <h3 className="text-lg font-medium flex items-center">
+                        <i className="fas fa-edit mr-2 text-primary"></i>
+                        Amendment Information
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Optional details about any amendments to your entity (if applicable)
+                      </p>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
@@ -446,7 +493,15 @@ export default function Entities() {
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Registered Office Address</h3>
+                    <div className="border-b border-border pb-3">
+                      <h3 className="text-lg font-medium flex items-center">
+                        <i className="fas fa-map-marker-alt mr-2 text-primary"></i>
+                        Registered Office Address
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Official registered address for legal correspondence
+                      </p>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
