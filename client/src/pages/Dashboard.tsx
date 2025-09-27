@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useEntityContext } from "@/hooks/useEntityContext";
+import { GettingStartedBanner } from "@/components/GettingStartedBanner";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 
@@ -173,6 +174,15 @@ export default function Dashboard() {
 
       {/* Content */}
       <div className="p-6">
+        {/* Getting Started Banner - Only show for global dashboard */}
+        {!currentEntity && (
+          <GettingStartedBanner
+            totalEntities={stats.activeEntities}
+            totalDocuments={stats.documentsGenerated}
+            totalPeople={stats.totalShareholders}
+          />
+        )}
+
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
@@ -198,7 +208,7 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="group hover:shadow-md transition-shadow cursor-pointer" onClick={() => setLocation('/people')}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -207,19 +217,26 @@ export default function Dashboard() {
                     {stats.totalShareholders}
                   </p>
                 </div>
-                <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
                   <i className="fas fa-users text-blue-500"></i>
                 </div>
               </div>
               <div className="flex items-center mt-4">
-                <span className="text-xs text-muted-foreground font-medium">
-                  No data available
-                </span>
+                {stats.totalShareholders === 0 ? (
+                  <div className="flex items-center text-xs text-primary font-medium group-hover:text-primary/80">
+                    <i className="fas fa-plus mr-1"></i>
+                    <span>Add your first shareholders</span>
+                  </div>
+                ) : (
+                  <span className="text-xs text-green-500 font-medium">
+                    Active shareholders tracked
+                  </span>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="group hover:shadow-md transition-shadow cursor-pointer" onClick={() => setLocation('/documents')}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -228,19 +245,26 @@ export default function Dashboard() {
                     {stats.documentsGenerated}
                   </p>
                 </div>
-                <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
                   <i className="fas fa-file-alt text-emerald-500"></i>
                 </div>
               </div>
               <div className="flex items-center mt-4">
-                <span className="text-xs text-muted-foreground font-medium">
-                  No documents yet
-                </span>
+                {stats.documentsGenerated === 0 ? (
+                  <div className="flex items-center text-xs text-primary font-medium group-hover:text-primary/80">
+                    <i className="fas fa-rocket mr-1"></i>
+                    <span>Generate your first document</span>
+                  </div>
+                ) : (
+                  <span className="text-xs text-green-500 font-medium">
+                    Documents ready to download
+                  </span>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="group hover:shadow-md transition-shadow cursor-pointer" onClick={() => setLocation('/minute-books')}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -249,14 +273,21 @@ export default function Dashboard() {
                     {stats.minuteBooks}
                   </p>
                 </div>
-                <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center group-hover:bg-purple-500/20 transition-colors">
                   <i className="fas fa-book text-purple-500"></i>
                 </div>
               </div>
               <div className="flex items-center mt-4">
-                <span className="text-xs text-muted-foreground font-medium">
-                  No minute books yet
-                </span>
+                {stats.minuteBooks === 0 ? (
+                  <div className="flex items-center text-xs text-primary font-medium group-hover:text-primary/80">
+                    <i className="fas fa-magic mr-1"></i>
+                    <span>Create your first minute book</span>
+                  </div>
+                ) : (
+                  <span className="text-xs text-green-500 font-medium">
+                    Complete corporate records
+                  </span>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -276,10 +307,33 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="p-0">
               {auditLogs.length === 0 ? (
-                <div className="p-6 text-center text-muted-foreground">
-                  <i className="fas fa-clock text-2xl mb-2"></i>
-                  <p>No recent activity</p>
-                  <p className="text-xs">Activity will appear here as you use the platform</p>
+                <div className="p-8 text-center">
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="fas fa-clock text-2xl text-muted-foreground"></i>
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">Get Started with Your First Action</h3>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Create an entity, add people, or generate documents to see activity here
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                    <Button 
+                      size="sm" 
+                      onClick={() => setLocation('/entities')}
+                      data-testid="activity-create-entity"
+                    >
+                      <i className="fas fa-plus mr-2"></i>
+                      Create Entity
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setLocation('/documents')}
+                      data-testid="activity-generate-docs"
+                    >
+                      <i className="fas fa-file-alt mr-2"></i>
+                      Generate Documents
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="divide-y divide-border">
@@ -461,10 +515,36 @@ export default function Dashboard() {
                 <i className="fas fa-spinner fa-spin text-2xl text-muted-foreground"></i>
               </div>
             ) : recentEntities.length === 0 ? (
-              <div className="p-6 text-center text-muted-foreground">
-                <i className="fas fa-building text-2xl mb-2"></i>
-                <p>No entities created yet</p>
-                <p className="text-xs">Create your first entity to get started</p>
+              <div className="p-12 text-center">
+                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <i className="fas fa-building text-3xl text-primary"></i>
+                </div>
+                <h3 className="text-xl font-semibold mb-3">Create Your First Legal Entity</h3>
+                <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                  Start by setting up a corporation, partnership, or LLC. This will be the foundation for managing cap tables, generating documents, and maintaining compliance.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button 
+                    onClick={() => setLocation('/entities')}
+                    data-testid="empty-create-entity"
+                    className="min-w-[140px]"
+                  >
+                    <i className="fas fa-plus mr-2"></i>
+                    Create Entity
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => setLocation('/templates')}
+                    data-testid="empty-upload-template"
+                    className="min-w-[140px]"
+                  >
+                    <i className="fas fa-upload mr-2"></i>
+                    Upload Templates
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-6">
+                  💡 <strong>Pro tip:</strong> Upload your document templates first to streamline the entity creation process
+                </p>
               </div>
             ) : (
               <div className="overflow-x-auto">

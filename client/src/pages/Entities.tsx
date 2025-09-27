@@ -29,8 +29,8 @@ const formSchema = z.object({
   number: z.string().optional(),
   companyKey: z.string().optional(),
   jurisdiction: z.string().min(1, "Jurisdiction is required"),
-  formationAt: z.date().optional(),
-  amendmentDate: z.date().optional(),
+  formationAt: z.string().optional(),
+  amendmentDate: z.string().optional(),
   previousCorporationName: z.string().optional(),
   amendmentDetails: z.string().optional(),
   mailingAddressId: z.string().optional(),
@@ -39,6 +39,14 @@ const formSchema = z.object({
   authRepAddressId: z.string().optional(),
   authRepEmail: z.string().email().optional().or(z.literal("")),
   authRepPhone: z.string().optional(),
+  registeredOffice: z.object({
+    line1: z.string().optional(),
+    line2: z.string().optional(),
+    city: z.string().optional(),
+    region: z.string().optional(),
+    postal: z.string().optional(),
+    country: z.string().optional(),
+  }).optional(),
 });
 
 export default function Entities() {
@@ -87,8 +95,8 @@ export default function Entities() {
       number: "",
       companyKey: "",
       jurisdiction: "",
-      formationAt: undefined,
-      amendmentDate: undefined,
+      formationAt: "",
+      amendmentDate: "",
       previousCorporationName: "",
       amendmentDetails: "",
       mailingAddressId: "",
@@ -97,6 +105,14 @@ export default function Entities() {
       authRepAddressId: "",
       authRepEmail: "",
       authRepPhone: "",
+      registeredOffice: {
+        line1: "",
+        line2: "",
+        city: "",
+        region: "",
+        postal: "",
+        country: "",
+      },
     },
   });
 
@@ -353,8 +369,7 @@ export default function Entities() {
                             <Input
                               type="date"
                               {...field}
-                              value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
-                              onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                              value={field.value || ''}
                               data-testid="input-formation-date"
                             />
                           </FormControl>
