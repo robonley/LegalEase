@@ -353,7 +353,7 @@ export default function CapTable() {
                               </div>
                             </div>
                           </SwipeActions>
-                        }
+                        )}
                       >
                         <TableCell>
                           <div>
