@@ -40,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
+import { SwipeActions, type SwipeAction } from "@/components/ui/swipe-actions";
 import { PersonForm } from "@/components/PersonForm";
 import { CorporateShareholderForm } from "@/components/CorporateShareholderForm";
 import { useEntityContext } from "@/hooks/useEntityContext";
@@ -133,12 +134,15 @@ export default function CapTable() {
             </div>
           </div>
         </header>
-      </div>
+      </PullToRefresh>
     );
   }
 
   return (
-    <div className="flex-1 overflow-auto">
+    <PullToRefresh 
+      onRefresh={async () => await refetch()}
+      className="flex-1 overflow-auto"
+    >
       {/* Header */}
       <header className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
@@ -265,100 +269,60 @@ export default function CapTable() {
                         key={`${person.id}-${role.id}`} 
                         data-testid={`shareholder-row-${person.id}`}
                         mobileCard={
-                          <div className="space-y-3">
-                            <div className="flex items-start justify-between">
-                              <div>
-                                <div className="font-medium text-base">
-                                  {person.firstName} {person.lastName}
-                                </div>
-                                {role.title && (
-                                  <div className="text-sm text-muted-foreground">{role.title}</div>
-                                )}
-                                <div className="text-sm text-muted-foreground mt-1">
-                                  {person.email || "No email provided"}
-                                </div>
-                              </div>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    data-testid={`actions-menu-${person.id}`}
-                                  >
-                                    <i className="fas fa-ellipsis-h"></i>
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-40">
-                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                                  <DropdownMenuSeparator />
-                                  
-                                  {/* View Shareholder */}
-                                  <DropdownMenuItem
-                                    onClick={() => setViewingPerson(person)}
-                                    data-testid={`view-shareholder-${person.id}`}
-                                  >
-                                    <i className="fas fa-eye mr-2"></i>
-                                    View Details
-                                  </DropdownMenuItem>
-                                  
-                                  {/* Edit Shareholder */}
-                                  <DropdownMenuItem
-                                    onClick={() => setEditingPerson(person)}
-                                    data-testid={`edit-shareholder-${person.id}`}
-                                  >
-                                    <i className="fas fa-edit mr-2"></i>
-                                    Edit
-                                  </DropdownMenuItem>
-                                  
-                                  <DropdownMenuSeparator />
-                                  
-                                  {/* Send Email */}
-                                  {person.email && (
-                                    <DropdownMenuItem
-                                      onClick={() => window.open(`mailto:${person.email}`, '_blank')}
-                                      data-testid={`email-shareholder-${person.id}`}
-                                    >
-                                      <i className="fas fa-envelope mr-2"></i>
-                                      Send Email
-                                    </DropdownMenuItem>
+                          <SwipeActions
+                            leftActions={[
+                              {
+                                id: 'view',
+                                label: 'View',
+                                icon: 'fas fa-eye',
+                                color: 'primary' as const,
+                                onAction: () => setViewingPerson(person)
+                              },
+                              {
+                                id: 'edit',
+                                label: 'Edit',
+                                icon: 'fas fa-edit',
+                                color: 'secondary' as const,
+                                onAction: () => setEditingPerson(person)
+                              }
+                            ]}
+                            rightActions={[
+                              ...(person.email ? [{
+                                id: 'email',
+                                label: 'Email',
+                                icon: 'fas fa-envelope',
+                                color: 'warning' as const,
+                                onAction: () => window.open(`mailto:${person.email}`, '_blank')
+                              }] : []),
+                              {
+                                id: 'delete',
+                                label: 'Delete',
+                                icon: 'fas fa-trash',
+                                color: 'destructive' as const,
+                                onAction: () => {
+                                  if (window.confirm('Are you sure you want to delete this shareholder?')) {
+                                    deletePerson.mutate(person.id);
+                                  }
+                                }
+                              }
+                            ]}
+                          >
+                            <div className="space-y-3">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <div className="font-medium text-base">
+                                    {person.firstName} {person.lastName}
+                                  </div>
+                                  {role.title && (
+                                    <div className="text-sm text-muted-foreground">{role.title}</div>
                                   )}
-                                  
-                                  <DropdownMenuSeparator />
-                                  
-                                  {/* Delete Shareholder */}
-                                  <AlertDialog>
-                                    <AlertDialogTrigger asChild>
-                                      <DropdownMenuItem
-                                        onSelect={(e) => e.preventDefault()}
-                                        className="text-destructive focus:text-destructive"
-                                        data-testid={`delete-shareholder-${person.id}`}
-                                      >
-                                        <i className="fas fa-trash mr-2"></i>
-                                        Delete
-                                      </DropdownMenuItem>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                      <AlertDialogHeader>
-                                        <AlertDialogTitle>Delete Shareholder</AlertDialogTitle>
-                                        <AlertDialogDescription>
-                                          Are you sure you want to delete {person.firstName} {person.lastName} from the cap table? 
-                                          This will remove all their share holdings and cannot be undone.
-                                        </AlertDialogDescription>
-                                      </AlertDialogHeader>
-                                      <AlertDialogFooter>
-                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                        <AlertDialogAction
-                                          onClick={() => deleteMutation.mutate(person.id)}
-                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                          disabled={deleteMutation.isPending}
-                                        >
-                                          {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                                        </AlertDialogAction>
-                                      </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                  </AlertDialog>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                                  <div className="text-sm text-muted-foreground mt-1">
+                                    {person.email || "No email provided"}
+                                  </div>
+                                </div>
+                              <div className="text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded">
+                                💡 Swipe left for actions
+                              </div>
                             </div>
                             
                             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -388,7 +352,7 @@ export default function CapTable() {
                                 </div>
                               </div>
                             </div>
-                          </div>
+                          </SwipeActions>
                         }
                       >
                         <TableCell>
@@ -520,6 +484,7 @@ export default function CapTable() {
             </CardContent>
           </Card>
         )}
+      </div>
 
         {/* View Shareholder Dialog */}
         <Dialog open={!!viewingPerson} onOpenChange={() => setViewingPerson(null)}>
