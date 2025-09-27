@@ -23,11 +23,11 @@ export function Toaster() {
               )}
             </div>
             {action}
-            <ToastClose />
+            <ToastClose aria-label="Close notification" />
           </Toast>
         )
       })}
-      <ToastViewport />
+      <ToastViewport aria-label="Notifications" role="region" />
     </ToastProvider>
   )
 }

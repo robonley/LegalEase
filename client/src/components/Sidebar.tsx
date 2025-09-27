@@ -84,10 +84,16 @@ export function Sidebar() {
   }
 
   return (
-    <aside className={cn(
-      "bg-card border-r border-border flex-shrink-0 transition-all duration-300 ease-in-out",
-      isCollapsed ? "w-16" : "w-64"
-    )}>
+    <aside 
+      id="navigation"
+      className={cn(
+        "bg-card border-r border-border flex-shrink-0 transition-all duration-300 ease-in-out",
+        isCollapsed ? "w-16" : "w-64"
+      )}
+      role="navigation"
+      aria-label="Main navigation"
+      aria-expanded={!isCollapsed}
+    >
       <div className="flex flex-col h-screen">
         {/* Header with Logo and Collapse Toggle */}
         <div className="p-4 border-b border-border">
@@ -155,7 +161,11 @@ export function Sidebar() {
         </div>
 
         {/* Navigation Menu */}
-        <nav className="flex-1 p-4 overflow-y-auto">
+        <nav 
+          className="flex-1 p-4 overflow-y-auto"
+          aria-label="Navigation menu"
+          role="menubar"
+        >
           <div className="space-y-1">
             {navigationItems.map((item) => {
               const hasChildren = item.hasChildren && item.children;
