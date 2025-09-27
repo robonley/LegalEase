@@ -39,6 +39,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 import { PersonForm } from "@/components/PersonForm";
 import { CorporateShareholderForm } from "@/components/CorporateShareholderForm";
 import { useEntityContext } from "@/hooks/useEntityContext";
@@ -60,7 +61,7 @@ export default function CapTable() {
   const [viewingPerson, setViewingPerson] = useState<PersonWithRoles | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const { data: people = [], isLoading } = useQuery<PersonWithRoles[]>({
+  const { data: people = [], isLoading, refetch } = useQuery<PersonWithRoles[]>({
     queryKey: ["/api/orgs", currentEntity?.id, "people"],
     enabled: !!currentEntity?.id,
   });
@@ -118,7 +119,10 @@ export default function CapTable() {
 
   if (!currentEntity) {
     return (
-      <div className="flex-1 overflow-auto">
+      <PullToRefresh 
+        onRefresh={async () => await refetch()}
+        className="flex-1 overflow-auto"
+      >
         <header className="bg-card border-b border-border px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
@@ -628,7 +632,6 @@ export default function CapTable() {
             )}
           </DialogContent>
         </Dialog>
-      </div>
-    </div>
-  );
-}
+      </PullToRefresh>
+    );
+  }

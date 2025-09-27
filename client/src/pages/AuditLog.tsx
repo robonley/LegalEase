@@ -17,6 +17,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { PullToRefresh } from "@/components/ui/pull-to-refresh";
 
 export default function AuditLog() {
   const [filters, setFilters] = useState({
@@ -134,7 +135,10 @@ export default function AuditLog() {
   };
 
   return (
-    <div className="flex-1 overflow-auto">
+    <PullToRefresh 
+      onRefresh={async () => await refetch()}
+      className="flex-1 overflow-auto"
+    >
       {/* Header */}
       <header className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
@@ -390,6 +394,6 @@ export default function AuditLog() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </PullToRefresh>
   );
 }
