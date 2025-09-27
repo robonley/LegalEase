@@ -40,7 +40,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { PullToRefresh } from "@/components/ui/pull-to-refresh";
-import { SwipeActions, type SwipeAction } from "@/components/ui/swipe-actions";
+import { SwipeActions } from "@/components/ui/swipe-actions";
+import type { SwipeAction } from "@/hooks/use-swipe-actions";
 import { PersonForm } from "@/components/PersonForm";
 import { CorporateShareholderForm } from "@/components/CorporateShareholderForm";
 import { useEntityContext } from "@/hooks/useEntityContext";
@@ -301,7 +302,7 @@ export default function CapTable() {
                                 color: 'destructive' as const,
                                 onAction: () => {
                                   if (window.confirm('Are you sure you want to delete this shareholder?')) {
-                                    deletePerson.mutate(person.id);
+                                    deleteMutation.mutate(person.id);
                                   }
                                 }
                               }
@@ -320,40 +321,41 @@ export default function CapTable() {
                                     {person.email || "No email provided"}
                                   </div>
                                 </div>
-                              <div className="text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded">
-                                💡 Swipe left for actions
+                                <div className="text-xs text-muted-foreground bg-muted/30 px-2 py-1 rounded">
+                                  💡 Swipe left for actions
+                                </div>
                               </div>
-                            </div>
                             
-                            <div className="grid grid-cols-2 gap-3 text-sm">
-                              <div>
-                                <div className="text-muted-foreground">Shares</div>
-                                <div className="font-medium">
-                                  {role.shareQuantity?.toLocaleString() || "0"}
+                              <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                  <div className="text-muted-foreground">Shares</div>
+                                  <div className="font-medium">
+                                    {role.shareQuantity?.toLocaleString() || "0"}
+                                  </div>
                                 </div>
-                              </div>
-                              <div>
-                                <div className="text-muted-foreground">Ownership</div>
-                                <div className="font-medium">
-                                  {formatPercentage(role.shareQuantity || 0)}
+                                <div>
+                                  <div className="text-muted-foreground">Ownership</div>
+                                  <div className="font-medium">
+                                    {formatPercentage(role.shareQuantity || 0)}
+                                  </div>
                                 </div>
-                              </div>
-                              <div>
-                                <div className="text-muted-foreground">Share Type</div>
-                                <div className="font-medium">{role.shareType || "Common"}</div>
-                                {role.shareClass && (
-                                  <div className="text-xs text-muted-foreground">{role.shareClass}</div>
-                                )}
-                              </div>
-                              <div>
-                                <div className="text-muted-foreground">Issue Date</div>
-                                <div className="font-medium">
-                                  {role.shareIssueDate ? formatDate(role.shareIssueDate) : "Not specified"}
+                                <div>
+                                  <div className="text-muted-foreground">Share Type</div>
+                                  <div className="font-medium">{role.shareType || "Common"}</div>
+                                  {role.shareClass && (
+                                    <div className="text-xs text-muted-foreground">{role.shareClass}</div>
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="text-muted-foreground">Issue Date</div>
+                                  <div className="font-medium">
+                                    {role.shareIssueDate ? formatDate(role.shareIssueDate) : "Not specified"}
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </SwipeActions>
-                        )}
+                        }
                       >
                         <TableCell>
                           <div>
