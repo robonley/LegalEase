@@ -53,6 +53,7 @@ export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUserBilling(id: string, billing: { stripeCustomerId?: string; stripeSubscriptionId?: string; subscriptionStatus?: string; subscriptionTier?: string }): Promise<User>;
   
   // Organization operations
   createOrg(org: InsertOrg): Promise<Org>;
@@ -175,6 +176,18 @@ export class DatabaseStorage implements IStorage {
           updatedAt: new Date(),
         },
       })
+      .returning();
+    return user;
+  }
+
+  async updateUserBilling(id: string, billing: { stripeCustomerId?: string; stripeSubscriptionId?: string; subscriptionStatus?: string; subscriptionTier?: string }): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        ...billing,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, id))
       .returning();
     return user;
   }
