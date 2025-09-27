@@ -613,6 +613,7 @@ export default function Entities() {
                       )}
                     </Button>
                   </div>
+                  </div>
                 </form>
               </Form>
                 </TabsContent>
