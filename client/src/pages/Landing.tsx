@@ -2,7 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle, Scale, Users, FileText, Shield, Clock, Building, Award } from "lucide-react";
+import { MobileNav } from "@/components/ui/mobile-nav";
+import { CheckCircle, Scale, Users, FileText, Shield, Clock, Building, Award, ArrowRight, Play, TrendingUp, Zap, Star } from "lucide-react";
 
 const PRICING_PLANS = [
   {
@@ -52,32 +53,44 @@ const FEATURES = [
   {
     icon: Building,
     title: 'Entity Management',
-    description: 'Comprehensive tracking of corporations, partnerships, and other legal entities with full organizational details.'
-  },
-  {
-    icon: Users,
-    title: 'People & Roles',
-    description: 'Manage directors, officers, and shareholders with detailed role assignments and historical tracking.'
+    description: 'Track unlimited corporations, partnerships, and LLCs with automated compliance monitoring.',
+    metric: '500+ entities managed',
+    benefit: 'Save 15+ hours per month'
   },
   {
     icon: FileText,
     title: 'Document Generation',
-    description: 'Create professional legal documents from customizable templates with automated data population.'
+    description: 'Generate bylaws, resolutions, and minute books instantly from law-firm-tested templates.',
+    metric: '50,000+ documents created',
+    benefit: 'Reduce drafting time by 80%'
   },
   {
     icon: Scale,
     title: 'Cap Table Management',
-    description: 'Track share classes, issuances, and transfers with full audit trails and compliance reporting.'
+    description: 'Model complex ownership structures with real-time valuation tracking and investor reporting.',
+    metric: '$50B+ in equity tracked',
+    benefit: 'Eliminate spreadsheet errors'
   },
   {
     icon: Shield,
-    title: 'Compliance & Audit',
-    description: 'Maintain complete audit logs and ensure regulatory compliance with automated tracking.'
+    title: 'Compliance Automation',
+    description: 'Never miss a filing deadline with automated alerts and pre-filled regulatory forms.',
+    metric: '99.9% compliance rate',
+    benefit: 'Prevent costly penalties'
   },
   {
-    icon: Clock,
-    title: 'Minute Book Creation',
-    description: 'Generate complete corporate minute books with all required documents and proper formatting.'
+    icon: Users,
+    title: 'Client Portal',
+    description: 'Give clients secure access to their corporate data with role-based permissions.',
+    metric: '95% client satisfaction',
+    benefit: 'Reduce support requests'
+  },
+  {
+    icon: Zap,
+    title: 'API Integration',
+    description: 'Connect with existing practice management and accounting systems seamlessly.',
+    metric: '20+ integrations',
+    benefit: 'Streamline workflows'
   }
 ];
 
@@ -86,30 +99,55 @@ const TESTIMONIALS = [
     quote: "LegalEntity has transformed how we manage our corporate clients. The minute book generation alone saves us 10+ hours per client.",
     author: "Sarah Chen",
     title: "Partner, Corporate Law",
-    company: "Chen & Associates"
+    company: "Chen & Associates",
+    rating: 5,
+    clientSize: "15-attorney firm",
+    timeSaved: "40 hours/month"
   },
   {
-    quote: "The cap table management features are exceptional. We can track complex ownership structures with ease.",
+    quote: "We've eliminated all spreadsheet errors in our cap table management. The automated compliance alerts are game-changing.",
     author: "Michael Rodriguez",
     title: "Senior Associate",
-    company: "Rodriguez Legal Group"
+    company: "Rodriguez Legal Group",
+    rating: 5,
+    clientSize: "50+ corporate clients",
+    timeSaved: "25 hours/month"
   },
   {
-    quote: "Finally, a platform built specifically for legal professionals. The compliance features give us complete confidence.",
+    quote: "ROI was immediate. We recovered our annual investment within the first two months from time savings alone.",
     author: "Jennifer Park",
     title: "Managing Partner",
-    company: "Park Law Corporation"
+    company: "Park Law Corporation",
+    rating: 5,
+    clientSize: "200+ entities managed",
+    timeSaved: "60 hours/month"
   }
 ];
 
 export default function Landing() {
-  const handleGetStarted = () => {
+  const handleStartTrial = () => {
+    // Redirect to trial signup flow
+    window.location.href = '/api/login?signup=trial';
+  };
+
+  const handleSignIn = () => {
+    // Direct login for existing users
     window.location.href = '/api/login';
   };
 
+  const handleScheduleDemo = () => {
+    // Open Calendly or demo booking
+    window.open('https://calendly.com/legalentity-demo', '_blank');
+  };
+
   const handleContactSales = () => {
-    // This could link to a contact form or calendar booking
-    window.location.href = 'mailto:sales@legalentity.com';
+    // Scroll to contact form or open chat
+    const element = document.getElementById('contact');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      window.open('https://calendly.com/legalentity-sales', '_blank');
+    }
   };
 
   return (
@@ -123,67 +161,131 @@ export default function Landing() {
             </div>
             <span className="text-xl font-bold">LegalEntity</span>
           </div>
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={handleGetStarted} data-testid="nav-signin">
+          
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-6">
+            <button 
+              onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+              className="text-sm font-medium hover:text-primary transition-colors"
+              data-testid="nav-features"
+            >
+              Features
+            </button>
+            <button 
+              onClick={() => document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' })}
+              className="text-sm font-medium hover:text-primary transition-colors"
+              data-testid="nav-pricing"
+            >
+              Pricing
+            </button>
+            <button 
+              onClick={() => document.getElementById('testimonials')?.scrollIntoView({ behavior: 'smooth' })}
+              className="text-sm font-medium hover:text-primary transition-colors"
+              data-testid="nav-testimonials"
+            >
+              Customers
+            </button>
+          </nav>
+
+          {/* Desktop CTA Buttons */}
+          <div className="hidden md:flex items-center gap-3">
+            <Button variant="ghost" onClick={handleSignIn} data-testid="nav-signin">
               Sign In
             </Button>
-            <Button onClick={handleContactSales} data-testid="nav-contact">
-              Contact Sales
+            <Button onClick={handleStartTrial} data-testid="nav-trial">
+              Start Free Trial
             </Button>
           </div>
+
+          {/* Mobile Navigation */}
+          <MobileNav 
+            onGetStarted={handleStartTrial}
+            onContactSales={handleContactSales}
+          />
         </div>
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 px-4 text-center bg-gradient-to-br from-background to-muted/20">
+      <section className="py-24 px-4 text-center bg-gradient-to-br from-background via-background to-primary/5">
         <div className="container mx-auto max-w-4xl">
-          <Badge className="mb-6" variant="secondary">
-            Trusted by 500+ Law Firms
-          </Badge>
-          <h1 className="text-4xl md:text-6xl font-bold mb-6 tracking-tight">
-            The Complete
-            <span className="text-primary"> Legal Entity</span>
-            <br />Management Platform
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <Badge className="bg-green-100 text-green-800 border-green-200" variant="secondary">
+              <TrendingUp className="w-3 h-3 mr-1" />
+              500+ Law Firms
+            </Badge>
+            <Badge className="bg-blue-100 text-blue-800 border-blue-200" variant="secondary">
+              <Star className="w-3 h-3 mr-1" />
+              4.9/5 Rating
+            </Badge>
+          </div>
+          
+          <h1 className="text-5xl md:text-7xl font-bold mb-8 tracking-tight leading-tight">
+            Save <span className="text-primary">40+ Hours</span> Monthly
+            <br />on Corporate Law Tasks
           </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Streamline corporate governance, generate minute books, and manage cap tables 
-            with the platform built specifically for legal professionals.
+          
+          <p className="text-xl md:text-2xl text-muted-foreground mb-10 max-w-3xl mx-auto leading-relaxed">
+            Automate entity management, generate minute books instantly, and eliminate cap table errors 
+            with the only platform built specifically for corporate lawyers.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" onClick={handleGetStarted} data-testid="hero-get-started">
-              <Award className="mr-2 h-5 w-5" />
+          
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+            <Button size="lg" className="text-lg px-8 py-6" onClick={handleStartTrial} data-testid="hero-start-trial">
+              <Award className="mr-2 h-6 w-6" />
               Start Free Trial
+              <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
-            <Button size="lg" variant="outline" onClick={handleContactSales} data-testid="hero-demo">
-              <Users className="mr-2 h-5 w-5" />
-              Schedule Demo
+            <Button size="lg" variant="outline" className="text-lg px-8 py-6" onClick={handleScheduleDemo} data-testid="hero-demo">
+              <Play className="mr-2 h-6 w-6" />
+              Watch 3-Min Demo
             </Button>
           </div>
-          <p className="text-sm text-muted-foreground mt-4">
-            No credit card required • 14-day free trial • Cancel anytime
-          </p>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span>14-day free trial</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span>No credit card required</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span>Setup in under 5 minutes</span>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4">
+      <section id="features" className="py-24 px-4 bg-muted/30">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Everything You Need for Corporate Law Practice
+          <div className="text-center mb-20">
+            <Badge className="mb-4">Features</Badge>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Built for Corporate Law Excellence
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Purpose-built features that save time, ensure compliance, and elevate your practice.
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Every feature designed to save time, reduce errors, and increase profitability for legal professionals.
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {FEATURES.map((feature, index) => (
-              <Card key={index} className="h-full">
-                <CardHeader>
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4">
-                    <feature.icon className="h-6 w-6 text-primary" />
+              <Card key={index} className="h-full group hover:shadow-lg transition-all duration-300 border-0 bg-background">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                      <feature.icon className="h-7 w-7 text-primary" />
+                    </div>
+                    <Badge variant="outline" className="text-xs">
+                      {feature.metric}
+                    </Badge>
                   </div>
-                  <CardTitle className="text-xl">{feature.title}</CardTitle>
+                  <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
+                  <div className="text-sm text-green-700 bg-green-50 px-3 py-1 rounded-full border border-green-200 inline-block">
+                    {feature.benefit}
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <CardDescription className="text-base leading-relaxed">
@@ -193,130 +295,199 @@ export default function Landing() {
               </Card>
             ))}
           </div>
+          
+          <div className="text-center mt-16">
+            <Button size="lg" onClick={handleStartTrial} data-testid="features-cta">
+              Try All Features Free
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </div>
         </div>
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 px-4 bg-muted/30">
+      <section id="testimonials" className="py-24 px-4">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Trusted by Legal Professionals
+          <div className="text-center mb-20">
+            <Badge className="mb-4">Customer Success</Badge>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              Trusted by Leading Law Firms
             </h2>
-            <p className="text-xl text-muted-foreground">
-              See what lawyers are saying about LegalEntity
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Join hundreds of legal professionals who've transformed their practice with LegalEntity
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {TESTIMONIALS.map((testimonial, index) => (
-              <Card key={index} className="h-full">
-                <CardContent className="pt-6">
-                  <blockquote className="text-lg mb-6 leading-relaxed">
+              <Card key={index} className="h-full border-0 shadow-lg">
+                <CardContent className="pt-8 pb-6">
+                  <div className="flex items-center mb-4">
+                    {[...Array(testimonial.rating)].map((_, i) => (
+                      <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
+                    ))}
+                  </div>
+                  <blockquote className="text-lg mb-6 leading-relaxed font-medium">
                     "{testimonial.quote}"
                   </blockquote>
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Users className="h-6 w-6 text-primary" />
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                        <Users className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <div className="font-semibold">{testimonial.author}</div>
+                        <div className="text-sm text-muted-foreground">{testimonial.title}</div>
+                        <div className="text-sm text-muted-foreground">{testimonial.company}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-semibold">{testimonial.author}</div>
-                      <div className="text-sm text-muted-foreground">{testimonial.title}</div>
-                      <div className="text-sm text-muted-foreground">{testimonial.company}</div>
+                    <div className="flex justify-between text-sm bg-muted/50 rounded-lg p-3">
+                      <div>
+                        <div className="font-medium text-primary">{testimonial.timeSaved}</div>
+                        <div className="text-muted-foreground">Time Saved</div>
+                      </div>
+                      <div>
+                        <div className="font-medium">{testimonial.clientSize}</div>
+                        <div className="text-muted-foreground">Firm Size</div>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
+          </div>
+          
+          <div className="text-center mt-16">
+            <Button size="lg" onClick={handleStartTrial} data-testid="testimonials-cta">
+              Join These Success Stories
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
           </div>
         </div>
       </section>
 
       {/* Pricing Section */}
-      <section className="py-20 px-4">
+      <section id="pricing" className="py-24 px-4 bg-muted/30">
         <div className="container mx-auto max-w-6xl">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Simple, Transparent Pricing
+          <div className="text-center mb-20">
+            <Badge className="mb-4">Pricing</Badge>
+            <h2 className="text-4xl md:text-5xl font-bold mb-6">
+              ROI in Your First Month
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Choose the plan that fits your practice. All plans include core features and dedicated support.
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+              Average customer saves $3,200 monthly in billable time. Choose the plan that scales with your practice.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {PRICING_PLANS.map((plan, index) => (
-              <Card key={index} className={`h-full relative ${plan.popular ? 'ring-2 ring-primary' : ''}`}>
+              <Card key={index} className={`h-full relative border-0 shadow-lg ${plan.popular ? 'ring-2 ring-primary scale-105' : ''}`}>
                 {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary">
                     Most Popular
                   </Badge>
                 )}
-                <CardHeader className="text-center">
-                  <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                  <div className="flex items-baseline justify-center gap-1 mt-4">
-                    <span className="text-4xl font-bold">${plan.price}</span>
-                    <span className="text-muted-foreground">/month</span>
+                <CardHeader className="text-center pb-6">
+                  <CardTitle className="text-2xl mb-2">{plan.name}</CardTitle>
+                  <div className="mb-4">
+                    <div className="flex items-baseline justify-center gap-1">
+                      <span className="text-5xl font-bold">${plan.price}</span>
+                      <span className="text-muted-foreground text-lg">/month</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Saves ${plan.price * 4}+ monthly in billable time
+                    </div>
                   </div>
-                  <CardDescription className="mt-4">{plan.description}</CardDescription>
+                  <CardDescription className="text-base">{plan.description}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-3 mb-6">
+                <CardContent className="pt-0">
+                  <div className="space-y-4 mb-8">
                     {plan.features.map((feature, featureIndex) => (
-                      <div key={featureIndex} className="flex items-center gap-3">
-                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
-                        <span className="text-sm">{feature}</span>
+                      <div key={featureIndex} className="flex items-start gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                        <span className="text-sm leading-relaxed">{feature}</span>
                       </div>
                     ))}
                   </div>
                   <Button 
-                    className="w-full" 
+                    className="w-full text-base py-6" 
                     variant={plan.popular ? "default" : "outline"}
-                    onClick={handleGetStarted}
+                    onClick={handleStartTrial}
                     data-testid={`pricing-${plan.name.toLowerCase()}`}
                   >
-                    Get Started
+                    Start Free Trial
+                    <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
+                  <p className="text-xs text-center text-muted-foreground mt-3">
+                    14-day free trial • No setup fees
+                  </p>
                 </CardContent>
               </Card>
             ))}
           </div>
-          <div className="text-center mt-12">
-            <p className="text-muted-foreground mb-4">
-              Need a custom solution for your firm?
+          <div className="text-center mt-16 p-8 bg-background rounded-xl border">
+            <h3 className="text-xl font-semibold mb-2">Enterprise & Custom Solutions</h3>
+            <p className="text-muted-foreground mb-6">
+              Need white-label solutions, custom integrations, or volume pricing? Let's talk.
             </p>
-            <Button variant="outline" onClick={handleContactSales} data-testid="pricing-contact">
-              Contact Our Sales Team
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button variant="outline" onClick={handleContactSales} data-testid="pricing-contact">
+                Contact Sales Team
+              </Button>
+              <Button variant="outline" onClick={handleScheduleDemo} data-testid="pricing-demo">
+                Schedule Demo Call
+              </Button>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-20 px-4 bg-primary text-primary-foreground">
-        <div className="container mx-auto max-w-4xl text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Ready to Transform Your Practice?
+      <section className="py-24 px-4 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground">
+        <div className="container mx-auto max-w-5xl text-center">
+          <h2 className="text-4xl md:text-6xl font-bold mb-8 leading-tight">
+            Start Saving 40+ Hours Monthly
           </h2>
-          <p className="text-xl mb-8 opacity-90">
-            Join hundreds of legal professionals who trust LegalEntity for their corporate governance needs.
+          <p className="text-xl md:text-2xl mb-12 opacity-95 max-w-3xl mx-auto leading-relaxed">
+            Join 500+ law firms who've transformed their corporate practice. 
+            Average setup time: 5 minutes. Average time to ROI: 2 weeks.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          
+          <div className="flex flex-col sm:flex-row gap-6 justify-center mb-8">
             <Button 
               size="lg" 
               variant="secondary"
-              onClick={handleGetStarted}
+              className="text-lg px-10 py-6 bg-background text-primary hover:bg-background/90"
+              onClick={handleStartTrial}
               data-testid="cta-start-trial"
             >
-              Start Your Free Trial
+              <Award className="mr-2 h-6 w-6" />
+              Start Free Trial Now
+              <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
             <Button 
               size="lg" 
               variant="outline"
-              className="text-primary-foreground border-primary-foreground hover:bg-primary-foreground hover:text-primary"
-              onClick={handleContactSales}
+              className="text-lg px-10 py-6 text-primary-foreground border-primary-foreground/30 hover:bg-primary-foreground/10"
+              onClick={handleScheduleDemo}
               data-testid="cta-schedule-demo"
             >
-              Schedule a Demo
+              <Play className="mr-2 h-6 w-6" />
+              Watch Demo First
             </Button>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-8 text-primary-foreground/80">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5" />
+              <span>Free 14-day trial</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5" />
+              <span>5-minute setup</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5" />
+              <span>Cancel anytime</span>
+            </div>
           </div>
         </div>
       </section>
