@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
+  ResponsiveTable,
+  ResponsiveTableBody,
+  ResponsiveTableHeader,
+  ResponsiveTableRow,
   TableCell,
   TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+} from "@/components/ui/responsive-table";
 import {
   Dialog,
   DialogContent,
@@ -241,9 +241,9 @@ export default function CapTable() {
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
+              <ResponsiveTable>
+                <ResponsiveTableHeader>
+                  <ResponsiveTableRow>
                     <TableHead>Shareholder</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Shares</TableHead>
@@ -251,13 +251,142 @@ export default function CapTable() {
                     <TableHead>Ownership %</TableHead>
                     <TableHead>Issue Date</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                  </ResponsiveTableRow>
+                </ResponsiveTableHeader>
+                <ResponsiveTableBody>
                   {filteredShareholders.map((person) => {
                     const shareholderRoles = person.roles.filter(role => role.role === 'Shareholder');
                     return shareholderRoles.map((role) => (
-                      <TableRow key={`${person.id}-${role.id}`} data-testid={`shareholder-row-${person.id}`}>
+                      <ResponsiveTableRow 
+                        key={`${person.id}-${role.id}`} 
+                        data-testid={`shareholder-row-${person.id}`}
+                        mobileCard={
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <div className="font-medium text-base">
+                                  {person.firstName} {person.lastName}
+                                </div>
+                                {role.title && (
+                                  <div className="text-sm text-muted-foreground">{role.title}</div>
+                                )}
+                                <div className="text-sm text-muted-foreground mt-1">
+                                  {person.email || "No email provided"}
+                                </div>
+                              </div>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    data-testid={`actions-menu-${person.id}`}
+                                  >
+                                    <i className="fas fa-ellipsis-h"></i>
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-40">
+                                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  
+                                  {/* View Shareholder */}
+                                  <DropdownMenuItem
+                                    onClick={() => setViewingPerson(person)}
+                                    data-testid={`view-shareholder-${person.id}`}
+                                  >
+                                    <i className="fas fa-eye mr-2"></i>
+                                    View Details
+                                  </DropdownMenuItem>
+                                  
+                                  {/* Edit Shareholder */}
+                                  <DropdownMenuItem
+                                    onClick={() => setEditingPerson(person)}
+                                    data-testid={`edit-shareholder-${person.id}`}
+                                  >
+                                    <i className="fas fa-edit mr-2"></i>
+                                    Edit
+                                  </DropdownMenuItem>
+                                  
+                                  <DropdownMenuSeparator />
+                                  
+                                  {/* Send Email */}
+                                  {person.email && (
+                                    <DropdownMenuItem
+                                      onClick={() => window.open(`mailto:${person.email}`, '_blank')}
+                                      data-testid={`email-shareholder-${person.id}`}
+                                    >
+                                      <i className="fas fa-envelope mr-2"></i>
+                                      Send Email
+                                    </DropdownMenuItem>
+                                  )}
+                                  
+                                  <DropdownMenuSeparator />
+                                  
+                                  {/* Delete Shareholder */}
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <DropdownMenuItem
+                                        onSelect={(e) => e.preventDefault()}
+                                        className="text-destructive focus:text-destructive"
+                                        data-testid={`delete-shareholder-${person.id}`}
+                                      >
+                                        <i className="fas fa-trash mr-2"></i>
+                                        Delete
+                                      </DropdownMenuItem>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>Delete Shareholder</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to delete {person.firstName} {person.lastName} from the cap table? 
+                                          This will remove all their share holdings and cannot be undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => deleteMutation.mutate(person.id)}
+                                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                          disabled={deleteMutation.isPending}
+                                        >
+                                          {deleteMutation.isPending ? "Deleting..." : "Delete"}
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              <div>
+                                <div className="text-muted-foreground">Shares</div>
+                                <div className="font-medium">
+                                  {role.shareQuantity?.toLocaleString() || "0"}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-muted-foreground">Ownership</div>
+                                <div className="font-medium">
+                                  {formatPercentage(role.shareQuantity || 0)}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-muted-foreground">Share Type</div>
+                                <div className="font-medium">{role.shareType || "Common"}</div>
+                                {role.shareClass && (
+                                  <div className="text-xs text-muted-foreground">{role.shareClass}</div>
+                                )}
+                              </div>
+                              <div>
+                                <div className="text-muted-foreground">Issue Date</div>
+                                <div className="font-medium">
+                                  {role.shareIssueDate ? formatDate(role.shareIssueDate) : "Not specified"}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        }
+                      >
                         <TableCell>
                           <div>
                             <div className="font-medium">
@@ -379,11 +508,11 @@ export default function CapTable() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
-                      </TableRow>
+                      </ResponsiveTableRow>
                     ));
                   })}
-                </TableBody>
-              </Table>
+                </ResponsiveTableBody>
+              </ResponsiveTable>
             </CardContent>
           </Card>
         )}
