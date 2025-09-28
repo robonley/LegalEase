@@ -23,24 +23,24 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["/documents"]));
 
-  // Document Management sub-items
+  // Documents sub-items
   const documentSubItems = [
     { 
       href: "/documents/templates", 
       icon: "fas fa-cog", 
-      label: "Setup Templates",
+      label: "Quick Create",
       description: "Upload & configure .docx templates"
     },
     { 
       href: "/documents/bundles", 
       icon: "fas fa-plus-circle", 
-      label: "Generate Bundles",
+      label: "Manage Templates",
       description: "Create minute books"
     },
     { 
       href: "/documents/library", 
       icon: "fas fa-folder-open", 
-      label: "Document Library",
+      label: "Archives",
       description: "View completed documents"
     },
   ];
@@ -55,7 +55,7 @@ export function Sidebar() {
         { 
           href: "/documents", 
           icon: "fas fa-file-alt", 
-          label: "Document Management",
+          label: "Documents",
           hasChildren: true,
           children: documentSubItems
         },
@@ -69,7 +69,7 @@ export function Sidebar() {
         { 
           href: "/documents", 
           icon: "fas fa-file-alt", 
-          label: "Document Management",
+          label: "Documents",
           hasChildren: true,
           children: documentSubItems
         },
