@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -31,6 +33,7 @@ const formSchema = z.object({
   // Basic entity fields
   name: z.string().min(1, "Entity name is required"),
   number: z.string().optional(),
+  companyKey: z.string().optional(),
   jurisdiction: z.string().min(1, "Jurisdiction is required"),
   formationAt: z.date().optional(),
   authRepName: z.string().optional(),
@@ -251,8 +254,9 @@ export default function EntityEdit() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <TooltipProvider>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
@@ -286,15 +290,31 @@ export default function EntityEdit() {
                   <FormField
                     control={form.control}
                     name="companyKey"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Company Key</FormLabel>
-                        <FormControl>
-                          <PasswordInput {...field} value={field.value || ""} data-testid="input-company-key" placeholder="Enter secure company key" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const jurisdiction = form.watch("jurisdiction");
+                      const isCBCA = jurisdiction === "CBCA";
+                      const keyLabel = isCBCA ? "Corporation Key" : "Company Key";
+                      
+                      return (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-2">
+                            {keyLabel}
+                            <Tooltip>
+                              <TooltipTrigger type="button">
+                                <Info className="h-4 w-4 text-muted-foreground" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>9 digit number</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </FormLabel>
+                          <FormControl>
+                            <PasswordInput {...field} value={field.value || ""} data-testid="input-company-key" placeholder="Enter secure company key" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                   <FormField
                     control={form.control}
@@ -691,6 +711,7 @@ export default function EntityEdit() {
                 </div>
               </form>
             </Form>
+            </TooltipProvider>
           </CardContent>
         </Card>
       </div>
