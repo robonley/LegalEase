@@ -120,6 +120,128 @@ export function DocumentEditor({
     }
   }, [documentData, initialTitle]);
 
+  // Function to auto-populate template placeholders with entity data
+  const populateTemplatePlaceholders = (templateContent: string) => {
+    if (!entityData?.organization) return templateContent;
+
+    let populatedContent = templateContent;
+
+    // Company Information
+    populatedContent = populatedContent.replace(/\{\{CompanyName\}\}/g, entityData.organization.name || '');
+    populatedContent = populatedContent.replace(/\{\{Jurisdiction\}\}/g, entityData.organization.jurisdiction || '');
+    populatedContent = populatedContent.replace(/\{\{IncorporationNumber\}\}/g, entityData.organization.number || '');
+    
+    // Formation date
+    if (entityData.organization.formationAt) {
+      const formationDate = new Date(entityData.organization.formationAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      populatedContent = populatedContent.replace(/\{\{FormationDate\}\}/g, formationDate);
+    }
+
+    // Registered office address
+    if (entityData.registeredOffice) {
+      const address = [
+        entityData.registeredOffice.line1,
+        entityData.registeredOffice.line2,
+        entityData.registeredOffice.city,
+        entityData.registeredOffice.province,
+        entityData.registeredOffice.postalCode
+      ].filter(Boolean).join(', ');
+      populatedContent = populatedContent.replace(/\{\{RegisteredOffice\}\}/g, address);
+    }
+
+    // People data
+    if (entityData.people) {
+      // Get directors
+      const directors = entityData.people
+        .filter(person => person.roles.some(role => role.type === 'director'))
+        .map(person => person.name);
+      
+      if (directors.length > 0) {
+        populatedContent = populatedContent.replace(/\{\{DirectorNames\}\}/g, directors.join(', '));
+        populatedContent = populatedContent.replace(/\{\{FirstDirector\}\}/g, directors[0] || '');
+      }
+
+      // Get officers by title
+      const getOfficerByTitle = (title: string) => {
+        const officer = entityData.people?.find(person => 
+          person.roles.some(role => role.type === 'officer' && role.title?.toLowerCase().includes(title.toLowerCase()))
+        );
+        return officer?.name || '';
+      };
+
+      populatedContent = populatedContent.replace(/\{\{President\}\}/g, getOfficerByTitle('president'));
+      populatedContent = populatedContent.replace(/\{\{Secretary\}\}/g, getOfficerByTitle('secretary'));
+      populatedContent = populatedContent.replace(/\{\{Treasurer\}\}/g, getOfficerByTitle('treasurer'));
+
+      // All officers
+      const officers = entityData.people
+        .filter(person => person.roles.some(role => role.type === 'officer'))
+        .map(person => {
+          const officerRole = person.roles.find(role => role.type === 'officer');
+          return `${person.name} (${officerRole?.title || 'Officer'})`;
+        });
+      
+      if (officers.length > 0) {
+        populatedContent = populatedContent.replace(/\{\{Officers\}\}/g, officers.join(', '));
+      }
+
+      // Shareholders
+      const shareholders = entityData.people
+        .filter(person => person.roles.some(role => role.type === 'shareholder'))
+        .map(person => person.name);
+      
+      if (shareholders.length > 0) {
+        populatedContent = populatedContent.replace(/\{\{Shareholders\}\}/g, shareholders.join(', '));
+      }
+    }
+
+    // Share information
+    if (entityData.shareClasses) {
+      const shareClassNames = entityData.shareClasses.map(sc => sc.name);
+      populatedContent = populatedContent.replace(/\{\{ShareClasses\}\}/g, shareClassNames.join(', '));
+      
+      // Calculate total authorized shares
+      const totalAuthorized = entityData.shareClasses.reduce((sum, sc) => sum + (sc.authorizedShares || 0), 0);
+      populatedContent = populatedContent.replace(/\{\{AuthorizedShares\}\}/g, totalAuthorized.toLocaleString());
+    }
+
+    if (entityData.shareIssuances) {
+      const totalIssued = entityData.shareIssuances.reduce((sum, issuance) => sum + (issuance.shares || 0), 0);
+      populatedContent = populatedContent.replace(/\{\{IssuedShares\}\}/g, totalIssued.toLocaleString());
+    }
+
+    // Current date
+    const currentDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long', 
+      day: 'numeric'
+    });
+    populatedContent = populatedContent.replace(/\{\{CurrentDate\}\}/g, currentDate);
+
+    // Currency based on jurisdiction
+    const currency = entityData.organization.jurisdiction?.includes('Canada') || 
+                    entityData.organization.jurisdiction?.includes('CA') ? 'CAD' : 'USD';
+    populatedContent = populatedContent.replace(/\{\{Currency\}\}/g, currency);
+
+    return populatedContent;
+  };
+
+  // Auto-populate template when entity data loads or initial content changes
+  useEffect(() => {
+    if (initialContent && entityData?.organization && !documentId) {
+      // Only auto-populate for new templates, not existing documents
+      const populatedContent = populateTemplatePlaceholders(initialContent);
+      setContent(populatedContent);
+    } else if (initialContent && !entityData?.organization) {
+      // If no entity data yet, just use the template as-is
+      setContent(initialContent);
+    }
+  }, [initialContent, entityData, documentId]);
+
   const handleSave = async () => {
     if (!onSave) return;
     setIsSaving(true);
