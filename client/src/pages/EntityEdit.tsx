@@ -224,7 +224,7 @@ export default function EntityEdit() {
               data-testid="back-button"
             >
               <i className="fas fa-arrow-left mr-2"></i>
-              Back to Entity
+              Back
             </Button>
             <Separator orientation="vertical" className="h-6" />
             <div className="flex items-center gap-3">

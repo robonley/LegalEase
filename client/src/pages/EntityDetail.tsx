@@ -190,16 +190,6 @@ export default function EntityDetail() {
       <header className="bg-card border-b border-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setLocation('/entities')}
-              data-testid="back-button"
-            >
-              <i className="fas fa-arrow-left mr-2"></i>
-              Back to Entities
-            </Button>
-            <Separator orientation="vertical" className="h-6" />
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
                 <span className="text-lg font-medium text-primary">
