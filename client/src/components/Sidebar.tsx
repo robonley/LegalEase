@@ -21,7 +21,7 @@ export function Sidebar() {
   const { currentEntity, clearCurrentEntity } = useEntityContext();
   const { theme, toggleTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["/documents"]));
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["/documents", "/people"]));
 
   // Documents sub-items
   const documentSubItems = [
@@ -42,13 +42,51 @@ export function Sidebar() {
     },
   ];
 
+  // People & Roles sub-items
+  const peopleSubItems = [
+    { 
+      href: "/people/directors", 
+      icon: "fas fa-gavel", 
+      label: "Directors Register"
+    },
+    { 
+      href: "/people/officers", 
+      icon: "fas fa-briefcase", 
+      label: "Officers Register"
+    },
+    { 
+      href: "/people/shareholders", 
+      icon: "fas fa-users", 
+      label: "Shareholders Register"
+    },
+    { 
+      href: "/people/securities", 
+      icon: "fas fa-chart-line", 
+      label: "Securities Ledger",
+      hasChildren: true,
+      children: [
+        {
+          href: "/cap-table",
+          icon: "fas fa-chart-pie",
+          label: "Cap Table"
+        }
+      ]
+    },
+  ];
+
   // Generate navigation items based on entity context
   const getNavigationItems = () => {
     if (currentEntity) {
       // Entity-specific navigation with reorganized document management
       return [
         { href: `/entities/${currentEntity.id}`, icon: "fas fa-tachometer-alt", label: "Dashboard" },
-        { href: "/people", icon: "fas fa-users", label: "People & Roles" },
+        { 
+          href: "/people", 
+          icon: "fas fa-users", 
+          label: "People & Roles",
+          hasChildren: true,
+          children: peopleSubItems
+        },
         { 
           href: "/documents", 
           icon: "fas fa-file-alt", 
@@ -56,7 +94,6 @@ export function Sidebar() {
           hasChildren: true,
           children: documentSubItems
         },
-        { href: "/cap-table", icon: "fas fa-chart-pie", label: "Cap Table" },
       ];
     } else {
       // Global navigation
@@ -70,7 +107,6 @@ export function Sidebar() {
           hasChildren: true,
           children: documentSubItems
         },
-        { href: "/cap-table", icon: "fas fa-chart-pie", label: "Cap Table" },
       ];
     }
   };
