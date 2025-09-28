@@ -28,20 +28,17 @@ export function Sidebar() {
     { 
       href: "/documents/templates", 
       icon: "fas fa-cog", 
-      label: "Quick Create",
-      description: "Upload & configure .docx templates"
-    },
-    { 
-      href: "/documents/bundles", 
-      icon: "fas fa-plus-circle", 
-      label: "Manage Templates",
-      description: "Create minute books"
+      label: "Create"
     },
     { 
       href: "/documents/library", 
       icon: "fas fa-folder-open", 
-      label: "Archives",
-      description: "View completed documents"
+      label: "Manage"
+    },
+    { 
+      href: "/documents/bundles", 
+      icon: "fas fa-plus-circle", 
+      label: "Minute Books"
     },
   ];
 
@@ -250,12 +247,6 @@ export function Sidebar() {
                             <i className={`${child.icon} w-4 text-xs`}></i>
                             <div className="flex-1">
                               <div className="font-medium">{child.label}</div>
-                              <div className={cn(
-                                "text-xs",
-                                location === child.href ? "text-primary-foreground/70" : "text-muted-foreground"
-                              )}>
-                                {child.description}
-                              </div>
                             </div>
                           </div>
                         </Link>

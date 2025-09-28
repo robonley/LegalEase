@@ -406,7 +406,7 @@ export default function Templates() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="starter" data-testid="quick-create-tab">
-              Quick Create
+              Create
             </TabsTrigger>
             <TabsTrigger value="custom" data-testid="custom-templates-tab">
               Manage Templates ({customTemplates.length})
