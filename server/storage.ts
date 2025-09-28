@@ -47,7 +47,7 @@ import {
   type InsertMinuteBookDoc,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, ilike, or, sql } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -159,6 +159,15 @@ export interface IStorage {
   
   // Entity data operations for minute book generation
   getEntityDataForGeneration(orgId: string): Promise<EntityData>;
+
+  // Search operations
+  searchEntities(searchTerm: string): Promise<Array<Org & { type: 'entity' }>>;
+  searchPeople(searchTerm: string): Promise<Array<Person & PersonOnOrg & { 
+    type: 'person'; 
+    entityName: string; 
+    entityId: string; 
+    roleType: string;
+  }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -771,6 +780,73 @@ export class DatabaseStorage implements IStorage {
           ? eq(addresses.id, addressIds[0])
           : sql`${addresses.id} IN (${sql.join(addressIds.map(id => sql`${id}`), sql`,`)})`
       );
+  }
+
+  // Search operations
+  async searchEntities(searchTerm: string): Promise<Array<Org & { type: 'entity' }>> {
+    const results = await db
+      .select()
+      .from(orgs)
+      .where(
+        or(
+          ilike(orgs.name, `%${searchTerm}%`),
+          ilike(orgs.number, `%${searchTerm}%`),
+          ilike(orgs.jurisdiction, `%${searchTerm}%`)
+        )
+      );
+    
+    return results.map(org => ({ ...org, type: 'entity' as const }));
+  }
+
+  async searchPeople(searchTerm: string): Promise<Array<Person & PersonOnOrg & { 
+    type: 'person'; 
+    entityName: string; 
+    entityId: string; 
+    roleType: string;
+  }>> {
+    const results = await db
+      .select({
+        // Person fields
+        id: people.id,
+        firstName: people.firstName,
+        lastName: people.lastName,
+        email: people.email,
+        dob: people.dob,
+        addressId: people.addressId,
+        createdAt: people.createdAt,
+        updatedAt: people.updatedAt,
+        // PersonOnOrg fields
+        orgId: personOnOrgs.orgId,
+        role: personOnOrgs.role,
+        title: personOnOrgs.title,
+        startAt: personOnOrgs.startAt,
+        endAt: personOnOrgs.endAt,
+        shareQuantity: personOnOrgs.shareQuantity,
+        shareType: personOnOrgs.shareType,
+        shareClass: personOnOrgs.shareClass,
+        shareIssueDate: personOnOrgs.shareIssueDate,
+        // Entity info
+        entityName: orgs.name,
+        entityId: orgs.id,
+      })
+      .from(people)
+      .innerJoin(personOnOrgs, eq(people.id, personOnOrgs.personId))
+      .innerJoin(orgs, eq(personOnOrgs.orgId, orgs.id))
+      .where(
+        or(
+          ilike(people.firstName, `%${searchTerm}%`),
+          ilike(people.lastName, `%${searchTerm}%`),
+          ilike(people.email, `%${searchTerm}%`),
+          ilike(personOnOrgs.role, `%${searchTerm}%`),
+          ilike(personOnOrgs.title, `%${searchTerm}%`)
+        )
+      );
+    
+    return results.map(result => ({
+      ...result,
+      type: 'person' as const,
+      roleType: result.role
+    }));
   }
 }
 

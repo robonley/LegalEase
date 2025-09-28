@@ -2146,6 +2146,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Global search endpoint
+  app.get("/api/search", async (req, res) => {
+    try {
+      const { q: query } = req.query;
+      
+      if (!query || typeof query !== 'string' || query.trim().length < 2) {
+        return res.json({
+          entities: [],
+          people: [],
+          total: 0
+        });
+      }
+
+      const searchTerm = query.trim().toLowerCase();
+      
+      // Search entities
+      const entities = await storage.searchEntities(searchTerm);
+      
+      // Search people across all entities
+      const people = await storage.searchPeople(searchTerm);
+      
+      res.json({
+        entities,
+        people,
+        total: entities.length + people.length
+      });
+    } catch (error) {
+      console.error("Search error:", error);
+      res.status(500).json({ error: "Failed to perform search" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

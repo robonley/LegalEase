@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { GettingStartedBanner } from "@/components/GettingStartedBanner";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useLocation } from "wouter";
 
 interface StatsData {
@@ -33,6 +33,22 @@ interface Entity {
   jurisdiction: string;
   formationAt: string;
   updatedAt: string;
+}
+
+interface SearchResult {
+  entities: Array<Entity & { type: 'entity' }>;
+  people: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    type: 'person';
+    entityName: string;
+    entityId: string;
+    roleType: string;
+    title?: string;
+  }>;
+  total: number;
 }
 
 export default function Dashboard() {
@@ -100,45 +116,30 @@ export default function Dashboard() {
     minuteBooks: 0, // Would need additional query
   };
 
-  // Search and filtering logic
-  const filterData = () => {
-    if (!searchTerm.trim()) {
+  // Universal search using API
+  const { data: searchResults, isLoading: searchLoading } = useQuery<SearchResult>({
+    queryKey: ['/api/search', searchTerm],
+    enabled: searchTerm.trim().length >= 2,
+  });
+
+  // Determine what to display based on search state
+  const displayData = useMemo(() => {
+    if (searchTerm.trim().length >= 2 && searchResults) {
       return {
-        entities: orgs.slice(0, 3),
-        people: entityPeople,
-        activities: auditLogs.slice(0, 3)
+        entities: searchResults.entities,
+        people: searchResults.people,
+        activities: auditLogs.slice(0, 3),
+        isSearchResults: true
       };
     }
-
-    const lowercaseSearch = searchTerm.toLowerCase();
     
-    const filteredEntities = orgs.filter(entity => 
-      entity.name.toLowerCase().includes(lowercaseSearch) ||
-      entity.number?.toLowerCase().includes(lowercaseSearch) ||
-      entity.jurisdiction.toLowerCase().includes(lowercaseSearch)
-    );
-
-    const filteredPeople = entityPeople.filter(person =>
-      person.firstName?.toLowerCase().includes(lowercaseSearch) ||
-      person.lastName?.toLowerCase().includes(lowercaseSearch) ||
-      person.email?.toLowerCase().includes(lowercaseSearch) ||
-      person.roles?.some((role: any) => role.role.toLowerCase().includes(lowercaseSearch))
-    );
-
-    const filteredActivities = auditLogs.filter(log =>
-      log.action.toLowerCase().includes(lowercaseSearch) ||
-      JSON.stringify(log.payload).toLowerCase().includes(lowercaseSearch)
-    );
-
     return {
-      entities: filteredEntities,
-      people: filteredPeople,
-      activities: filteredActivities
+      entities: orgs.slice(0, 3),
+      people: entityPeople,
+      activities: auditLogs.slice(0, 3),
+      isSearchResults: false
     };
-  };
-
-  const { entities: filteredEntities, people: filteredPeople, activities: filteredActivities } = filterData();
-  const recentEntities = searchTerm ? filteredEntities : orgs.slice(0, 3);
+  }, [searchTerm, searchResults, orgs, entityPeople, auditLogs]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -425,7 +426,7 @@ export default function Dashboard() {
               <div className="p-6 text-center">
                 <i className="fas fa-spinner fa-spin text-2xl text-muted-foreground"></i>
               </div>
-            ) : recentEntities.length === 0 ? (
+            ) : displayData.entities.length === 0 ? (
               searchTerm ? (
                 <div className="p-12 text-center">
                   <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
@@ -491,7 +492,7 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {recentEntities.map((entity) => (
+                    {displayData.entities.map((entity) => (
                       <tr key={entity.id} className="hover:bg-muted/50 transition-colors">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
