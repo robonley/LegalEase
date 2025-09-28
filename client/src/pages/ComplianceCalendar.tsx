@@ -98,7 +98,7 @@ export function ComplianceCalendar() {
   const exportCalendarMutation = useMutation<{ downloadUrl: string }, Error, "google" | "outlook">({
     mutationFn: async (format: "google" | "outlook") => {
       const response = await apiRequest(`/api/compliance/deadlines/export/${format}`, "POST", { orgId: currentEntity?.id });
-      return response as { downloadUrl: string };
+      return response as unknown as { downloadUrl: string };
     },
     onSuccess: (data: { downloadUrl: string }) => {
       window.open(data.downloadUrl, '_blank');

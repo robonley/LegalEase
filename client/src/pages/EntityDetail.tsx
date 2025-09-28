@@ -348,9 +348,6 @@ export default function EntityDetail() {
 
             {/* More Info Collapsible Content - Address Information */}
             <Collapsible open={showMoreInfo} onOpenChange={setShowMoreInfo}>
-              <CollapsibleTrigger asChild>
-                <div></div> {/* Hidden trigger since it's handled above */}
-              </CollapsibleTrigger>
               <CollapsibleContent className="space-y-4 mt-4">
                 {/* Address Information */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
