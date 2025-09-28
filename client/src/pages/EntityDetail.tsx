@@ -197,8 +197,8 @@ export default function EntityDetail() {
                 </span>
               </div>
               <div>
-                <h1 className="text-2xl font-semibold">{entity.name}</h1>
-                <p className="text-sm text-muted-foreground">
+                <h1 className="text-xl font-semibold">{entity.name}</h1>
+                <p className="text-xs text-muted-foreground">
                   {entity.jurisdiction} • #{entity.number || 'No number'}
                 </p>
               </div>
@@ -209,7 +209,7 @@ export default function EntityDetail() {
               <DialogTrigger asChild>
                 <Button variant="outline" data-testid="upload-documents-button">
                   <Upload className="h-4 w-4 mr-2" />
-                  Upload Documents
+                  Upload
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -231,7 +231,7 @@ export default function EntityDetail() {
               data-testid="edit-entity-button"
             >
               <i className="fas fa-edit mr-2"></i>
-              Edit Entity
+              Edit
             </Button>
           </div>
         </div>
