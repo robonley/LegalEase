@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { EntitySelector } from "@/components/EntitySelector";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { useTheme } from "@/hooks/useTheme";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { User } from "@shared/schema";
 
 // Navigation items will be dynamically generated based on entity context
@@ -22,6 +22,13 @@ export function Sidebar() {
   const { theme, toggleTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["/documents", "/people", `/entities/${currentEntity?.id || "dashboard"}`]));
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    // Load saved width from localStorage, default to 256px
+    const saved = localStorage.getItem('sidebarWidth');
+    return saved ? parseInt(saved, 10) : 256;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
 
   // Documents sub-items
   const documentSubItems = [
@@ -125,17 +132,58 @@ export function Sidebar() {
 
   const navigationItems = getNavigationItems();
 
+  // Save sidebar width to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebarWidth', sidebarWidth.toString());
+  }, [sidebarWidth]);
+
+  // Handle mouse events for resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      
+      const newWidth = Math.max(200, Math.min(400, e.clientX));
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    if (isResizing) {
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const handleResizeStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
   if (!isAuthenticated || !user) {
     return null;
   }
 
   return (
     <aside 
+      ref={sidebarRef}
       id="navigation"
-      className={cn(
-        "bg-card border-r border-border flex-shrink-0 transition-all duration-300 ease-in-out",
-        isCollapsed ? "w-16" : "w-64"
-      )}
+      className="bg-card border-r border-border flex-shrink-0 transition-all duration-300 ease-in-out relative"
+      style={{ 
+        width: isCollapsed ? 64 : sidebarWidth,
+        minWidth: isCollapsed ? 64 : 200,
+        maxWidth: isCollapsed ? 64 : 400
+      }}
       role="navigation"
       aria-label="Main navigation"
       aria-expanded={!isCollapsed}
@@ -201,7 +249,7 @@ export function Sidebar() {
               </div>
               
               {/* Entity Selector */}
-              <EntitySelector />
+              <EntitySelector sidebarWidth={sidebarWidth} />
             </>
           )}
         </div>
@@ -430,6 +478,20 @@ export function Sidebar() {
           </div>
         </div>
       </div>
+
+      {/* Resize Handle */}
+      {!isCollapsed && (
+        <div
+          className={cn(
+            "absolute top-0 right-0 w-1 h-full cursor-col-resize group hover:bg-primary/20 transition-colors",
+            isResizing && "bg-primary/30"
+          )}
+          onMouseDown={handleResizeStart}
+          title="Drag to resize sidebar"
+        >
+          <div className="absolute top-1/2 -translate-y-1/2 right-0 w-1 h-12 bg-border group-hover:bg-primary/40 transition-colors rounded-l" />
+        </div>
+      )}
     </aside>
   );
 }
