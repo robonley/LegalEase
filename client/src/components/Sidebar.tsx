@@ -21,7 +21,7 @@ export function Sidebar() {
   const { currentEntity, clearCurrentEntity } = useEntityContext();
   const { theme, toggleTheme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["/documents", "/people"]));
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set(["/documents", "/people", `/entities/${currentEntity?.id || "dashboard"}`]));
 
   // Documents sub-items
   const documentSubItems = [
@@ -74,12 +74,32 @@ export function Sidebar() {
     },
   ];
 
+  // Dashboard sub-items (for entity-specific view)
+  const dashboardSubItems = [
+    { 
+      href: "/compliance/review", 
+      icon: "fas fa-shield-alt", 
+      label: "Compliance Review ⭐"
+    },
+    { 
+      href: "/compliance/calendar", 
+      icon: "fas fa-calendar-check", 
+      label: "Compliance Calendar"
+    },
+  ];
+
   // Generate navigation items based on entity context
   const getNavigationItems = () => {
     if (currentEntity) {
       // Entity-specific navigation with reorganized document management
       return [
-        { href: `/entities/${currentEntity.id}`, icon: "fas fa-tachometer-alt", label: "Dashboard" },
+        { 
+          href: `/entities/${currentEntity.id}`, 
+          icon: "fas fa-tachometer-alt", 
+          label: "Dashboard",
+          hasChildren: true,
+          children: dashboardSubItems
+        },
         { 
           href: "/people", 
           icon: "fas fa-users", 

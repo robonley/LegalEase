@@ -18,6 +18,8 @@ import CapTable from "@/pages/CapTable";
 import DocumentManagement from "@/pages/DocumentManagement";
 import AuditLog from "@/pages/AuditLog";
 import BillingSettings from "@/pages/BillingSettings";
+import { ComplianceReview } from "@/pages/ComplianceReview";
+import { ComplianceCalendar } from "@/pages/ComplianceCalendar";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -45,6 +47,8 @@ function Router() {
             <Route path="/documents/:rest*" component={DocumentManagement} />
             <Route path="/documents" component={DocumentManagement} />
             <Route path="/cap-table" component={CapTable} />
+            <Route path="/compliance/review" component={ComplianceReview} />
+            <Route path="/compliance/calendar" component={ComplianceCalendar} />
             <Route path="/audit-log" component={AuditLog} />
             <Route path="/billing" component={BillingSettings} />
           </Layout>
