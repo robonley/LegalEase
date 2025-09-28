@@ -70,11 +70,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Convert date strings to Date objects if provided
       const processedBody = { ...req.body };
-      if (processedBody.formationAt) {
+      if (processedBody.formationAt && processedBody.formationAt !== '') {
         processedBody.formationAt = new Date(processedBody.formationAt);
       }
-      if (processedBody.amendmentDate) {
+      if (processedBody.amendmentDate && processedBody.amendmentDate !== '') {
         processedBody.amendmentDate = new Date(processedBody.amendmentDate);
+      }
+      
+      // Remove empty string dates to avoid validation errors
+      if (processedBody.formationAt === '') {
+        delete processedBody.formationAt;
+      }
+      if (processedBody.amendmentDate === '') {
+        delete processedBody.amendmentDate;
       }
       
       const orgData = insertOrgSchema.parse({ ...processedBody, createdById: userId });
