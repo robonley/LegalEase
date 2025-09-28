@@ -315,6 +315,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/orgs/:orgId/people/:personId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { orgId, personId } = req.params;
+      
+      // Get person details for audit log before deletion
+      const relations = await storage.getPersonOrgRelations(orgId);
+      const personRelations = relations.filter(r => r.personId === personId);
+      
+      if (personRelations.length === 0) {
+        return res.status(404).json({ message: "Person not found in this organization" });
+      }
+      
+      // Delete all person-org relationships for this person in this organization
+      for (const relation of personRelations) {
+        await storage.deletePersonOnOrg(relation.id);
+      }
+      
+      await storage.createAuditLog({
+        orgId,
+        actorId: userId,
+        action: "REMOVE_PERSON",
+        payload: { 
+          personId,
+          roles: personRelations.map(r => r.role)
+        }
+      });
+
+      res.status(200).json({ message: "Person removed from organization successfully" });
+    } catch (error) {
+      console.error("Error removing person:", error);
+      res.status(500).json({ message: "Failed to remove person" });
+    }
+  });
+
   // Share class routes
   app.get('/api/orgs/:orgId/share-classes', isAuthenticated, async (req, res) => {
     try {
