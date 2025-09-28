@@ -326,6 +326,28 @@ export function DocumentEditor({
           <p className="text-sm text-muted-foreground">Insert data into your document</p>
         </div>
 
+        {/* Selected Entity Indicator */}
+        {effectiveOrgId && entityData?.organization && (
+          <div className="px-4 py-2 border-b bg-green-50 dark:bg-green-950/20">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 bg-green-100 dark:bg-green-900 rounded flex items-center justify-center">
+                <span className="text-xs font-medium text-green-700 dark:text-green-300">
+                  {entityData.organization.name.split(' ').map((word: string) => word[0]).join('').toUpperCase().slice(0, 2)}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-green-800 dark:text-green-200 truncate">
+                  {entityData.organization.name}
+                </div>
+                <div className="text-xs text-green-600 dark:text-green-400">
+                  {entityData.organization.jurisdiction}
+                </div>
+              </div>
+              <i className="fas fa-check-circle text-green-600 dark:text-green-400 text-sm"></i>
+            </div>
+          </div>
+        )}
+
         {/* Entity Selector */}
         {!effectiveOrgId && (
           <div className="p-4 border-b bg-red-50 dark:bg-red-950/20">
