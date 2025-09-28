@@ -285,7 +285,7 @@ export function DocumentEditor({
 
   const handleEntitySelect = (entityId: string) => {
     setSelectedEntityId(entityId);
-    const selectedEntity = allEntities.find((entity: any) => entity.id === entityId);
+    const selectedEntity = (allEntities as any[]).find((entity: any) => entity.id === entityId);
     if (selectedEntity) {
       setCurrentEntity(selectedEntity);
       toast({
@@ -340,7 +340,7 @@ export function DocumentEditor({
                 <SelectValue placeholder="Select an entity..." />
               </SelectTrigger>
               <SelectContent>
-                {allEntities.map((entity: any) => (
+                {(allEntities as any[]).map((entity: any) => (
                   <SelectItem key={entity.id} value={entity.id}>
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 bg-primary/20 rounded flex items-center justify-center">
