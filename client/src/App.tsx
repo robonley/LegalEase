@@ -20,6 +20,9 @@ import AuditLog from "@/pages/AuditLog";
 import BillingSettings from "@/pages/BillingSettings";
 import { ComplianceReview } from "@/pages/ComplianceReview";
 import { ComplianceCalendar } from "@/pages/ComplianceCalendar";
+import { DirectorsRegister } from "@/pages/DirectorsRegister";
+import { OfficersRegister } from "@/pages/OfficersRegister";
+import { ShareholdersRegister } from "@/pages/ShareholdersRegister";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -47,6 +50,10 @@ function Router() {
             <Route path="/documents/:rest*" component={DocumentManagement} />
             <Route path="/documents" component={DocumentManagement} />
             <Route path="/cap-table" component={CapTable} />
+            <Route path="/securities-ledger" component={CapTable} />
+            <Route path="/directors-register" component={DirectorsRegister} />
+            <Route path="/officers-register" component={OfficersRegister} />
+            <Route path="/shareholders-register" component={ShareholdersRegister} />
             <Route path="/compliance/review" component={ComplianceReview} />
             <Route path="/compliance/calendar" component={ComplianceCalendar} />
             <Route path="/audit-log" component={AuditLog} />

@@ -45,32 +45,24 @@ export function Sidebar() {
   // People & Roles sub-items
   const peopleSubItems = [
     { 
-      href: "/people/directors", 
+      href: "/directors-register", 
       icon: "fas fa-gavel", 
       label: "Directors Register"
     },
     { 
-      href: "/people/officers", 
+      href: "/officers-register", 
       icon: "fas fa-briefcase", 
       label: "Officers Register"
     },
     { 
-      href: "/people/shareholders", 
+      href: "/shareholders-register", 
       icon: "fas fa-users", 
       label: "Shareholders Register"
     },
     { 
-      href: "/people/securities", 
+      href: "/securities-ledger", 
       icon: "fas fa-chart-line", 
-      label: "Securities Ledger",
-      hasChildren: true,
-      children: [
-        {
-          href: "/cap-table",
-          icon: "fas fa-chart-pie",
-          label: "Cap Table"
-        }
-      ]
+      label: "Securities Ledger"
     },
   ];
 
