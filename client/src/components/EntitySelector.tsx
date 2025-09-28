@@ -42,8 +42,8 @@ export function EntitySelector({ sidebarWidth = 256 }: EntitySelectorProps) {
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-      <DropdownMenuTrigger asChild>
-        <Tooltip>
+      <Tooltip>
+        <DropdownMenuTrigger asChild>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
@@ -65,16 +65,16 @@ export function EntitySelector({ sidebarWidth = 256 }: EntitySelectorProps) {
               <i className="fas fa-chevron-down text-xs text-muted-foreground flex-shrink-0 ml-2"></i>
             </Button>
           </TooltipTrigger>
-          {displayEntity.name !== 'Select an Entity' && displayEntity.name.length > 20 && (
-            <TooltipContent side="right" className="max-w-xs">
-              <p className="font-medium">{displayEntity.name}</p>
-              {currentEntity?.jurisdiction && (
-                <p className="text-xs text-muted-foreground">{currentEntity.jurisdiction}</p>
-              )}
-            </TooltipContent>
-          )}
-        </Tooltip>
-      </DropdownMenuTrigger>
+        </DropdownMenuTrigger>
+        {displayEntity.name !== 'Select an Entity' && displayEntity.name.length > 20 && (
+          <TooltipContent side="right" className="max-w-xs">
+            <p className="font-medium">{displayEntity.name}</p>
+            {currentEntity?.jurisdiction && (
+              <p className="text-xs text-muted-foreground">{currentEntity.jurisdiction}</p>
+            )}
+          </TooltipContent>
+        )}
+      </Tooltip>
       
       <DropdownMenuContent 
         className="min-w-[240px]" 
