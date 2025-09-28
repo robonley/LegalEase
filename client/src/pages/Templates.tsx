@@ -29,6 +29,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -43,7 +48,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TemplateUploader } from "@/components/TemplateUploader";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Search, MoreHorizontal, Trash2, Eye, FileText } from "lucide-react";
+import { Search, MoreHorizontal, Trash2, Eye, FileText, ChevronDown, ChevronRight } from "lucide-react";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { DocumentEditor } from "@/components/DocumentEditor";
 import type { Template } from "@shared/schema";
@@ -138,89 +143,86 @@ export default function Templates() {
     deleteMutation.mutate(templateId);
   };
 
-  // Create entity-specific starter templates
-  const getStarterTemplatesForEntity = () => {
-    const entityType = currentEntity?.jurisdiction || 'CBCA';
-    
-    const baseTemplates = [
+  // Create common corporate resolutions for existing corporations
+  const getCommonResolutions = () => {
+    return [
+      // Annual / Routine Resolutions
       {
-        id: 'articles-incorporation',
-        name: 'Articles of Incorporation (Form 1)',
-        description: 'Filed with Corporations Canada',
-        category: 'Formation Documents',
-        icon: 'fas fa-file-contract',
-        content: '<h1>Articles of Incorporation</h1><p>Legal document filed with regulatory authorities...</p>'
+        category: 'Annual / Routine Resolutions',
+        type: 'Directors\' Resolutions',
+        resolutions: [
+          { id: 'annual-directors-financial', name: 'Approving Financial Statements', icon: 'fas fa-chart-line', content: '<h1>Resolution of the Board of Directors - Approving Financial Statements</h1><p>RESOLVED THAT the financial statements of the Corporation for the year ending [DATE] be and are hereby approved...</p>' },
+          { id: 'annual-directors-officers', name: 'Appointing Officers', icon: 'fas fa-user-tie', content: '<h1>Resolution of the Board of Directors - Appointing Officers</h1><p>RESOLVED THAT the following persons be appointed as officers of the Corporation...</p>' },
+          { id: 'annual-directors-dividends', name: 'Declaring Dividends', icon: 'fas fa-coins', content: '<h1>Resolution of the Board of Directors - Declaring Dividends</h1><p>RESOLVED THAT a dividend of $[AMOUNT] per share be declared...</p>' },
+          { id: 'annual-directors-meeting', name: 'Calling Annual Shareholders Meeting', icon: 'fas fa-calendar', content: '<h1>Resolution of the Board of Directors - Calling Annual Meeting</h1><p>RESOLVED THAT the annual meeting of shareholders be called for [DATE]...</p>' }
+        ]
       },
       {
-        id: 'certificate-incorporation',
-        name: 'Certificate of Incorporation',
-        description: 'Issued by regulatory authority',
-        category: 'Formation Documents', 
-        icon: 'fas fa-certificate',
-        content: '<h1>Certificate of Incorporation</h1><p>Official certificate issued upon successful incorporation...</p>'
+        category: 'Annual / Routine Resolutions',
+        type: 'Shareholders\' Resolutions',
+        resolutions: [
+          { id: 'annual-shareholders-directors', name: 'Electing Directors', icon: 'fas fa-vote-yea', content: '<h1>Resolution of the Shareholders - Electing Directors</h1><p>RESOLVED THAT the following persons be elected as directors of the Corporation...</p>' },
+          { id: 'annual-shareholders-auditor', name: 'Appointing Auditor', icon: 'fas fa-user-check', content: '<h1>Resolution of the Shareholders - Appointing Auditor</h1><p>RESOLVED THAT [AUDITOR NAME] be appointed as auditor of the Corporation...</p>' },
+          { id: 'annual-shareholders-waive-audit', name: 'Waiving Audit (Small Corps)', icon: 'fas fa-times-circle', content: '<h1>Resolution of the Shareholders - Waiving Audit</h1><p>RESOLVED THAT the shareholders waive the appointment of an auditor...</p>' }
+        ]
+      },
+      
+      // Changes in Directors/Officers
+      {
+        category: 'Changes in Directors/Officers',
+        type: 'Director Changes',
+        resolutions: [
+          { id: 'director-appointment', name: 'Appointment of New Director', icon: 'fas fa-user-plus', content: '<h1>Resolution of the Board of Directors - Appointment of Director</h1><p>RESOLVED THAT [NAME] be appointed as a director of the Corporation...</p>' },
+          { id: 'director-resignation', name: 'Resignation of Director', icon: 'fas fa-user-minus', content: '<h1>Resolution of the Board of Directors - Resignation of Director</h1><p>RESOLVED THAT the resignation of [NAME] as a director be accepted...</p>' },
+          { id: 'registered-office-change', name: 'Change of Registered Office Address', icon: 'fas fa-map-marker-alt', content: '<h1>Resolution of the Board of Directors - Change of Registered Office</h1><p>RESOLVED THAT the registered office of the Corporation be changed to [ADDRESS]...</p>' }
+        ]
       },
       {
-        id: 'bylaws',
-        name: 'By-laws',
-        description: 'General operating rules of the corporation',
-        category: 'Formation Documents',
-        icon: 'fas fa-gavel',
-        content: '<h1>Corporate By-Laws</h1><p>General operating rules and procedures...</p>'
+        category: 'Changes in Directors/Officers',
+        type: 'Officer Changes',
+        resolutions: [
+          { id: 'officer-appointment', name: 'Appointment of Officer (CEO, CFO, etc.)', icon: 'fas fa-briefcase', content: '<h1>Resolution of the Board of Directors - Appointment of Officer</h1><p>RESOLVED THAT [NAME] be appointed as [TITLE] of the Corporation...</p>' },
+          { id: 'officer-resignation', name: 'Resignation/Termination of Officer', icon: 'fas fa-user-times', content: '<h1>Resolution of the Board of Directors - Officer Resignation</h1><p>RESOLVED THAT the resignation of [NAME] as [TITLE] be accepted...</p>' }
+        ]
       },
+
+      // Shareholder Matters
       {
-        id: 'organizational-minute-book',
-        name: 'Organizational/Minute Book',
-        description: 'Where all corporate records are kept',
-        category: 'Formation Documents',
-        icon: 'fas fa-book',
-        content: '<h1>Corporate Minute Book</h1><p>Official record of corporate proceedings...</p>'
+        category: 'Shareholder Matters',
+        type: 'Share Transactions',
+        resolutions: [
+          { id: 'share-issuance', name: 'Issuance of Shares', icon: 'fas fa-certificate', content: '<h1>Resolution of the Board of Directors - Share Issuance</h1><p>RESOLVED THAT the Corporation issue [NUMBER] shares to [SHAREHOLDER]...</p>' },
+          { id: 'share-transfer', name: 'Transfer of Shares', icon: 'fas fa-exchange-alt', content: '<h1>Resolution of the Board of Directors - Share Transfer</h1><p>RESOLVED THAT the transfer of [NUMBER] shares from [FROM] to [TO] be approved...</p>' },
+          { id: 'share-redemption', name: 'Redemption or Repurchase of Shares', icon: 'fas fa-undo', content: '<h1>Resolution of the Board of Directors - Share Redemption</h1><p>RESOLVED THAT the Corporation redeem [NUMBER] shares from [SHAREHOLDER]...</p>' },
+          { id: 'dividend-declaration', name: 'Declaration of Dividends', icon: 'fas fa-money-bill-wave', content: '<h1>Resolution of the Shareholders - Dividend Declaration</h1><p>RESOLVED THAT a dividend be declared and paid to shareholders...</p>' }
+        ]
       },
+
+      // Financial/Corporate Administration
       {
-        id: 'incorporator-resolution',
-        name: 'Resolution of the Incorporator(s)',
-        description: 'Appoint first directors and transfer control',
-        category: 'Founding Resolutions',
-        icon: 'fas fa-file-signature',
-        content: '<h1>Resolution of the Incorporator(s)</h1><p>WHEREAS the incorporators wish to appoint the first directors...</p>'
+        category: 'Financial/Corporate Administration',
+        type: 'Financial Resolutions',
+        resolutions: [
+          { id: 'banking-arrangements', name: 'Banking Arrangements & Signing Authority', icon: 'fas fa-university', content: '<h1>Resolution of the Board of Directors - Banking Arrangements</h1><p>RESOLVED THAT the Corporation establish banking arrangements with [BANK]...</p>' },
+          { id: 'borrowing-resolution', name: 'Borrowing Resolutions', icon: 'fas fa-hand-holding-usd', content: '<h1>Resolution of the Board of Directors - Borrowing Authority</h1><p>RESOLVED THAT the Corporation be authorized to borrow up to $[AMOUNT]...</p>' },
+          { id: 'dividend-approval', name: 'Approval of Dividend Declaration', icon: 'fas fa-check-circle', content: '<h1>Resolution of the Board of Directors - Dividend Approval</h1><p>RESOLVED THAT the dividend declaration be approved...</p>' }
+        ]
       },
+
+      // Special but Still Common
       {
-        id: 'directors-initial-resolution',
-        name: 'Board of Directors Initial Resolutions',
-        description: 'Adopt bylaws, approve shares, appoint officers',
-        category: 'Founding Resolutions',
-        icon: 'fas fa-users-cog',
-        content: '<h1>Resolutions of the Board of Directors</h1><p>Initial meeting resolutions including adoption of bylaws...</p>'
-      },
-      {
-        id: 'shareholders-initial-resolution',
-        name: 'Shareholders Initial Resolutions',
-        description: 'Confirm bylaws and appoint auditors',
-        category: 'Founding Resolutions',
-        icon: 'fas fa-handshake',
-        content: '<h1>Resolutions of the Shareholders</h1><p>Initial shareholder meeting resolutions...</p>'
+        category: 'Special but Still Common',
+        type: 'Corporate Changes',
+        resolutions: [
+          { id: 'bylaw-amendment', name: 'Amendment to By-laws', icon: 'fas fa-gavel', content: '<h1>Resolution of the Shareholders - By-law Amendment</h1><p>RESOLVED THAT the by-laws of the Corporation be amended...</p>' },
+          { id: 'contract-ratification', name: 'Ratification of Contracts with Related Parties', icon: 'fas fa-handshake', content: '<h1>Resolution of the Board of Directors - Contract Ratification</h1><p>RESOLVED THAT the contract with [RELATED PARTY] be ratified...</p>' },
+          { id: 'usa-adoption', name: 'Unanimous Shareholder Agreement', icon: 'fas fa-users', content: '<h1>Resolution of the Shareholders - USA Adoption</h1><p>RESOLVED THAT the Unanimous Shareholder Agreement be adopted...</p>' }
+        ]
       }
     ];
-
-    // Customize templates based on entity type
-    switch (entityType) {
-      case 'OBCA':
-        return baseTemplates.map(t => 
-          t.id === 'articles-incorporation' 
-            ? { ...t, name: 'Articles of Incorporation (OBCA)', description: 'Filed with Ontario Ministry of Government Services' }
-            : t
-        );
-      case 'Delaware':
-        return baseTemplates.map(t => 
-          t.id === 'articles-incorporation' 
-            ? { ...t, name: 'Certificate of Incorporation (Delaware)', description: 'Filed with Delaware Division of Corporations' }
-            : t
-        );
-      default: // CBCA
-        return baseTemplates;
-    }
   };
 
-  const starterTemplatesForEntity = getStarterTemplatesForEntity();
+  const commonResolutions = getCommonResolutions();
 
   const handleOpenStarterTemplate = (template: any) => {
     console.log('Templates Debug:', {
@@ -403,8 +405,8 @@ export default function Templates() {
       <div className="p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="starter" data-testid="starter-templates-tab">
-              Starter Templates
+            <TabsTrigger value="starter" data-testid="quick-create-tab">
+              Quick Create
             </TabsTrigger>
             <TabsTrigger value="custom" data-testid="custom-templates-tab">
               Custom Templates ({customTemplates.length})
@@ -427,64 +429,62 @@ export default function Templates() {
           <TabsContent value="starter">
             <Card>
               <CardHeader>
-                <CardTitle>Starter Templates</CardTitle>
+                <CardTitle>Quick Create</CardTitle>
                 <CardDescription>
-                  Professional legal document templates for {currentEntity?.jurisdiction || 'CBCA'} corporations
+                  Common corporate resolutions for existing {currentEntity?.jurisdiction || 'CBCA'} corporations
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="space-y-6">
-                  {/* Formation Documents Section */}
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Constating / Formation Documents</h3>
-                    <div className="grid gap-4">
-                      {starterTemplatesForEntity
-                        .filter(template => template.category === 'Formation Documents')
-                        .map((template) => (
-                          <div
-                            key={template.id}
-                            className="flex items-center gap-4 p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-                            onClick={() => handleOpenStarterTemplate(template)}
-                            data-testid={`starter-template-${template.id}`}
-                          >
-                            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                              <i className={`${template.icon} text-primary`}></i>
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-medium">{template.name}</div>
-                              <div className="text-sm text-muted-foreground">{template.description}</div>
-                            </div>
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                          </div>
+                  {commonResolutions.map((categoryGroup, categoryIndex) => (
+                    <div key={categoryIndex}>
+                      <h3 className="text-lg font-semibold mb-4 text-primary">{categoryGroup.category}</h3>
+                      
+                      {/* Group by type within category */}
+                      {commonResolutions
+                        .filter(group => group.category === categoryGroup.category)
+                        .map((group, groupIndex) => (
+                          <Collapsible key={`${categoryIndex}-${groupIndex}`} className="mb-6">
+                            <CollapsibleTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="w-full justify-between p-4 h-auto"
+                                data-testid={`resolution-group-${group.type.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
+                              >
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                                    <i className="fas fa-file-signature text-primary"></i>
+                                  </div>
+                                  <div className="text-left">
+                                    <div className="font-medium">{group.type}</div>
+                                    <div className="text-sm text-muted-foreground">{group.resolutions.length} resolutions</div>
+                                  </div>
+                                </div>
+                                <ChevronDown className="h-4 w-4" />
+                              </Button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent className="space-y-2 mt-2">
+                              {group.resolutions.map((resolution) => (
+                                <div
+                                  key={resolution.id}
+                                  className="flex items-center gap-3 p-3 ml-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                                  onClick={() => handleOpenStarterTemplate(resolution)}
+                                  data-testid={`resolution-${resolution.id}`}
+                                >
+                                  <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
+                                    <i className={`${resolution.icon} text-sm text-muted-foreground`}></i>
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="text-sm font-medium">{resolution.name}</div>
+                                  </div>
+                                  <FileText className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              ))}
+                            </CollapsibleContent>
+                          </Collapsible>
                         ))}
                     </div>
-                  </div>
-
-                  {/* Founding Resolutions Section */}
-                  <div>
-                    <h3 className="text-lg font-medium mb-4">Founding Resolutions</h3>
-                    <div className="grid gap-4">
-                      {starterTemplatesForEntity
-                        .filter(template => template.category === 'Founding Resolutions')
-                        .map((template) => (
-                          <div
-                            key={template.id}
-                            className="flex items-center gap-4 p-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-                            onClick={() => handleOpenStarterTemplate(template)}
-                            data-testid={`starter-template-${template.id}`}
-                          >
-                            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                              <i className={`${template.icon} text-primary`}></i>
-                            </div>
-                            <div className="flex-1">
-                              <div className="font-medium">{template.name}</div>
-                              <div className="text-sm text-muted-foreground">{template.description}</div>
-                            </div>
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                          </div>
-                        ))}
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
