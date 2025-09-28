@@ -226,6 +226,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Address routes
+  app.get('/api/addresses/:id', isAuthenticated, async (req, res) => {
+    try {
+      const address = await storage.getAddressById(req.params.id);
+      if (!address) {
+        return res.status(404).json({ message: "Address not found" });
+      }
+      res.json(address);
+    } catch (error) {
+      console.error("Error fetching address:", error);
+      res.status(500).json({ message: "Failed to fetch address" });
+    }
+  });
+
   // People routes
   app.get('/api/orgs/:orgId/people', isAuthenticated, async (req, res) => {
     try {

@@ -37,6 +37,30 @@ export default function EntityDetail() {
     enabled: !!id,
   });
 
+  // Fetch registered office address
+  const { data: registeredOffice } = useQuery({
+    queryKey: ["/api/addresses", entity?.registeredOfficeId],
+    queryFn: async () => {
+      if (!entity?.registeredOfficeId) return null;
+      const response = await fetch(`/api/addresses/${entity.registeredOfficeId}`);
+      if (!response.ok) return null;
+      return await response.json();
+    },
+    enabled: !!entity?.registeredOfficeId,
+  });
+
+  // Fetch mailing address
+  const { data: mailingAddress } = useQuery({
+    queryKey: ["/api/addresses", entity?.mailingAddressId],
+    queryFn: async () => {
+      if (!entity?.mailingAddressId) return null;
+      const response = await fetch(`/api/addresses/${entity.mailingAddressId}`);
+      if (!response.ok) return null;
+      return await response.json();
+    },
+    enabled: !!entity?.mailingAddressId,
+  });
+
   const addNoteMutation = useMutation({
     mutationFn: async (content: string) => {
       await apiRequest("POST", `/api/orgs/${id}/notes`, { content });
@@ -83,6 +107,31 @@ export default function EntityDetail() {
 
   const getEntityInitials = (name: string) => {
     return name.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase();
+  };
+
+  const formatAddress = (address: any) => {
+    if (!address) return null;
+    const parts = [
+      address.line1,
+      address.line2,
+      address.city,
+      address.region,
+      address.country,
+      address.postal
+    ].filter(Boolean);
+    
+    if (parts.length === 0) return null;
+    
+    // Format as: Line1, Line2, City, Region, Country Postal
+    const formatted = [];
+    if (address.line1) formatted.push(address.line1);
+    if (address.line2) formatted.push(address.line2);
+    if (address.city) formatted.push(address.city);
+    if (address.region) formatted.push(address.region);
+    const countryPostal = [address.country, address.postal].filter(Boolean).join(' ');
+    if (countryPostal) formatted.push(countryPostal);
+    
+    return formatted.join(', ');
   };
 
   const handleExtractionComplete = (results: any[]) => {
@@ -288,7 +337,13 @@ export default function EntityDetail() {
             </CardHeader>
             <CardContent>
               {entity.registeredOfficeId ? (
-                <p className="text-muted-foreground">Address details will be loaded here</p>
+                registeredOffice ? (
+                  <p className="text-sm text-foreground leading-relaxed">
+                    {formatAddress(registeredOffice)}
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground">Loading address details...</p>
+                )
               ) : (
                 <p className="text-muted-foreground">No registered office address on file</p>
               )}
@@ -314,7 +369,13 @@ export default function EntityDetail() {
             </CardHeader>
             <CardContent>
               {entity.mailingAddressId ? (
-                <p className="text-muted-foreground">Address details will be loaded here</p>
+                mailingAddress ? (
+                  <p className="text-sm text-foreground leading-relaxed">
+                    {formatAddress(mailingAddress)}
+                  </p>
+                ) : (
+                  <p className="text-muted-foreground">Loading address details...</p>
+                )
               ) : (
                 <p className="text-muted-foreground">No mailing address on file</p>
               )}
