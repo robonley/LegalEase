@@ -237,6 +237,16 @@ export function Sidebar() {
                             "flex items-center px-3 py-2 text-sm font-medium cursor-pointer",
                             isCollapsed ? "justify-center" : "gap-3"
                           )}
+                          onClick={() => {
+                            // Auto-expand submenu when navigating to parent item
+                            if (!isCollapsed && !isExpanded) {
+                              setExpandedItems(prev => {
+                                const newSet = new Set(prev);
+                                newSet.add(item.href);
+                                return newSet;
+                              });
+                            }
+                          }}
                           data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                           title={isCollapsed ? item.label : undefined}
                         >
