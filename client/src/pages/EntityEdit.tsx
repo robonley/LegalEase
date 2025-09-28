@@ -360,6 +360,72 @@ export default function EntityEdit() {
                   />
                 </div>
 
+                {/* Annual Return Section */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium">Annual Return Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="annualReturnDueAt"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Annual Return Due Date</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              {...field}
+                              value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
+                              onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : undefined)}
+                              data-testid="input-annual-return-due-date"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="annualReturnReminderEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Reminder Email</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="email"
+                              {...field} 
+                              value={field.value || ""} 
+                              placeholder="Enter email for reminders"
+                              data-testid="input-annual-return-reminder-email" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="annualReturnReminderDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Reminder Days (before due date)</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            {...field}
+                            value={field.value || 30}
+                            onChange={(e) => field.onChange(parseInt(e.target.value) || 30)}
+                            min="1"
+                            max="365"
+                            data-testid="input-annual-return-reminder-days"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
                 {/* Registered Office */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-medium">Registered Office</h3>

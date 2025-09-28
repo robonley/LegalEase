@@ -71,6 +71,10 @@ export const orgs = pgTable("orgs", {
   authRepAddressId: varchar("auth_rep_address_id").references(() => addresses.id),
   authRepEmail: text("auth_rep_email"),
   authRepPhone: text("auth_rep_phone"),
+  // Annual Return fields
+  annualReturnDueAt: timestamp("annual_return_due_at"),
+  annualReturnReminderEmail: text("annual_return_reminder_email"),
+  annualReturnReminderDays: integer("annual_return_reminder_days").default(30), // Days before due date to send reminder
   createdById: varchar("created_by_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

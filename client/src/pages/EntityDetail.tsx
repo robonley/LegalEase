@@ -270,6 +270,31 @@ export default function EntityDetail() {
                   <Badge variant="success" className="text-xs">Active</Badge>
                 </div>
               </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Annual Return Due</label>
+                {entity.annualReturnDueAt ? (
+                  <div className="mt-1">
+                    <p className={`text-sm font-medium ${
+                      new Date(entity.annualReturnDueAt) < new Date() 
+                        ? 'text-red-600' 
+                        : new Date(entity.annualReturnDueAt) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                        ? 'text-yellow-600'
+                        : 'text-foreground'
+                    }`}>
+                      {formatDate(entity.annualReturnDueAt)}
+                    </p>
+                    {new Date(entity.annualReturnDueAt) < new Date() && (
+                      <Badge variant="destructive" className="text-xs mt-1">Overdue</Badge>
+                    )}
+                    {new Date(entity.annualReturnDueAt) >= new Date() && 
+                     new Date(entity.annualReturnDueAt) < new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) && (
+                      <Badge variant="outline" className="text-xs mt-1 border-yellow-400 text-yellow-600">Due Soon</Badge>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-1">Not set</p>
+                )}
+              </div>
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Last Updated</label>
