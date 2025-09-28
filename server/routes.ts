@@ -86,6 +86,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         delete processedBody.amendmentDate;
       }
       
+      // Clean up empty string address IDs to avoid foreign key constraint errors
+      if (processedBody.mailingAddressId === '') {
+        delete processedBody.mailingAddressId;
+      }
+      if (processedBody.authRepAddressId === '') {
+        delete processedBody.authRepAddressId;
+      }
+      
       const orgData = insertOrgSchema.parse({ ...processedBody, createdById: userId });
       
       // Create addresses if provided

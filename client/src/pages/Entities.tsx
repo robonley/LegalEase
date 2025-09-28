@@ -121,6 +121,30 @@ export default function Entities() {
     createMutation.mutate(data);
   };
 
+  // Handle form validation errors by scrolling to and highlighting the first error field
+  const handleFormError = () => {
+    const firstErrorField = Object.keys(form.formState.errors)[0];
+    if (firstErrorField) {
+      // Scroll to the field with error
+      const errorElement = document.querySelector(`[name="${firstErrorField}"]`) as HTMLElement;
+      if (errorElement) {
+        errorElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        
+        // Add visual emphasis with a flash effect
+        errorElement.classList.add('animate-pulse', 'border-red-500', 'border-2');
+        errorElement.focus();
+        
+        // Remove the flash effect after 2 seconds
+        setTimeout(() => {
+          errorElement.classList.remove('animate-pulse', 'border-red-500', 'border-2');
+        }, 2000);
+      }
+    }
+  };
+
   const handleExtractionComplete = (results: any[]) => {
     setExtractionResults(results);
     if (results.length > 0) {
@@ -308,7 +332,7 @@ export default function Entities() {
                 
                 <TabsContent value="manual" className="space-y-6">
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <form onSubmit={form.handleSubmit(onSubmit, handleFormError)} className="space-y-8">
                   {/* Basic Information Section */}
                   <div className="space-y-4">
                     <div className="border-b border-border pb-3">
