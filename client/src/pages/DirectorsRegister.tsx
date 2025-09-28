@@ -15,15 +15,23 @@ export function DirectorsRegister() {
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-  const { data: allPeople, isLoading } = useQuery<(PersonOnOrg & { person: any })[]>({
-    queryKey: ['/api/people-on-orgs', currentEntity?.id],
+  interface PersonWithRoles {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string | null;
+    roles: PersonOnOrg[];
+  }
+
+  const { data: people = [], isLoading } = useQuery<PersonWithRoles[]>({
+    queryKey: ["/api/orgs", currentEntity?.id, "people"],
     enabled: !!currentEntity?.id,
   });
 
   const deletePersonMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/people-on-orgs/${id}`, "DELETE"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/people-on-orgs'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orgs", "people"] });
       toast({
         title: "Director Removed",
         description: "Director has been removed successfully.",
@@ -52,9 +60,18 @@ export function DirectorsRegister() {
     );
   }
 
-  // Filter for directors only
-  const directors = (allPeople || []).filter(person => 
-    person.role.toLowerCase() === 'director'
+  // Filter for directors only - flatten person-role combinations and filter by Director role
+  const directors = people.flatMap(person => 
+    person.roles
+      .filter(role => role.role.toLowerCase() === 'director')
+      .map(role => ({
+        ...role,
+        person: person,
+        personId: person.id,
+        firstName: person.firstName,
+        lastName: person.lastName,
+        email: person.email
+      }))
   );
 
   const formatDate = (date: string | Date | null) => {
@@ -94,7 +111,7 @@ export function DirectorsRegister() {
                   roles: data.roles.filter(role => role.role === 'Director')
                 });
                 setIsAddDialogOpen(false);
-                queryClient.invalidateQueries({ queryKey: ['/api/people-on-orgs'] });
+                queryClient.invalidateQueries({ queryKey: ["/api/orgs", currentEntity?.id, "people"] });
                 toast({
                   title: "Director Added",
                   description: "New director has been added successfully.",
@@ -131,37 +148,37 @@ export function DirectorsRegister() {
             </div>
           ) : (
             <div className="space-y-4">
-              {directors.map((personOnOrg: PersonOnOrg & { person: any }) => (
-                <Card key={personOnOrg.id} className="border-l-4 border-l-blue-400">
+              {directors.map((director) => (
+                <Card key={director.id} className="border-l-4 border-l-blue-400">
                   <CardContent className="pt-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-3">
                           <h4 className="font-medium">
-                            {personOnOrg.person?.firstName} {personOnOrg.person?.lastName}
+                            {director.firstName} {director.lastName}
                           </h4>
                           <Badge variant="secondary">Director</Badge>
-                          {personOnOrg.title && (
-                            <Badge variant="outline">{personOnOrg.title}</Badge>
+                          {director.title && (
+                            <Badge variant="outline">{director.title}</Badge>
                           )}
                         </div>
                         
-                        {personOnOrg.person?.email && (
+                        {director.email && (
                           <p className="text-sm text-muted-foreground">
                             <i className="fas fa-envelope mr-2"></i>
-                            {personOnOrg.person.email}
+                            {director.email}
                           </p>
                         )}
                         
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span>
                             <i className="fas fa-calendar mr-1"></i>
-                            Start: {formatDate(personOnOrg.startAt)}
+                            Start: {formatDate(director.startAt)}
                           </span>
-                          {personOnOrg.endAt && (
+                          {director.endAt && (
                             <span>
                               <i className="fas fa-calendar-times mr-1"></i>
-                              End: {formatDate(personOnOrg.endAt)}
+                              End: {formatDate(director.endAt)}
                             </span>
                           )}
                         </div>
@@ -173,7 +190,7 @@ export function DirectorsRegister() {
                             <Button
                               variant="outline"
                               size="sm"
-                              data-testid={`edit-director-${personOnOrg.id}`}
+                              data-testid={`edit-director-${director.id}`}
                             >
                               <i className="fas fa-edit mr-1"></i>
                               Edit
@@ -189,11 +206,11 @@ export function DirectorsRegister() {
                             <PersonForm
                               onSubmit={async (data) => {
                                 // Update the director
-                                await apiRequest('PUT', `/api/people-on-orgs/${personOnOrg.id}`, {
+                                await apiRequest('PUT', `/api/people-on-orgs/${director.id}`, {
                                   person: data.person,
                                   roles: data.roles.filter(role => role.role === 'Director')
                                 });
-                                queryClient.invalidateQueries({ queryKey: ['/api/people-on-orgs'] });
+                                queryClient.invalidateQueries({ queryKey: ["/api/orgs", currentEntity?.id, "people"] });
                                 toast({
                                   title: "Director Updated",
                                   description: "Director information has been updated successfully.",
@@ -202,13 +219,13 @@ export function DirectorsRegister() {
                               onCancel={() => {}}
                               isEditMode={true}
                               initialData={{
-                                firstName: personOnOrg.person?.firstName || '',
-                                lastName: personOnOrg.person?.lastName || '',
-                                email: personOnOrg.person?.email || '',
+                                firstName: director.firstName || '',
+                                lastName: director.lastName || '',
+                                email: director.email || '',
                                 roles: [{
                                   role: 'Director' as const,
-                                  title: personOnOrg.title || '',
-                                  startAt: personOnOrg.startAt ? new Date(personOnOrg.startAt).toISOString().split('T')[0] : ''
+                                  title: director.title || '',
+                                  startAt: director.startAt ? new Date(director.startAt).toISOString().split('T')[0] : ''
                                 }]
                               }}
                             />
@@ -218,9 +235,9 @@ export function DirectorsRegister() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => deletePersonMutation.mutate(personOnOrg.id)}
+                          onClick={() => deletePersonMutation.mutate(director.id)}
                           disabled={deletePersonMutation.isPending}
-                          data-testid={`delete-director-${personOnOrg.id}`}
+                          data-testid={`delete-director-${director.id}`}
                         >
                           <i className="fas fa-trash mr-1"></i>
                           Remove

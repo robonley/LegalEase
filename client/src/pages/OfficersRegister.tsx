@@ -15,15 +15,23 @@ export function OfficersRegister() {
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-  const { data: allPeople, isLoading } = useQuery<(PersonOnOrg & { person: any })[]>({
-    queryKey: ['/api/people-on-orgs', currentEntity?.id],
+  interface PersonWithRoles {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string | null;
+    roles: PersonOnOrg[];
+  }
+
+  const { data: people = [], isLoading } = useQuery<PersonWithRoles[]>({
+    queryKey: ["/api/orgs", currentEntity?.id, "people"],
     enabled: !!currentEntity?.id,
   });
 
   const deletePersonMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/people-on-orgs/${id}`, "DELETE"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/people-on-orgs'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orgs", "people"] });
       toast({
         title: "Officer Removed",
         description: "Officer has been removed successfully.",
@@ -52,9 +60,18 @@ export function OfficersRegister() {
     );
   }
 
-  // Filter for officers only
-  const officers = (allPeople || []).filter(person => 
-    person.role.toLowerCase() === 'officer'
+  // Filter for officers only - flatten person-role combinations and filter by Officer role
+  const officers = people.flatMap(person => 
+    person.roles
+      .filter(role => role.role.toLowerCase() === 'officer')
+      .map(role => ({
+        ...role,
+        person: person,
+        personId: person.id,
+        firstName: person.firstName,
+        lastName: person.lastName,
+        email: person.email
+      }))
   );
 
   const formatDate = (date: string | Date | null) => {
@@ -93,7 +110,7 @@ export function OfficersRegister() {
                   roles: data.roles.filter(role => role.role === 'Officer')
                 });
                 setIsAddDialogOpen(false);
-                queryClient.invalidateQueries({ queryKey: ['/api/people-on-orgs'] });
+                queryClient.invalidateQueries({ queryKey: ["/api/orgs", currentEntity?.id, "people"] });
                 toast({
                   title: "Officer Added",
                   description: "New officer has been added successfully.",
@@ -130,37 +147,37 @@ export function OfficersRegister() {
             </div>
           ) : (
             <div className="space-y-4">
-              {officers.map((personOnOrg: PersonOnOrg & { person: any }) => (
-                <Card key={personOnOrg.id} className="border-l-4 border-l-green-400">
+              {officers.map((officer) => (
+                <Card key={officer.id} className="border-l-4 border-l-green-400">
                   <CardContent className="pt-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-3">
                           <h4 className="font-medium">
-                            {personOnOrg.person?.firstName} {personOnOrg.person?.lastName}
+                            {officer.firstName} {officer.lastName}
                           </h4>
                           <Badge variant="secondary">Officer</Badge>
-                          {personOnOrg.title && (
-                            <Badge variant="outline">{personOnOrg.title}</Badge>
+                          {officer.title && (
+                            <Badge variant="outline">{officer.title}</Badge>
                           )}
                         </div>
                         
-                        {personOnOrg.person?.email && (
+                        {officer.email && (
                           <p className="text-sm text-muted-foreground">
                             <i className="fas fa-envelope mr-2"></i>
-                            {personOnOrg.person.email}
+                            {officer.email}
                           </p>
                         )}
                         
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span>
                             <i className="fas fa-calendar mr-1"></i>
-                            Start: {formatDate(personOnOrg.startAt)}
+                            Start: {formatDate(officer.startAt)}
                           </span>
-                          {personOnOrg.endAt && (
+                          {officer.endAt && (
                             <span>
                               <i className="fas fa-calendar-times mr-1"></i>
-                              End: {formatDate(personOnOrg.endAt)}
+                              End: {formatDate(officer.endAt)}
                             </span>
                           )}
                         </div>
@@ -172,7 +189,7 @@ export function OfficersRegister() {
                             <Button
                               variant="outline"
                               size="sm"
-                              data-testid={`edit-officer-${personOnOrg.id}`}
+                              data-testid={`edit-officer-${officer.id}`}
                             >
                               <i className="fas fa-edit mr-1"></i>
                               Edit
@@ -187,11 +204,11 @@ export function OfficersRegister() {
                             </DialogHeader>
                             <PersonForm
                               onSubmit={async (data) => {
-                                await apiRequest('PUT', `/api/people-on-orgs/${personOnOrg.id}`, {
+                                await apiRequest('PUT', `/api/people-on-orgs/${officer.id}`, {
                                   person: data.person,
                                   roles: data.roles.filter(role => role.role === 'Officer')
                                 });
-                                queryClient.invalidateQueries({ queryKey: ['/api/people-on-orgs'] });
+                                queryClient.invalidateQueries({ queryKey: ["/api/orgs", currentEntity?.id, "people"] });
                                 toast({
                                   title: "Officer Updated",
                                   description: "Officer information has been updated successfully.",
@@ -200,13 +217,13 @@ export function OfficersRegister() {
                               onCancel={() => {}}
                               isEditMode={true}
                               initialData={{
-                                firstName: personOnOrg.person?.firstName || '',
-                                lastName: personOnOrg.person?.lastName || '',
-                                email: personOnOrg.person?.email || '',
+                                firstName: officer.firstName || '',
+                                lastName: officer.lastName || '',
+                                email: officer.email || '',
                                 roles: [{
                                   role: 'Officer' as const,
-                                  title: personOnOrg.title || '',
-                                  startAt: personOnOrg.startAt ? new Date(personOnOrg.startAt).toISOString().split('T')[0] : ''
+                                  title: officer.title || '',
+                                  startAt: officer.startAt ? new Date(officer.startAt).toISOString().split('T')[0] : ''
                                 }]
                               }}
                             />
@@ -216,9 +233,9 @@ export function OfficersRegister() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => deletePersonMutation.mutate(personOnOrg.id)}
+                          onClick={() => deletePersonMutation.mutate(officer.id)}
                           disabled={deletePersonMutation.isPending}
-                          data-testid={`delete-officer-${personOnOrg.id}`}
+                          data-testid={`delete-officer-${officer.id}`}
                         >
                           <i className="fas fa-trash mr-1"></i>
                           Remove

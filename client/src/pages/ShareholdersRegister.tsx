@@ -15,15 +15,23 @@ export function ShareholdersRegister() {
   const { toast } = useToast();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
 
-  const { data: allPeople, isLoading } = useQuery<(PersonOnOrg & { person: any })[]>({
-    queryKey: ['/api/people-on-orgs', currentEntity?.id],
+  interface PersonWithRoles {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string | null;
+    roles: PersonOnOrg[];
+  }
+
+  const { data: people = [], isLoading } = useQuery<PersonWithRoles[]>({
+    queryKey: ["/api/orgs", currentEntity?.id, "people"],
     enabled: !!currentEntity?.id,
   });
 
   const deletePersonMutation = useMutation({
     mutationFn: (id: string) => apiRequest(`/api/people-on-orgs/${id}`, "DELETE"),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/people-on-orgs'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/orgs", "people"] });
       toast({
         title: "Shareholder Removed",
         description: "Shareholder has been removed successfully.",
@@ -52,9 +60,18 @@ export function ShareholdersRegister() {
     );
   }
 
-  // Filter for shareholders only
-  const shareholders = (allPeople || []).filter(person => 
-    person.role.toLowerCase() === 'shareholder'
+  // Filter for shareholders only - flatten person-role combinations and filter by Shareholder role
+  const shareholders = people.flatMap(person => 
+    person.roles
+      .filter(role => role.role.toLowerCase() === 'shareholder')
+      .map(role => ({
+        ...role,
+        person: person,
+        personId: person.id,
+        firstName: person.firstName,
+        lastName: person.lastName,
+        email: person.email
+      }))
   );
 
   const formatDate = (date: string | Date | null) => {
@@ -93,7 +110,7 @@ export function ShareholdersRegister() {
                   roles: data.roles.filter(role => role.role === 'Shareholder')
                 });
                 setIsAddDialogOpen(false);
-                queryClient.invalidateQueries({ queryKey: ['/api/people-on-orgs'] });
+                queryClient.invalidateQueries({ queryKey: ["/api/orgs", currentEntity?.id, "people"] });
                 toast({
                   title: "Shareholder Added",
                   description: "New shareholder has been added successfully.",
@@ -130,37 +147,37 @@ export function ShareholdersRegister() {
             </div>
           ) : (
             <div className="space-y-4">
-              {shareholders.map((personOnOrg: PersonOnOrg & { person: any }) => (
-                <Card key={personOnOrg.id} className="border-l-4 border-l-purple-400">
+              {shareholders.map((shareholder) => (
+                <Card key={shareholder.id} className="border-l-4 border-l-purple-400">
                   <CardContent className="pt-4">
                     <div className="flex items-start justify-between">
                       <div className="flex-1 space-y-2">
                         <div className="flex items-center gap-3">
                           <h4 className="font-medium">
-                            {personOnOrg.person?.firstName} {personOnOrg.person?.lastName}
+                            {shareholder.firstName} {shareholder.lastName}
                           </h4>
                           <Badge variant="secondary">Shareholder</Badge>
-                          {personOnOrg.title && (
-                            <Badge variant="outline">{personOnOrg.title}</Badge>
+                          {shareholder.title && (
+                            <Badge variant="outline">{shareholder.title}</Badge>
                           )}
                         </div>
                         
-                        {personOnOrg.person?.email && (
+                        {shareholder.email && (
                           <p className="text-sm text-muted-foreground">
                             <i className="fas fa-envelope mr-2"></i>
-                            {personOnOrg.person.email}
+                            {shareholder.email}
                           </p>
                         )}
                         
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
                           <span>
                             <i className="fas fa-calendar mr-1"></i>
-                            Start: {formatDate(personOnOrg.startAt)}
+                            Start: {formatDate(shareholder.startAt)}
                           </span>
-                          {personOnOrg.endAt && (
+                          {shareholder.endAt && (
                             <span>
                               <i className="fas fa-calendar-times mr-1"></i>
-                              End: {formatDate(personOnOrg.endAt)}
+                              End: {formatDate(shareholder.endAt)}
                             </span>
                           )}
                         </div>
@@ -172,7 +189,7 @@ export function ShareholdersRegister() {
                             <Button
                               variant="outline"
                               size="sm"
-                              data-testid={`edit-shareholder-${personOnOrg.id}`}
+                              data-testid={`edit-shareholder-${shareholder.id}`}
                             >
                               <i className="fas fa-edit mr-1"></i>
                               Edit
@@ -187,11 +204,11 @@ export function ShareholdersRegister() {
                             </DialogHeader>
                             <PersonForm
                               onSubmit={async (data) => {
-                                await apiRequest('PUT', `/api/people-on-orgs/${personOnOrg.id}`, {
+                                await apiRequest('PUT', `/api/people-on-orgs/${shareholder.id}`, {
                                   person: data.person,
                                   roles: data.roles.filter(role => role.role === 'Shareholder')
                                 });
-                                queryClient.invalidateQueries({ queryKey: ['/api/people-on-orgs'] });
+                                queryClient.invalidateQueries({ queryKey: ["/api/orgs", currentEntity?.id, "people"] });
                                 toast({
                                   title: "Shareholder Updated",
                                   description: "Shareholder information has been updated successfully.",
@@ -200,13 +217,13 @@ export function ShareholdersRegister() {
                               onCancel={() => {}}
                               isEditMode={true}
                               initialData={{
-                                firstName: personOnOrg.person?.firstName || '',
-                                lastName: personOnOrg.person?.lastName || '',
-                                email: personOnOrg.person?.email || '',
+                                firstName: shareholder.firstName || '',
+                                lastName: shareholder.lastName || '',
+                                email: shareholder.email || '',
                                 roles: [{
                                   role: 'Shareholder' as const,
-                                  title: personOnOrg.title || '',
-                                  startAt: personOnOrg.startAt ? new Date(personOnOrg.startAt).toISOString().split('T')[0] : ''
+                                  title: shareholder.title || '',
+                                  startAt: shareholder.startAt ? new Date(shareholder.startAt).toISOString().split('T')[0] : ''
                                 }]
                               }}
                             />
@@ -216,9 +233,9 @@ export function ShareholdersRegister() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => deletePersonMutation.mutate(personOnOrg.id)}
+                          onClick={() => deletePersonMutation.mutate(shareholder.id)}
                           disabled={deletePersonMutation.isPending}
-                          data-testid={`delete-shareholder-${personOnOrg.id}`}
+                          data-testid={`delete-shareholder-${shareholder.id}`}
                         >
                           <i className="fas fa-trash mr-1"></i>
                           Remove
