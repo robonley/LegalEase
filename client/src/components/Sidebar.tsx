@@ -86,7 +86,7 @@ export function Sidebar() {
       // Entity-specific navigation with reorganized document management
       return [
         { 
-          href: `/entities/${currentEntity.id}`, 
+          href: "/", 
           icon: "fas fa-tachometer-alt", 
           label: "Dashboard",
           hasChildren: true,
@@ -222,40 +222,53 @@ export function Sidebar() {
               return (
                 <div key={item.href}>
                   {hasChildren ? (
-                    // Parent item with children
+                    // Parent item with children - clickable link with expand button
                     <div
                       className={cn(
-                        "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer",
-                        isCollapsed ? "justify-center" : "gap-3",
+                        "flex items-center rounded-lg transition-colors",
                         isActive
                           ? "bg-accent text-accent-foreground"
                           : "text-muted-foreground hover:text-foreground hover:bg-accent"
                       )}
-                      onClick={() => {
-                        if (!isCollapsed) {
-                          setExpandedItems(prev => {
-                            const newSet = new Set(prev);
-                            if (newSet.has(item.href)) {
-                              newSet.delete(item.href);
-                            } else {
-                              newSet.add(item.href);
-                            }
-                            return newSet;
-                          });
-                        }
-                      }}
-                      data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-                      title={isCollapsed ? item.label : undefined}
                     >
-                      <i className={`${item.icon} w-4`}></i>
+                      <Link href={item.href} className="flex-1">
+                        <div
+                          className={cn(
+                            "flex items-center px-3 py-2 text-sm font-medium cursor-pointer",
+                            isCollapsed ? "justify-center" : "gap-3"
+                          )}
+                          data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                          title={isCollapsed ? item.label : undefined}
+                        >
+                          <i className={`${item.icon} w-4`}></i>
+                          {!isCollapsed && (
+                            <span className="flex-1">{item.label}</span>
+                          )}
+                        </div>
+                      </Link>
                       {!isCollapsed && (
-                        <>
-                          <span className="flex-1">{item.label}</span>
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setExpandedItems(prev => {
+                              const newSet = new Set(prev);
+                              if (newSet.has(item.href)) {
+                                newSet.delete(item.href);
+                              } else {
+                                newSet.add(item.href);
+                              }
+                              return newSet;
+                            });
+                          }}
+                          className="px-2 py-2 hover:bg-accent-foreground/10 rounded-r-lg"
+                          data-testid={`nav-expand-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                        >
                           <i className={cn(
                             "fas fa-chevron-right text-xs transition-transform",
                             isExpanded && "rotate-90"
                           )}></i>
-                        </>
+                        </button>
                       )}
                     </div>
                   ) : (
