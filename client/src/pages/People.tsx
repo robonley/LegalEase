@@ -459,8 +459,8 @@ export default function People() {
                             
                             {/* Clone Person */}
                             <DropdownMenuItem
-                              onClick={() => handleClonePerson(person)}
-                              data-testid={`clone-person-${person.id}`}
+                              onClick={() => handleClonePerson(personRole.person)}
+                              data-testid={`clone-person-${personRole.personId}`}
                             >
                               <i className="fas fa-copy mr-2"></i>
                               Clone
@@ -469,10 +469,10 @@ export default function People() {
                             <DropdownMenuSeparator />
                             
                             {/* Send Email */}
-                            {person.email && (
+                            {personRole.email && (
                               <DropdownMenuItem
-                                onClick={() => window.open(`mailto:${person.email}`, '_blank')}
-                                data-testid={`email-person-${person.id}`}
+                                onClick={() => window.open(`mailto:${personRole.email}`, '_blank')}
+                                data-testid={`email-person-${personRole.personId}`}
                               >
                                 <i className="fas fa-envelope mr-2"></i>
                                 Send Email
@@ -480,10 +480,10 @@ export default function People() {
                             )}
                             
                             {/* Call */}
-                            {person.phone && (
+                            {personRole.person.phone && (
                               <DropdownMenuItem
-                                onClick={() => window.open(`tel:${person.phone}`, '_blank')}
-                                data-testid={`call-person-${person.id}`}
+                                onClick={() => window.open(`tel:${personRole.person.phone}`, '_blank')}
+                                data-testid={`call-person-${personRole.personId}`}
                               >
                                 <i className="fas fa-phone mr-2"></i>
                                 Call
@@ -498,7 +498,7 @@ export default function People() {
                                 <DropdownMenuItem
                                   onSelect={(e) => e.preventDefault()}
                                   className="text-destructive focus:text-destructive"
-                                  data-testid={`delete-person-${person.id}`}
+                                  data-testid={`delete-person-${personRole.personId}`}
                                 >
                                   <i className="fas fa-trash mr-2"></i>
                                   Delete
@@ -508,14 +508,14 @@ export default function People() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete Person</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to delete {person.firstName} {person.lastName}? 
+                                    Are you sure you want to delete {personRole.firstName} {personRole.lastName}? 
                                     This action cannot be undone and will remove all associated roles and share holdings.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => deleteMutation.mutate(person.id)}
+                                    onClick={() => deleteMutation.mutate(personRole.personId)}
                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                     disabled={deleteMutation.isPending}
                                   >

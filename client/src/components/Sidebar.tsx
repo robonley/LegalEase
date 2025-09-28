@@ -86,7 +86,7 @@ export function Sidebar() {
       // Entity-specific navigation with reorganized document management
       return [
         { 
-          href: "/", 
+          href: `/entities/${currentEntity.id}`, 
           icon: "fas fa-tachometer-alt", 
           label: "Dashboard",
           hasChildren: true,
