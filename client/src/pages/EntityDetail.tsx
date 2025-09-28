@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { useEntityContext } from "@/hooks/useEntityContext";
@@ -12,7 +13,7 @@ import { PDFIngestion } from "@/components/PDFIngestion";
 import { ExtractionResultsModal } from "@/components/ExtractionResultsModal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Upload, MessageSquarePlus } from "lucide-react";
+import { Upload, MessageSquarePlus, ChevronDown, ChevronUp } from "lucide-react";
 import type { Org, OrgNote } from "@shared/schema";
 
 export default function EntityDetail() {
@@ -24,6 +25,7 @@ export default function EntityDetail() {
   const [showExtractionModal, setShowExtractionModal] = useState(false);
   const [showAddNote, setShowAddNote] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState('');
+  const [showMoreInfo, setShowMoreInfo] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -250,7 +252,7 @@ export default function EntityDetail() {
         {/* Corporation Information */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Corporation Information</CardTitle>
+            <CardTitle className="text-lg">Corporate Information</CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -313,75 +315,92 @@ export default function EntityDetail() {
                 </div>
               </>
             )}
+
+            {/* More Info Collapsible Section for Addresses */}
+            <Separator className="my-4" />
+            <Collapsible open={showMoreInfo} onOpenChange={setShowMoreInfo}>
+              <CollapsibleTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className="w-full justify-between p-0 h-auto"
+                  data-testid="more-info-toggle"
+                >
+                  <span className="text-sm font-medium text-muted-foreground">More Info</span>
+                  {showMoreInfo ? (
+                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 mt-4">
+                {/* Address Information */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium">Registered Office</h4>
+                        <p className="text-xs text-muted-foreground">Official registered address</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLocation(`/entities/${id}/edit`)}
+                        data-testid="edit-registered-office-button"
+                      >
+                        <i className="fas fa-edit text-xs"></i>
+                      </Button>
+                    </div>
+                    <div className="bg-muted/20 p-3 rounded-md">
+                      {entity.registeredOfficeId ? (
+                        registeredOffice ? (
+                          <p className="text-sm text-foreground leading-relaxed">
+                            {formatAddress(registeredOffice)}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground text-sm">Loading address details...</p>
+                        )
+                      ) : (
+                        <p className="text-muted-foreground text-sm">No registered office address on file</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-medium">Mailing Address</h4>
+                        <p className="text-xs text-muted-foreground">Where corporate correspondence is sent</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setLocation(`/entities/${id}/edit`)}
+                        data-testid="edit-mailing-address-button"
+                      >
+                        <i className="fas fa-edit text-xs"></i>
+                      </Button>
+                    </div>
+                    <div className="bg-muted/20 p-3 rounded-md">
+                      {entity.mailingAddressId ? (
+                        mailingAddress ? (
+                          <p className="text-sm text-foreground leading-relaxed">
+                            {formatAddress(mailingAddress)}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground text-sm">Loading address details...</p>
+                        )
+                      ) : (
+                        <p className="text-muted-foreground text-sm">No mailing address on file</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </CardContent>
         </Card>
 
-        {/* Address Information */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Registered Office</CardTitle>
-                  <CardDescription>Official registered address</CardDescription>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setLocation(`/entities/${id}/edit`)}
-                  data-testid="edit-registered-office-button"
-                >
-                  <i className="fas fa-edit text-sm"></i>
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {entity.registeredOfficeId ? (
-                registeredOffice ? (
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {formatAddress(registeredOffice)}
-                  </p>
-                ) : (
-                  <p className="text-muted-foreground">Loading address details...</p>
-                )
-              ) : (
-                <p className="text-muted-foreground">No registered office address on file</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Mailing Address</CardTitle>
-                  <CardDescription>Where corporate correspondence is sent</CardDescription>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setLocation(`/entities/${id}/edit`)}
-                  data-testid="edit-mailing-address-button"
-                >
-                  <i className="fas fa-edit text-sm"></i>
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {entity.mailingAddressId ? (
-                mailingAddress ? (
-                  <p className="text-sm text-foreground leading-relaxed">
-                    {formatAddress(mailingAddress)}
-                  </p>
-                ) : (
-                  <p className="text-muted-foreground">Loading address details...</p>
-                )
-              ) : (
-                <p className="text-muted-foreground">No mailing address on file</p>
-              )}
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Quick Actions */}
         <Card>
@@ -431,12 +450,12 @@ export default function EntityDetail() {
           </CardContent>
         </Card>
 
-        {/* Notes Section */}
+        {/* Recent Activity Section */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Notes</CardTitle>
+                <CardTitle>Recent Activity</CardTitle>
                 <CardDescription>Add notes and observations about this entity</CardDescription>
               </div>
               <Button
@@ -502,8 +521,8 @@ export default function EntityDetail() {
               </div>
             ) : notes.length === 0 ? (
               <div className="text-center py-8">
-                <i className="fas fa-sticky-note text-4xl text-muted-foreground mb-3"></i>
-                <p className="text-muted-foreground">No notes yet</p>
+                <i className="fas fa-history text-4xl text-muted-foreground mb-3"></i>
+                <p className="text-muted-foreground">No activity yet</p>
                 <p className="text-sm text-muted-foreground">Add your first note to track important information about this entity</p>
               </div>
             ) : (
