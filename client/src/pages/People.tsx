@@ -59,6 +59,7 @@ export default function People() {
   const [viewingPerson, setViewingPerson] = useState<PersonWithRoles | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
 
   const { data: people = [], isLoading } = useQuery<PersonWithRoles[]>({
     queryKey: ["/api/orgs", currentEntity?.id, "people"],
@@ -161,10 +162,34 @@ export default function People() {
     },
   });
 
-  const filteredPeople = people.filter(person =>
-    `${person.firstName} ${person.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    person.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  // Create flattened list of person-role combinations for table view
+  const personRoles = people.flatMap(person => 
+    person.roles.map(role => ({
+      id: `${person.id}-${role.id}`,
+      personId: person.id,
+      firstName: person.firstName,
+      lastName: person.lastName,
+      email: person.email,
+      role: role.role,
+      title: role.title,
+      startAt: role.startAt,
+      endAt: role.endAt,
+      person: person,
+      roleData: role
+    }))
   );
+
+  const filteredPersonRoles = personRoles.filter(personRole => {
+    const matchesSearch = 
+      `${personRole.firstName} ${personRole.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      personRole.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      personRole.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      personRole.title?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesRole = roleFilter === "all" || personRole.role.toLowerCase() === roleFilter.toLowerCase();
+    
+    return matchesSearch && matchesRole;
+  });
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role.toLowerCase()) {
@@ -269,16 +294,30 @@ export default function People() {
           <div className="relative flex-1 max-w-sm">
             <i className="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"></i>
             <Input
-              placeholder="Search people..."
+              placeholder="Search people and roles..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9"
               data-testid="search-people"
             />
           </div>
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium">Filter by Role:</label>
+            <select 
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value)}
+              className="bg-background border border-input rounded-md px-3 py-1 text-sm"
+              data-testid="role-filter"
+            >
+              <option value="all">All Roles</option>
+              <option value="director">Directors</option>
+              <option value="officer">Officers</option>
+              <option value="shareholder">Shareholders</option>
+            </select>
+          </div>
           <Separator orientation="vertical" className="h-6" />
           <div className="text-sm text-muted-foreground">
-            {filteredPeople.length} {filteredPeople.length === 1 ? 'person' : 'people'}
+            {filteredPersonRoles.length} role{filteredPersonRoles.length === 1 ? '' : 's'}
           </div>
         </div>
 
@@ -290,20 +329,20 @@ export default function People() {
               <p className="text-muted-foreground">Loading people...</p>
             </CardContent>
           </Card>
-        ) : filteredPeople.length === 0 ? (
+        ) : filteredPersonRoles.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <i className="fas fa-users text-4xl text-muted-foreground mb-4"></i>
               <CardTitle className="mb-2">
-                {searchTerm ? 'No people found' : 'No people added yet'}
+                {searchTerm || roleFilter !== "all" ? 'No roles found' : 'No people added yet'}
               </CardTitle>
               <CardDescription className="mb-4">
-                {searchTerm 
-                  ? 'Try adjusting your search terms.'
+                {searchTerm || roleFilter !== "all"
+                  ? 'Try adjusting your search terms or role filter.'
                   : 'Add your first person to get started managing roles.'
                 }
               </CardDescription>
-              {!searchTerm && (
+              {!searchTerm && roleFilter === "all" && (
                 <Button onClick={() => setIsCreateDialogOpen(true)}>
                   <i className="fas fa-plus mr-2"></i>
                   Add First Person
@@ -314,9 +353,9 @@ export default function People() {
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle>People Directory</CardTitle>
+              <CardTitle>People & Roles Directory</CardTitle>
               <CardDescription>
-                Individuals associated with {currentEntity.name}
+                All roles and people associated with {currentEntity.name}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -325,109 +364,65 @@ export default function People() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Roles</TableHead>
-                    <TableHead>Officer</TableHead>
-                    <TableHead>Share Holdings</TableHead>
-                    <TableHead>Date Added</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Start Date</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPeople.map((person) => (
-                    <TableRow key={person.id} data-testid={`person-row-${person.id}`}>
+                  {filteredPersonRoles.map((personRole) => (
+                    <TableRow key={personRole.id} data-testid={`role-row-${personRole.personId}-${personRole.role}`}>
                       <TableCell>
                         <div 
                           className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 rounded p-2 -m-2 transition-colors"
-                          onClick={() => setViewingPerson(person)}
-                          data-testid={`view-person-${person.id}`}
+                          onClick={() => setViewingPerson(personRole.person)}
+                          data-testid={`view-person-${personRole.personId}`}
                         >
                           <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                             <span className="text-sm font-medium text-primary-foreground">
-                              {person.firstName[0]}{person.lastName[0]}
+                              {personRole.firstName[0]}{personRole.lastName[0]}
                             </span>
                           </div>
                           <div>
                             <div className="font-medium hover:text-primary transition-colors">
-                              {person.firstName} {person.lastName}
+                              {personRole.firstName} {personRole.lastName}
                             </div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <span className="text-muted-foreground">
-                          {person.email || 'No email'}
+                          {personRole.email || 'No email'}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex flex-wrap gap-1">
-                          {person.roles.map((role) => (
-                            <Badge 
-                              key={role.id} 
-                              variant={getRoleBadgeVariant(role.role)}
-                              className="text-xs cursor-pointer hover:bg-primary/20 transition-colors"
-                              onClick={() => setViewingPerson(person)}
-                              data-testid={`role-badge-${person.id}-${role.role}`}
-                            >
-                              {role.title || role.role}
-                            </Badge>
-                          ))}
-                        </div>
+                        <Badge 
+                          variant={getRoleBadgeVariant(personRole.role)}
+                          className="text-xs"
+                          data-testid={`role-badge-${personRole.personId}-${personRole.role}`}
+                        >
+                          {personRole.role}
+                        </Badge>
                       </TableCell>
                       <TableCell>
-                        {(() => {
-                          const officerRoles = person.roles.filter(role => role.role === 'Officer');
-                          if (officerRoles.length === 0) {
-                            return <span className="text-muted-foreground text-sm">-</span>;
-                          }
-                          return (
-                            <div className="space-y-1">
-                              {officerRoles.map((role, idx) => (
-                                <div key={role.id} className="text-sm">
-                                  <Badge 
-                                    variant="secondary" 
-                                    className="text-xs"
-                                    data-testid={`officer-title-${person.id}-${idx}`}
-                                  >
-                                    {role.title || 'Officer'}
-                                  </Badge>
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </TableCell>
-                      <TableCell>
-                        {(() => {
-                          const shareholderRoles = person.roles.filter(role => role.role === 'Shareholder');
-                          if (shareholderRoles.length === 0) {
-                            return <span className="text-muted-foreground text-sm">-</span>;
-                          }
-                          return (
-                            <div className="space-y-1">
-                              {shareholderRoles.map((role) => (
-                                <div key={role.id} className="text-sm">
-                                  {role.shareQuantity ? (
-                                    <div className="flex flex-col">
-                                      <span className="font-medium">
-                                        {role.shareQuantity.toLocaleString()} shares
-                                      </span>
-                                      <span className="text-muted-foreground text-xs">
-                                        {role.shareType} {role.shareClass && `• ${role.shareClass}`}
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-muted-foreground">No shares specified</span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        })()}
+                        <span className="text-sm">
+                          {personRole.title || '-'}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <span className="text-muted-foreground text-sm">
-                          {formatDate(person.createdAt)}
+                          {formatDate(personRole.startAt)}
                         </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={personRole.endAt ? "destructive" : "default"}
+                          className="text-xs"
+                        >
+                          {personRole.endAt ? "Inactive" : "Active"}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>
@@ -435,7 +430,7 @@ export default function People() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              data-testid={`actions-menu-${person.id}`}
+                              data-testid={`actions-menu-${personRole.personId}`}
                             >
                               <i className="fas fa-ellipsis-h"></i>
                             </Button>
@@ -446,8 +441,8 @@ export default function People() {
                             
                             {/* View Person */}
                             <DropdownMenuItem
-                              onClick={() => setViewingPerson(person)}
-                              data-testid={`view-person-${person.id}`}
+                              onClick={() => setViewingPerson(personRole.person)}
+                              data-testid={`view-person-${personRole.personId}`}
                             >
                               <i className="fas fa-eye mr-2"></i>
                               View Details
@@ -455,8 +450,8 @@ export default function People() {
                             
                             {/* Edit Person */}
                             <DropdownMenuItem
-                              onClick={() => setEditingPerson(person)}
-                              data-testid={`edit-person-${person.id}`}
+                              onClick={() => setEditingPerson(personRole.person)}
+                              data-testid={`edit-person-${personRole.personId}`}
                             >
                               <i className="fas fa-edit mr-2"></i>
                               Edit

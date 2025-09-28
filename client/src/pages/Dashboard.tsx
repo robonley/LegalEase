@@ -379,7 +379,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {(searchTerm ? filteredActivities : auditLogs.slice(0, 3)).map((log, index) => (
+                  {displayData.activities.map((log: any, index: number) => (
                     <div key={log.id} className="p-4 hover:bg-muted/50 transition-colors">
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">

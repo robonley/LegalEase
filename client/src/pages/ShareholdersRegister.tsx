@@ -88,7 +88,7 @@ export function ShareholdersRegister() {
             </DialogHeader>
             <PersonForm
               onSubmit={async (data) => {
-                await apiRequest('/api/people-on-orgs', 'POST', {
+                await apiRequest('POST', '/api/people-on-orgs', {
                   person: data.person,
                   roles: data.roles.filter(role => role.role === 'Shareholder')
                 });
@@ -187,7 +187,7 @@ export function ShareholdersRegister() {
                             </DialogHeader>
                             <PersonForm
                               onSubmit={async (data) => {
-                                await apiRequest(`/api/people-on-orgs/${personOnOrg.id}`, 'PUT', {
+                                await apiRequest('PUT', `/api/people-on-orgs/${personOnOrg.id}`, {
                                   person: data.person,
                                   roles: data.roles.filter(role => role.role === 'Shareholder')
                                 });

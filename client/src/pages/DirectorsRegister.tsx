@@ -89,7 +89,7 @@ export function DirectorsRegister() {
             <PersonForm
               onSubmit={async (data) => {
                 // Submit the new director
-                await apiRequest('/api/people-on-orgs', 'POST', {
+                await apiRequest('POST', '/api/people-on-orgs', {
                   person: data.person,
                   roles: data.roles.filter(role => role.role === 'Director')
                 });
@@ -189,7 +189,7 @@ export function DirectorsRegister() {
                             <PersonForm
                               onSubmit={async (data) => {
                                 // Update the director
-                                await apiRequest(`/api/people-on-orgs/${personOnOrg.id}`, 'PUT', {
+                                await apiRequest('PUT', `/api/people-on-orgs/${personOnOrg.id}`, {
                                   person: data.person,
                                   roles: data.roles.filter(role => role.role === 'Director')
                                 });
