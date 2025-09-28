@@ -677,15 +677,35 @@ export default function People() {
         <Dialog open={!!editingPerson} onOpenChange={() => setEditingPerson(null)}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Edit Person</DialogTitle>
+              <DialogTitle>Edit Shareholder</DialogTitle>
               <DialogDescription>
-                Update information for {editingPerson?.firstName} {editingPerson?.lastName}
+                Update shareholding information for {editingPerson?.firstName} {editingPerson?.lastName}
               </DialogDescription>
             </DialogHeader>
             {editingPerson && (
               <PersonForm
                 mode="edit"
-                initialData={editingPerson}
+                initialData={{
+                  firstName: editingPerson.firstName,
+                  lastName: editingPerson.lastName,
+                  email: editingPerson.email || "",
+                  dob: editingPerson.dob ? new Date(editingPerson.dob).toISOString().split('T')[0] : "",
+                  includeAddress: !!editingPerson.addressId,
+                  addressLine1: "", // Would need to fetch address details separately
+                  addressLine2: "",
+                  city: "",
+                  region: "",
+                  country: "",
+                  postal: "",
+                  roles: editingPerson.roles.map(role => ({
+                    role: role.role as "Director" | "Officer" | "Shareholder",
+                    title: role.title || "",
+                    startAt: role.startAt ? new Date(role.startAt).toISOString().split('T')[0] : "",
+                    shareQuantity: role.shareQuantity?.toString() || "",
+                    shareType: (role.shareType as "Common" | "Preferred") || "Common",
+                    shareClass: role.shareClass || "",
+                  }))
+                }}
                 onSuccess={() => {
                   setEditingPerson(null);
                   queryClient.invalidateQueries({
