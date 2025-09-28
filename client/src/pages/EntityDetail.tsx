@@ -270,9 +270,24 @@ export default function EntityDetail() {
                   <Badge variant="success" className="text-xs">Active</Badge>
                 </div>
               </div>
-              <div>
-                <label className="text-xs font-medium text-muted-foreground">Last Updated</label>
-                <p className="text-sm font-medium mt-1">{formatDate(entity.updatedAt)}</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">Last Updated</label>
+                  <p className="text-sm font-medium mt-1">{formatDate(entity.updatedAt)}</p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  className="justify-between p-2 h-auto"
+                  data-testid="more-info-toggle"
+                  onClick={() => setShowMoreInfo(!showMoreInfo)}
+                >
+                  <span className="text-xs font-medium text-muted-foreground mr-2">More Info</span>
+                  {showMoreInfo ? (
+                    <ChevronUp className="h-3 w-3 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                  )}
+                </Button>
               </div>
             </div>
             
@@ -306,22 +321,10 @@ export default function EntityDetail() {
               </>
             )}
 
-            {/* More Info Collapsible Section for Addresses */}
-            <Separator className="my-4" />
+            {/* More Info Collapsible Content - Address Information */}
             <Collapsible open={showMoreInfo} onOpenChange={setShowMoreInfo}>
               <CollapsibleTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  className="w-full justify-between p-0 h-auto"
-                  data-testid="more-info-toggle"
-                >
-                  <span className="text-sm font-medium text-muted-foreground">More Info</span>
-                  {showMoreInfo ? (
-                    <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </Button>
+                <div></div> {/* Hidden trigger since it's handled above */}
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-4 mt-4">
                 {/* Address Information */}
