@@ -8,7 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
-import { CreditCard, CheckCircle, XCircle, DollarSign, Calendar, Users } from "lucide-react";
+import { CreditCard, CheckCircle, XCircle, DollarSign, Calendar, Users, Clock } from "lucide-react";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
 
@@ -203,6 +203,11 @@ export default function BillingSettings() {
     queryKey: ['/api/subscription-status'],
   });
 
+  // Fetch user data for trial information
+  const { data: userData } = useQuery({
+    queryKey: ['/api/auth/user'],
+  });
+
   // Create subscription mutation
   const createSubscriptionMutation = useMutation({
     mutationFn: async ({ priceId }: { priceId: string }) => {
@@ -266,13 +271,92 @@ export default function BillingSettings() {
     ? SUBSCRIPTION_PLANS.find(plan => plan.priceId === (subscriptionData as any)?.subscription?.items?.data?.[0]?.price?.id)?.id || 'starter'
     : 'none';
 
+  // Calculate trial status
+  const calculateTrialStatus = () => {
+    if (!(userData as any)?.createdAt || (subscriptionData as any)?.subscription?.status === 'active') {
+      return null;
+    }
+    
+    const createdAt = new Date((userData as any).createdAt);
+    const now = new Date();
+    const trialDays = 14; // 14-day trial
+    const trialEndDate = new Date(createdAt.getTime() + (trialDays * 24 * 60 * 60 * 1000));
+    const daysRemaining = Math.ceil((trialEndDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+    
+    return {
+      isInTrial: daysRemaining > 0,
+      daysRemaining: Math.max(0, daysRemaining),
+      trialEndDate,
+      totalTrialDays: trialDays
+    };
+  };
+
+  const trialStatus = calculateTrialStatus();
+
   return (
-    <div className="space-y-6 p-6">
+    <div className="flex-1 overflow-auto">
+      <div className="space-y-6 p-6">
       {/* Current Subscription Status */}
       <div>
         <h1 className="text-3xl font-bold mb-2">Billing & Subscription</h1>
         <p className="text-muted-foreground">Manage your subscription and billing preferences</p>
       </div>
+
+      {/* Trial Status */}
+      {trialStatus && (
+        <Card className={`border-2 ${trialStatus.isInTrial ? 'border-blue-200 bg-blue-50/50' : 'border-red-200 bg-red-50/50'}`}>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              {trialStatus.isInTrial ? 'Free Trial Active' : 'Trial Expired'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {trialStatus.isInTrial ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Days remaining:</span>
+                  <Badge variant="outline" className="text-lg font-semibold px-3 py-1">
+                    {trialStatus.daysRemaining} {trialStatus.daysRemaining === 1 ? 'day' : 'days'}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Trial ends:</span>
+                  <span className="text-sm font-medium">
+                    {trialStatus.trialEndDate.toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2 mt-3">
+                  <div 
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                    style={{ width: `${(trialStatus.daysRemaining / trialStatus.totalTrialDays) * 100}%` }}
+                  ></div>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Choose a plan below to continue using all features after your trial ends.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Your free trial has ended. Please choose a subscription plan to continue accessing all features.
+                </p>
+                <Button 
+                  onClick={() => document.getElementById('subscription-plans')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="w-full"
+                >
+                  Choose Plan
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {(subscriptionData as any)?.subscription && (
         <Card>
@@ -356,7 +440,7 @@ export default function BillingSettings() {
 
       {/* Subscription Plans */}
       {!showPaymentForm && (
-        <div>
+        <div id="subscription-plans">
           <h2 className="text-2xl font-semibold mb-4">Choose Your Plan</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {SUBSCRIPTION_PLANS.map((plan) => (
@@ -405,6 +489,7 @@ export default function BillingSettings() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
