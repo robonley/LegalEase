@@ -500,7 +500,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                                       field.onChange(value);
                                     }
                                   }} 
-                                  defaultValue={officerTitles.includes(field.value) ? field.value : "Custom"}
+                                  defaultValue={field.value && officerTitles.includes(field.value) ? field.value : "Custom"}
                                 >
                                   <FormControl>
                                     <SelectTrigger data-testid={`select-title-${index}`}>
@@ -515,7 +515,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                                     ))}
                                   </SelectContent>
                                 </Select>
-                                {(!officerTitles.includes(field.value) || field.value === "" || form.watch(`roles.${index}.title`) === "Custom") && (
+                                {(!field.value || !officerTitles.includes(field.value) || field.value === "" || form.watch(`roles.${index}.title`) === "Custom") && (
                                   <FormControl>
                                     <Input 
                                       placeholder="Enter custom officer title"
