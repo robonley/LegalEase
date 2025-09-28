@@ -133,6 +133,7 @@ export function DocumentEditor({
   const { currentEntity, setCurrentEntity } = useEntityContext();
   const { toast } = useToast();
   const [content, setContent] = useState(initialContent);
+  const [originalTemplate, setOriginalTemplate] = useState(initialContent); // Store original template
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [documentName, setDocumentName] = useState("");
@@ -387,17 +388,25 @@ export function DocumentEditor({
     return populatedContent;
   };
 
-  // Auto-populate template when entity data loads or initial content changes
+  // Store original template when initialContent changes
   useEffect(() => {
-    if (initialContent && entityData?.organization && !documentId) {
-      // Only auto-populate for new templates, not existing documents
-      const populatedContent = populateTemplatePlaceholders(initialContent);
-      setContent(populatedContent);
-    } else if (initialContent && !entityData?.organization) {
-      // If no entity data yet, just use the template as-is
+    if (initialContent) {
+      setOriginalTemplate(initialContent);
       setContent(initialContent);
     }
-  }, [initialContent, entityData, documentId]);
+  }, [initialContent]);
+
+  // Auto-populate template when entity data loads or entity selection changes
+  useEffect(() => {
+    if (originalTemplate && entityData?.organization && !documentId) {
+      // Always re-populate from original template to ensure clean substitution
+      const populatedContent = populateTemplatePlaceholders(originalTemplate);
+      setContent(populatedContent);
+    } else if (originalTemplate && !entityData?.organization) {
+      // If no entity data, just use the original template
+      setContent(originalTemplate);
+    }
+  }, [originalTemplate, entityData, selectedEntityId, documentId]);
 
   const handleSave = async () => {
     if (!onSave) return;
