@@ -134,6 +134,33 @@ export default function People() {
     },
   });
 
+  // Update person mutation
+  const updatePersonMutation = useMutation({
+    mutationFn: async (data: { personId: string; person: any; roles: any[] }) => {
+      return await apiRequest("PUT", `/api/orgs/${currentEntity?.id}/people/${data.personId}`, {
+        person: data.person,
+        roles: data.roles,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orgs", currentEntity?.id, "people"] });
+      setEditingPerson(null);
+      setIsEditMode(false);
+      setViewingPerson(null);
+      toast({
+        title: "Success",
+        description: "Person updated successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update person",
+        variant: "destructive",
+      });
+    },
+  });
+
   const filteredPeople = people.filter(person =>
     `${person.firstName} ${person.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
     person.email?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -568,19 +595,15 @@ export default function People() {
                       }))
                     }}
                     onSubmit={(data) => {
-                      // Create edit mutation here
-                      console.log("Update person data:", data);
-                      setIsEditMode(false);
-                      queryClient.invalidateQueries({
-                        queryKey: ["/api/orgs", currentEntity?.id, "people"],
-                      });
-                      toast({
-                        title: "Success", 
-                        description: "Person updated successfully",
+                      updatePersonMutation.mutate({
+                        personId: viewingPerson.id,
+                        person: data.person,
+                        roles: data.roles,
                       });
                     }}
                     onCancel={() => setIsEditMode(false)}
                     hideButtons={true}
+                    isEditMode={true}
                   />
                   {/* Save/Cancel buttons for edit mode */}
                   <div className="flex justify-end gap-3 pt-6 border-t">
@@ -596,8 +619,9 @@ export default function People() {
                       type="submit"
                       form="person-form"
                       data-testid="save-person-button"
+                      disabled={updatePersonMutation.isPending}
                     >
-                      Save Changes
+                      {updatePersonMutation.isPending ? "Updating..." : "Save Changes"}
                     </Button>
                   </div>
                 </div>
@@ -725,17 +749,15 @@ export default function People() {
                   }))
                 }}
                 onSubmit={(data) => {
-                  console.log("Edit person data:", data);
-                  setEditingPerson(null);
-                  queryClient.invalidateQueries({
-                    queryKey: ["/api/orgs", currentEntity?.id, "people"],
-                  });
-                  toast({
-                    title: "Success",
-                    description: "Person updated successfully",
+                  updatePersonMutation.mutate({
+                    personId: editingPerson.id,
+                    person: data.person,
+                    roles: data.roles,
                   });
                 }}
                 onCancel={() => setEditingPerson(null)}
+                isEditMode={true}
+                isLoading={updatePersonMutation.isPending}
               />
             )}
           </DialogContent>

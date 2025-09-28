@@ -315,6 +315,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.put('/api/orgs/:orgId/people/:personId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { orgId, personId } = req.params;
+      const { person: personData, roles } = req.body;
+      
+      // Update person data
+      const updates: any = {};
+      if (personData.firstName) updates.firstName = personData.firstName;
+      if (personData.lastName) updates.lastName = personData.lastName;
+      if (personData.email !== undefined) updates.email = personData.email || null;
+      if (personData.dob !== undefined) {
+        updates.dob = personData.dob ? new Date(personData.dob) : null;
+      }
+      
+      // Handle address update/creation
+      if (personData.address) {
+        const address = await storage.createAddress(personData.address);
+        updates.addressId = address.id;
+      }
+      
+      // Update person if there are changes
+      let updatedPerson;
+      if (Object.keys(updates).length > 0) {
+        const validatedUpdates = insertPersonSchema.partial().parse(updates);
+        updatedPerson = await storage.updatePerson(personId, validatedUpdates);
+      } else {
+        // Get current person data if no updates
+        const people = await storage.getPeopleByOrg(orgId);
+        updatedPerson = people.find(p => p.id === personId);
+      }
+      
+      if (!updatedPerson) {
+        return res.status(404).json({ message: "Person not found" });
+      }
+      
+      // Get current person-org relations
+      const currentRelations = await storage.getPersonOrgRelations(orgId);
+      const personCurrentRoles = currentRelations.filter(r => r.personId === personId);
+      
+      // Delete existing relations for this person in this org
+      for (const relation of personCurrentRoles) {
+        await storage.deletePersonOnOrg(relation.id);
+      }
+      
+      // Create new relations
+      const updatedRoles = [];
+      for (const role of roles || []) {
+        const relationData = insertPersonOnOrgSchema.parse({
+          ...role,
+          startAt: role.startAt ? new Date(role.startAt) : new Date(),
+          orgId,
+          personId
+        });
+        const relation = await storage.createPersonOnOrg(relationData);
+        updatedRoles.push(relation);
+      }
+      
+      // Create audit log
+      await storage.createAuditLog({
+        orgId,
+        actorId: userId,
+        action: "UPDATE_PERSON",
+        payload: { 
+          personId, 
+          name: `${updatedPerson.firstName} ${updatedPerson.lastName}`,
+          roles: updatedRoles.map(r => r.role),
+          updates: Object.keys(updates)
+        }
+      });
+
+      res.json({ ...updatedPerson, roles: updatedRoles });
+    } catch (error) {
+      console.error("Error updating person:", error);
+      res.status(500).json({ message: "Failed to update person" });
+    }
+  });
+
   app.delete('/api/orgs/:orgId/people/:personId', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;

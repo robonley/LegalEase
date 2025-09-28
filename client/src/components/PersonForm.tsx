@@ -58,6 +58,7 @@ interface PersonFormProps {
   isLoading?: boolean;
   initialData?: Partial<PersonWithRolesForm>;
   hideButtons?: boolean;
+  isEditMode?: boolean;
 }
 
 const roleOptions = [
@@ -93,7 +94,7 @@ const officerTitles = [
   "Custom",
 ];
 
-export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData, hideButtons = false }: PersonFormProps) {
+export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData, hideButtons = false, isEditMode = false }: PersonFormProps) {
   const form = useForm<PersonWithRolesForm>({
     resolver: zodResolver(personWithRolesSchema),
     defaultValues: {
@@ -639,7 +640,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
             </Button>
             <Button type="submit" disabled={isLoading} data-testid="submit-button">
               {isLoading && <i className="fas fa-spinner fa-spin mr-2"></i>}
-              Add Person
+              {isEditMode ? "Update Person" : "Add Person"}
             </Button>
           </div>
         )}
