@@ -245,15 +245,7 @@ export default function Templates() {
       entityId: currentEntity?.id
     });
     
-    if (!currentEntity?.id) {
-      toast({
-        title: "No Entity Selected",
-        description: "Please select an entity from the sidebar to use templates with entity data.",
-        variant: "destructive",
-      });
-      // Still allow opening the editor but with limited functionality
-    }
-    
+    // Always allow opening the editor - we'll handle entity selection within it
     setSelectedStarterTemplate(template);
     setShowDocumentEditor(true);
   };

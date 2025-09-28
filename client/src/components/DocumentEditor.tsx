@@ -7,8 +7,16 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useEntityContext } from "@/hooks/useEntityContext";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import type { Org, ShareClass, ShareIssuance, EntityData } from "@shared/schema";
@@ -67,10 +75,13 @@ export function DocumentEditor({
   isFullscreen = false,
   onToggleFullscreen,
 }: DocumentEditorProps) {
+  const { currentEntity, setCurrentEntity } = useEntityContext();
+  const { toast } = useToast();
   const [content, setContent] = useState(initialContent);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [documentName, setDocumentName] = useState("");
+  const [selectedEntityId, setSelectedEntityId] = useState(orgId || currentEntity?.id || "");
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     company: true,
     people: true,
@@ -78,7 +89,11 @@ export function DocumentEditor({
     variables: false,
   });
   const quillRef = useRef<ReactQuill>(null);
-  const { toast } = useToast();
+
+  // Fetch all entities for entity selection
+  const { data: allEntities = [] } = useQuery({
+    queryKey: ["/api/orgs"],
+  });
 
   // Fetch document data
   const { data: documentData } = useQuery({
@@ -86,10 +101,13 @@ export function DocumentEditor({
     enabled: !!documentId,
   });
 
+  // Use selected entity ID for fetching entity data
+  const effectiveOrgId = selectedEntityId || orgId;
+  
   // Fetch entity data for variable insertion
   const { data: entityData, isLoading, error } = useQuery<EntityData>({
-    queryKey: ["/api/orgs", orgId, "editor-data"],
-    enabled: !!orgId,
+    queryKey: ["/api/orgs", effectiveOrgId, "editor-data"],
+    enabled: !!effectiveOrgId,
   });
 
 
@@ -265,6 +283,18 @@ export function DocumentEditor({
     return acc;
   }, {} as Record<string, Array<{ variable: string; description: string }>>);
 
+  const handleEntitySelect = (entityId: string) => {
+    setSelectedEntityId(entityId);
+    const selectedEntity = allEntities.find((entity: any) => entity.id === entityId);
+    if (selectedEntity) {
+      setCurrentEntity(selectedEntity);
+      toast({
+        title: "Entity Selected",
+        description: `Now using ${selectedEntity.name} for document generation`,
+      });
+    }
+  };
+
   const quillModules = {
     toolbar: [
       [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
@@ -295,6 +325,40 @@ export function DocumentEditor({
           <h3 className="font-semibold text-lg">Document Data</h3>
           <p className="text-sm text-muted-foreground">Insert data into your document</p>
         </div>
+
+        {/* Entity Selector */}
+        {!effectiveOrgId && (
+          <div className="p-4 border-b bg-red-50 dark:bg-red-950/20">
+            <div className="mb-3">
+              <h4 className="font-semibold text-red-800 dark:text-red-200 mb-1">No Entity Selected</h4>
+              <p className="text-sm text-red-600 dark:text-red-300">
+                Please select an entity to use templates with entity data
+              </p>
+            </div>
+            <Select value={selectedEntityId} onValueChange={handleEntitySelect}>
+              <SelectTrigger className="w-full" data-testid="entity-selector-dropdown">
+                <SelectValue placeholder="Select an entity..." />
+              </SelectTrigger>
+              <SelectContent>
+                {allEntities.map((entity: any) => (
+                  <SelectItem key={entity.id} value={entity.id}>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-primary/20 rounded flex items-center justify-center">
+                        <span className="text-xs font-medium text-primary">
+                          {entity.name.split(' ').map((word: string) => word[0]).join('').toUpperCase().slice(0, 2)}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="font-medium">{entity.name}</div>
+                        <div className="text-xs text-muted-foreground">{entity.jurisdiction}</div>
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-4">
