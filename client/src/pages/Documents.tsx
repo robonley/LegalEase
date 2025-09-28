@@ -34,7 +34,7 @@ export default function Documents() {
   const queryClient = useQueryClient();
   const [showBundleDialog, setShowBundleDialog] = useState(false);
   const [isCreatingBundle, setIsCreatingBundle] = useState(false);
-  const [activeTab, setActiveTab] = useState("creator");
+  const [activeTab, setActiveTab] = useState("uploads");
   const [selectedDoc, setSelectedDoc] = useState<GeneratedDoc | null>(null);
   const [showDocViewer, setShowDocViewer] = useState(false);
   const [showDocEditor, setShowDocEditor] = useState(false);
@@ -278,11 +278,7 @@ export default function Documents() {
       {/* Content */}
       <div className="p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="creator" data-testid="creator-tab">
-              <i className="fas fa-wand-magic-sparkles mr-2"></i>
-              Creator
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="uploads" data-testid="uploads-tab">
               <i className="fas fa-cloud-upload-alt mr-2"></i>
               Uploads
@@ -292,102 +288,6 @@ export default function Documents() {
               Templates
             </TabsTrigger>
           </TabsList>
-
-          {/* Creator Tab - Generated Documents */}
-          <TabsContent value="creator" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Generated Documents</h3>
-                <p className="text-sm text-muted-foreground">
-                  Documents created from templates for {currentEntity.name}
-                </p>
-              </div>
-            </div>
-
-            {/* Documents List */}
-            {isLoading ? (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <i className="fas fa-spinner fa-spin text-4xl text-muted-foreground mb-4"></i>
-                  <CardTitle className="mb-2">Loading Documents</CardTitle>
-                  <CardDescription>
-                    Fetching documents for {currentEntity.name}...
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            ) : documents.length === 0 ? (
-              <Card>
-                <CardContent className="p-12 text-center">
-                  <i className="fas fa-file-alt text-4xl text-muted-foreground mb-4"></i>
-                  <CardTitle className="mb-2">No Generated Documents</CardTitle>
-                  <CardDescription className="mb-4">
-                    Get started by creating your first document using Quick Create above.
-                  </CardDescription>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid gap-4">
-                {documents.map((doc) => (
-                  <Card key={doc.id} className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                            <i className={`${getDocumentTypeIcon(doc.templateId)} text-primary`}></i>
-                          </div>
-                          <div>
-                            <h3 
-                              className="font-semibold text-lg cursor-pointer hover:text-primary transition-colors"
-                              onClick={() => handleOpenEditor(doc)}
-                              data-testid={`doc-name-${doc.id}`}
-                            >
-                              {doc.fileKey}
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              Created {formatDate(doc.createdAt)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {getDocumentTypeBadge(doc.templateId)}
-                          <div className="flex gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              data-testid={`edit-doc-${doc.id}`}
-                              onClick={() => handleOpenEditor(doc)}
-                            >
-                              <i className="fas fa-edit mr-2"></i>
-                              Edit
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              data-testid={`download-doc-${doc.id}`}
-                              onClick={() => {
-                                window.open(`/api/documents/${doc.id}/download`, '_blank');
-                              }}
-                            >
-                              <i className="fas fa-download mr-2"></i>
-                              Download
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              data-testid={`save-to-minutebook-${doc.id}`}
-                            >
-                              <i className="fas fa-bookmark mr-2"></i>
-                              Save to Minute Book
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
 
           {/* Uploads Tab - User Uploaded Documents */}
           <TabsContent value="uploads" className="space-y-6">
