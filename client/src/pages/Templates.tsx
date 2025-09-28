@@ -409,7 +409,7 @@ export default function Templates() {
               Quick Create
             </TabsTrigger>
             <TabsTrigger value="custom" data-testid="custom-templates-tab">
-              Custom Templates ({customTemplates.length})
+              Manage Templates ({customTemplates.length})
             </TabsTrigger>
           </TabsList>
 
@@ -428,12 +428,6 @@ export default function Templates() {
 
           <TabsContent value="starter">
             <Card>
-              <CardHeader>
-                <CardTitle>Quick Create</CardTitle>
-                <CardDescription>
-                  Common corporate resolutions for existing {currentEntity?.jurisdiction || 'CBCA'} corporations
-                </CardDescription>
-              </CardHeader>
               <CardContent className="p-6">
                 <div className="space-y-6">
                   {/* Group resolutions by category to avoid duplicates */}
