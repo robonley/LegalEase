@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { GettingStartedBanner } from "@/components/GettingStartedBanner";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 
 interface StatsData {
@@ -40,6 +40,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { currentEntity } = useEntityContext();
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -99,7 +100,45 @@ export default function Dashboard() {
     minuteBooks: 0, // Would need additional query
   };
 
-  const recentEntities = orgs.slice(0, 3);
+  // Search and filtering logic
+  const filterData = () => {
+    if (!searchTerm.trim()) {
+      return {
+        entities: orgs.slice(0, 3),
+        people: entityPeople,
+        activities: auditLogs.slice(0, 3)
+      };
+    }
+
+    const lowercaseSearch = searchTerm.toLowerCase();
+    
+    const filteredEntities = orgs.filter(entity => 
+      entity.name.toLowerCase().includes(lowercaseSearch) ||
+      entity.number?.toLowerCase().includes(lowercaseSearch) ||
+      entity.jurisdiction.toLowerCase().includes(lowercaseSearch)
+    );
+
+    const filteredPeople = entityPeople.filter(person =>
+      person.firstName?.toLowerCase().includes(lowercaseSearch) ||
+      person.lastName?.toLowerCase().includes(lowercaseSearch) ||
+      person.email?.toLowerCase().includes(lowercaseSearch) ||
+      person.roles?.some((role: any) => role.role.toLowerCase().includes(lowercaseSearch))
+    );
+
+    const filteredActivities = auditLogs.filter(log =>
+      log.action.toLowerCase().includes(lowercaseSearch) ||
+      JSON.stringify(log.payload).toLowerCase().includes(lowercaseSearch)
+    );
+
+    return {
+      entities: filteredEntities,
+      people: filteredPeople,
+      activities: filteredActivities
+    };
+  };
+
+  const { entities: filteredEntities, people: filteredPeople, activities: filteredActivities } = filterData();
+  const recentEntities = searchTerm ? filteredEntities : orgs.slice(0, 3);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -157,6 +196,8 @@ export default function Dashboard() {
               <input
                 type="text"
                 placeholder="Search entities, people..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 w-80 bg-muted border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
                 data-testid="search-input"
               />
@@ -337,7 +378,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {auditLogs.slice(0, 3).map((log, index) => (
+                  {(searchTerm ? filteredActivities : auditLogs.slice(0, 3)).map((log, index) => (
                     <div key={log.id} className="p-4 hover:bg-muted/50 transition-colors">
                       <div className="flex items-start gap-3">
                         <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -499,14 +540,18 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Recent Entities */}
+        {/* Recent Entities / Search Results */}
         <Card>
           <CardHeader className="border-b border-border">
             <div className="flex items-center justify-between">
-              <CardTitle>Recent Entities</CardTitle>
-              <Button variant="ghost" size="sm" data-testid="view-all-entities">
-                View All Entities
-              </Button>
+              <CardTitle>
+                {searchTerm ? `Search Results for "${searchTerm}"` : "Recent Entities"}
+              </CardTitle>
+              {!searchTerm && (
+                <Button variant="ghost" size="sm" data-testid="view-all-entities">
+                  View All Entities
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className="p-0">
@@ -515,6 +560,25 @@ export default function Dashboard() {
                 <i className="fas fa-spinner fa-spin text-2xl text-muted-foreground"></i>
               </div>
             ) : recentEntities.length === 0 ? (
+              searchTerm ? (
+                <div className="p-12 text-center">
+                  <div className="w-20 h-20 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i className="fas fa-search text-3xl text-muted-foreground"></i>
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3">No Results Found</h3>
+                  <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                    No entities, people, or activities match your search for "{searchTerm}". Try using different keywords or check your spelling.
+                  </p>
+                  <Button 
+                    variant="outline"
+                    onClick={() => setSearchTerm("")}
+                    data-testid="clear-search"
+                  >
+                    <i className="fas fa-times mr-2"></i>
+                    Clear Search
+                  </Button>
+                </div>
+              ) : (
               <div className="p-12 text-center">
                 <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
                   <i className="fas fa-building text-3xl text-primary"></i>
@@ -546,6 +610,7 @@ export default function Dashboard() {
                   💡 <strong>Pro tip:</strong> Upload your document templates first to streamline the entity creation process
                 </p>
               </div>
+              )
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
