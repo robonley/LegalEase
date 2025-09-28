@@ -256,6 +256,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         delete personData.address;
       }
 
+      // Convert date strings to Date objects if provided
+      if (personData.dob && personData.dob !== '') {
+        personData.dob = new Date(personData.dob);
+      }
+      // Remove empty string dates to avoid validation errors
+      if (personData.dob === '') {
+        delete personData.dob;
+      }
+      
       const person = await storage.createPerson(insertPersonSchema.parse(personData));
       
       // Create person-org relationships

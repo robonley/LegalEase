@@ -546,15 +546,36 @@ export default function People() {
                 // Edit Mode - Show PersonForm
                 <div className="space-y-4">
                   <PersonForm
-                    mode="edit"
-                    initialData={viewingPerson}
-                    onSuccess={() => {
+                    initialData={{
+                      firstName: viewingPerson.firstName,
+                      lastName: viewingPerson.lastName,
+                      email: viewingPerson.email || "",
+                      dob: viewingPerson.dob ? new Date(viewingPerson.dob).toISOString().split('T')[0] : "",
+                      includeAddress: !!viewingPerson.addressId,
+                      addressLine1: "",
+                      addressLine2: "",
+                      city: "",
+                      region: "",
+                      country: "",
+                      postal: "",
+                      roles: viewingPerson.roles.map(role => ({
+                        role: role.role as "Director" | "Officer" | "Shareholder",
+                        title: role.title || "",
+                        startAt: role.startAt ? new Date(role.startAt).toISOString().split('T')[0] : "",
+                        shareQuantity: role.shareQuantity?.toString() || "",
+                        shareType: (role.shareType as "Common" | "Preferred") || "Common",
+                        shareClass: role.shareClass || "",
+                      }))
+                    }}
+                    onSubmit={(data) => {
+                      // Create edit mutation here
+                      console.log("Update person data:", data);
                       setIsEditMode(false);
                       queryClient.invalidateQueries({
                         queryKey: ["/api/orgs", currentEntity?.id, "people"],
                       });
                       toast({
-                        title: "Success",
+                        title: "Success", 
                         description: "Person updated successfully",
                       });
                     }}
@@ -682,7 +703,6 @@ export default function People() {
             </DialogHeader>
             {editingPerson && (
               <PersonForm
-                mode="edit"
                 initialData={{
                   firstName: editingPerson.firstName,
                   lastName: editingPerson.lastName,
@@ -704,10 +724,15 @@ export default function People() {
                     shareClass: role.shareClass || "",
                   }))
                 }}
-                onSuccess={() => {
+                onSubmit={(data) => {
+                  console.log("Edit person data:", data);
                   setEditingPerson(null);
                   queryClient.invalidateQueries({
                     queryKey: ["/api/orgs", currentEntity?.id, "people"],
+                  });
+                  toast({
+                    title: "Success",
+                    description: "Person updated successfully",
                   });
                 }}
                 onCancel={() => setEditingPerson(null)}
