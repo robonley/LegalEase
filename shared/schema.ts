@@ -194,6 +194,11 @@ export const minuteBooks = pgTable("minute_books", {
   description: text("description"),
   bundleFileKey: text("bundle_file_key"), // combined PDF/ZIP file
   generationData: json("generation_data"), // entity data at time of generation
+  // Corporate Formation Support
+  isPreConfigured: boolean("is_pre_configured").default(false), // true for corporate formation, false for template-based
+  formationConfig: json("formation_config"), // CorporateFormationConfig for pre-configured minute books
+  selectedResolutions: text("selected_resolutions").array(), // array of resolution IDs for pre-configured books
+  resolutionCustomizations: json("resolution_customizations"), // customization values for resolution fields
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -571,3 +576,353 @@ export interface EntityData {
   shareIssuances: ShareIssuance[];
   addresses: Address[];
 }
+
+// Corporate Formation Resolution Structure
+export interface CorporateFormationResolution {
+  id: string;
+  title: string;
+  description: string;
+  content: string;
+  category: 'incorporator' | 'directors' | 'shareholders';
+  order: number;
+  isRequired: boolean;
+  isCustomizable: boolean;
+  customizationFields?: ResolutionCustomizationField[];
+}
+
+export interface ResolutionCustomizationField {
+  fieldId: string;
+  label: string;
+  type: 'text' | 'number' | 'date' | 'select' | 'person' | 'address' | 'currency';
+  placeholder?: string;
+  required: boolean;
+  options?: string[]; // for select type
+  defaultValue?: string | number;
+  validation?: {
+    min?: number;
+    max?: number;
+    pattern?: string;
+  };
+}
+
+export interface CorporateFormationConfig {
+  customizations: Record<string, any>; // fieldId -> value mapping
+  selectedResolutions: string[]; // resolution IDs to include
+  additionalData: {
+    fiscalYearEnd?: string;
+    sharePrice?: number;
+    currency?: string;
+    numberOfDirectors?: number;
+    publicAccountantWaiver?: boolean;
+    corporateSeal?: boolean;
+  };
+}
+
+// Standard Corporate Formation Resolutions Data
+export const STANDARD_CORPORATE_FORMATION_RESOLUTIONS: CorporateFormationResolution[] = [
+  // INCORPORATOR'S WRITTEN RESOLUTIONS
+  {
+    id: 'inc_001',
+    title: 'Approval of Articles of Incorporation',
+    description: 'Approve the form and content of the Articles of Incorporation',
+    content: 'Resolved that the form and content of the Articles of Incorporation of the Corporation are approved.',
+    category: 'incorporator',
+    order: 1,
+    isRequired: true,
+    isCustomizable: false,
+  },
+  {
+    id: 'inc_002',
+    title: 'Appointment of Initial Directors',
+    description: 'Appoint the first director(s) of the Corporation',
+    content: 'Resolved that the following individuals are appointed as the first directors of the Corporation, effective as of {{incorporationDate}}: {{directorNames}}.',
+    category: 'incorporator',
+    order: 2,
+    isRequired: true,
+    isCustomizable: true,
+    customizationFields: [
+      {
+        fieldId: 'incorporationDate',
+        label: 'Incorporation Date',
+        type: 'date',
+        required: true,
+      },
+      {
+        fieldId: 'directorNames',
+        label: 'Director Names',
+        type: 'text',
+        placeholder: 'Enter director names separated by commas',
+        required: true,
+      },
+    ],
+  },
+  {
+    id: 'inc_003',
+    title: 'Resignation of Incorporator and Transfer of Corporate Records',
+    description: 'Incorporator resigns and transfers corporate records to initial directors',
+    content: 'Resolved that the undersigned incorporator hereby resigns as incorporator of the Corporation, delivers the corporate records and minute book (and seal, if any) to the initial directors, and authorizes the initial directors to undertake and complete the organization of the Corporation.',
+    category: 'incorporator',
+    order: 3,
+    isRequired: true,
+    isCustomizable: false,
+  },
+
+  // FIRST DIRECTORS' RESOLUTIONS
+  {
+    id: 'dir_001',
+    title: 'Adoption of General By-law No. 1',
+    description: 'Adopt the corporation\'s general by-law',
+    content: 'Resolved that General By-law No. 1, in the form presented to the directors, is hereby adopted as the by-law of the Corporation, to take effect immediately until confirmed, amended or rejected by the shareholders in accordance with the Act.',
+    category: 'directors',
+    order: 1,
+    isRequired: true,
+    isCustomizable: false,
+  },
+  {
+    id: 'dir_002',
+    title: 'Appointment of Officers',
+    description: 'Appoint President/CEO and other officers',
+    content: 'Resolved that the following individuals are appointed as officers of the Corporation, to hold office at the pleasure of the Board: {{officerAppointments}}.',
+    category: 'directors',
+    order: 2,
+    isRequired: true,
+    isCustomizable: true,
+    customizationFields: [
+      {
+        fieldId: 'presidentName',
+        label: 'President/CEO',
+        type: 'person',
+        required: true,
+      },
+      {
+        fieldId: 'secretaryName',
+        label: 'Secretary',
+        type: 'person',
+        required: true,
+      },
+      {
+        fieldId: 'cfoName',
+        label: 'Chief Financial Officer',
+        type: 'person',
+        required: false,
+      },
+    ],
+  },
+  {
+    id: 'dir_003',
+    title: 'Registered Office',
+    description: 'Fix the registered office address',
+    content: 'Resolved that the registered office of the Corporation be and is hereby fixed at {{registeredOfficeAddress}} and that the officers are authorized to file any required notices.',
+    category: 'directors',
+    order: 3,
+    isRequired: true,
+    isCustomizable: true,
+    customizationFields: [
+      {
+        fieldId: 'registeredOfficeAddress',
+        label: 'Registered Office Address',
+        type: 'address',
+        required: true,
+      },
+    ],
+  },
+  {
+    id: 'dir_004',
+    title: 'Share Certificates',
+    description: 'Approve and adopt the form of share certificate',
+    content: 'Resolved that the form of share certificate annexed to the minute book is approved and adopted as the form of certificate for the common shares in the capital of the Corporation.',
+    category: 'directors',
+    order: 4,
+    isRequired: true,
+    isCustomizable: false,
+  },
+  {
+    id: 'dir_005',
+    title: 'Issuance of Shares to Initial Shareholders',
+    description: 'Authorize issuance of common shares',
+    content: 'Resolved that the Corporation issue the following shares to the following subscribers for the consideration set out: {{shareIssuances}}, and that the officers are authorized to execute and deliver share certificates and to update the securities register accordingly.',
+    category: 'directors',
+    order: 5,
+    isRequired: true,
+    isCustomizable: true,
+    customizationFields: [
+      {
+        fieldId: 'sharePrice',
+        label: 'Share Price',
+        type: 'currency',
+        required: true,
+        defaultValue: 1.00,
+      },
+      {
+        fieldId: 'currency',
+        label: 'Currency',
+        type: 'select',
+        options: ['CAD', 'USD', 'EUR', 'GBP'],
+        required: true,
+        defaultValue: 'CAD',
+      },
+    ],
+  },
+  {
+    id: 'dir_006',
+    title: 'Banking Arrangements',
+    description: 'Authorize bank account opening and signing authorities',
+    content: 'Resolved that the Corporation is authorized to open and maintain one or more bank accounts with such financial institution(s) as any officer may determine, and that any two officers (or such other signing authorities as the Board may designate) are authorized to execute all account opening documents and banking resolutions.',
+    category: 'directors',
+    order: 6,
+    isRequired: true,
+    isCustomizable: false,
+  },
+  {
+    id: 'dir_007',
+    title: 'Fiscal Year-End',
+    description: 'Set the financial year end date',
+    content: 'Resolved that the fiscal year-end of the Corporation be and is hereby fixed at {{fiscalYearEnd}} until changed by further resolution of the Board.',
+    category: 'directors',
+    order: 7,
+    isRequired: true,
+    isCustomizable: true,
+    customizationFields: [
+      {
+        fieldId: 'fiscalYearEnd',
+        label: 'Fiscal Year End',
+        type: 'date',
+        placeholder: 'December 31',
+        required: true,
+      },
+    ],
+  },
+  {
+    id: 'dir_008',
+    title: 'Public Accountant Waiver',
+    description: 'Waive appointment of public accountant',
+    content: 'Resolved that, subject to the approval of all shareholders, the appointment of a public accountant for the current financial year is waived in accordance with the Act.',
+    category: 'directors',
+    order: 8,
+    isRequired: false,
+    isCustomizable: true,
+    customizationFields: [
+      {
+        fieldId: 'waiverApproved',
+        label: 'Waive Public Accountant',
+        type: 'select',
+        options: ['Yes', 'No'],
+        required: true,
+        defaultValue: 'Yes',
+      },
+    ],
+  },
+  {
+    id: 'dir_009',
+    title: 'Corporate Seal',
+    description: 'Adopt corporate seal form (if applicable)',
+    content: 'Resolved that the form of corporate seal presented to the directors is hereby adopted as the seal of the Corporation, if a seal is to be used.',
+    category: 'directors',
+    order: 9,
+    isRequired: false,
+    isCustomizable: true,
+    customizationFields: [
+      {
+        fieldId: 'useCorporateSeal',
+        label: 'Use Corporate Seal',
+        type: 'select',
+        options: ['Yes', 'No'],
+        required: true,
+        defaultValue: 'No',
+      },
+    ],
+  },
+  {
+    id: 'dir_010',
+    title: 'Minute Book Maintenance',
+    description: 'Establish corporate minute book maintenance',
+    content: 'Resolved that a corporate minute book be prepared and maintained by the Secretary at the registered office of the Corporation, including registers, ledgers and copies of all organizational documents.',
+    category: 'directors',
+    order: 10,
+    isRequired: true,
+    isCustomizable: false,
+  },
+
+  // SHAREHOLDERS' RESOLUTIONS
+  {
+    id: 'sha_001',
+    title: 'Election of Directors',
+    description: 'Elect directors to hold office',
+    content: 'Resolved that the following individuals are elected as directors of the Corporation, to hold office until their successors are duly elected or appointed: {{directorNames}}.',
+    category: 'shareholders',
+    order: 1,
+    isRequired: true,
+    isCustomizable: true,
+    customizationFields: [
+      {
+        fieldId: 'directorNames',
+        label: 'Director Names',
+        type: 'text',
+        required: true,
+      },
+    ],
+  },
+  {
+    id: 'sha_002',
+    title: 'Confirmation of By-law',
+    description: 'Confirm General By-law No. 1',
+    content: 'Resolved that General By-law No. 1 of the Corporation be and is hereby confirmed.',
+    category: 'shareholders',
+    order: 2,
+    isRequired: true,
+    isCustomizable: false,
+  },
+  {
+    id: 'sha_003',
+    title: 'Public Accountant Waiver',
+    description: 'Dispense with appointment of public accountant',
+    content: 'Resolved that the appointment of a public accountant for the current financial year is hereby dispensed with by unanimous resolution of all shareholders entitled to vote, in accordance with the Act.',
+    category: 'shareholders',
+    order: 3,
+    isRequired: false,
+    isCustomizable: true,
+    customizationFields: [
+      {
+        fieldId: 'waiverApproved',
+        label: 'Waive Public Accountant',
+        type: 'select',
+        options: ['Yes', 'No'],
+        required: true,
+        defaultValue: 'Yes',
+      },
+    ],
+  },
+  {
+    id: 'sha_004',
+    title: 'Number of Directors',
+    description: 'Fix the number of directors',
+    content: 'Resolved that the number of directors of the Corporation is fixed at {{numberOfDirectors}} until changed in accordance with the Articles and the Act.',
+    category: 'shareholders',
+    order: 4,
+    isRequired: true,
+    isCustomizable: true,
+    customizationFields: [
+      {
+        fieldId: 'numberOfDirectors',
+        label: 'Number of Directors',
+        type: 'number',
+        required: true,
+        defaultValue: 1,
+        validation: {
+          min: 1,
+          max: 50,
+        },
+      },
+    ],
+  },
+  {
+    id: 'sha_005',
+    title: 'Ratification of Acts',
+    description: 'Approve and ratify all acts by incorporator and directors',
+    content: 'Resolved that all acts, contracts, proceedings, appointments and elections made or taken by the incorporator and the Board of Directors to date are approved, ratified and confirmed.',
+    category: 'shareholders',
+    order: 5,
+    isRequired: true,
+    isCustomizable: false,
+  },
+];

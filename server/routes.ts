@@ -1599,6 +1599,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Corporate Formation Minute Book API endpoint
+  app.post('/api/orgs/:orgId/minute-books/corporate-formation', isAuthenticated, async (req: any, res) => {
+    try {
+      const { orgId } = req.params;
+      const userId = req.user.claims.sub;
+      const { name, description, selectedResolutions, customizations } = req.body;
+
+      if (!name || !selectedResolutions || selectedResolutions.length === 0) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Get current entity data for generation
+      const entityData = await storage.getEntityDataForGeneration(orgId);
+
+      const minuteBook = await storage.createMinuteBook({
+        orgId,
+        name,
+        type: "incorporation",
+        description,
+        status: "draft",
+        createdBy: userId,
+        isPreConfigured: true,
+        selectedResolutions,
+        resolutionCustomizations: customizations,
+        generationData: entityData,
+      });
+
+      res.status(201).json(minuteBook);
+    } catch (error) {
+      console.error("Error creating corporate formation minute book:", error);
+      res.status(500).json({ message: "Failed to create corporate formation minute book" });
+    }
+  });
+
+  // Entity data endpoint for auto-population
+  app.get('/api/orgs/:orgId/entity-data', isAuthenticated, async (req, res) => {
+    try {
+      const { orgId } = req.params;
+      const entityData = await storage.getEntityDataForGeneration(orgId);
+      res.json(entityData);
+    } catch (error) {
+      console.error("Error fetching entity data:", error);
+      res.status(500).json({ message: "Failed to fetch entity data" });
+    }
+  });
+
   app.post('/api/minute-books/:id/generate', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;

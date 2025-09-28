@@ -156,6 +156,9 @@ export interface IStorage {
   // Organization notes operations
   createOrgNote(note: InsertOrgNote): Promise<OrgNote>;
   getOrgNotes(orgId: string): Promise<OrgNote[]>;
+  
+  // Entity data operations for minute book generation
+  getEntityDataForGeneration(orgId: string): Promise<EntityData>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -696,6 +699,78 @@ export class DatabaseStorage implements IStorage {
       .from(orgNotes)
       .where(eq(orgNotes.orgId, orgId))
       .orderBy(desc(orgNotes.createdAt));
+  }
+
+  // Entity data operations for minute book generation
+  async getEntityDataForGeneration(orgId: string): Promise<EntityData> {
+    // Get organization with all related data
+    const organization = await this.getOrgById(orgId);
+    if (!organization) {
+      throw new Error("Organization not found");
+    }
+
+    // Get all people and their roles
+    const peopleData = await db
+      .select({
+        person: people,
+        role: personOnOrgs,
+      })
+      .from(people)
+      .leftJoin(personOnOrgs, eq(people.id, personOnOrgs.personId))
+      .where(eq(personOnOrgs.orgId, orgId));
+
+    // Group people with their roles
+    const peopleMap = new Map<string, PersonWithRoles>();
+    for (const row of peopleData) {
+      const personId = row.person.id;
+      if (!peopleMap.has(personId)) {
+        peopleMap.set(personId, {
+          ...row.person,
+          roles: []
+        });
+      }
+      if (row.role) {
+        peopleMap.get(personId)!.roles.push(row.role);
+      }
+    }
+
+    // Get share classes, issuances, and addresses
+    const [shareClassesData, shareIssuancesData, addressesData] = await Promise.all([
+      this.getShareClassesByOrg(orgId),
+      this.getShareIssuancesByOrg(orgId),
+      this.getAddressesForOrg(orgId)
+    ]);
+
+    return {
+      organization,
+      people: Array.from(peopleMap.values()),
+      shareClasses: shareClassesData,
+      shareIssuances: shareIssuancesData,
+      addresses: addressesData,
+    };
+  }
+
+  private async getAddressesForOrg(orgId: string): Promise<Address[]> {
+    const org = await this.getOrgById(orgId);
+    if (!org) return [];
+
+    const addressIds = [
+      org.registeredOfficeId,
+      org.recordsOfficeId,
+      org.mailingAddressId,
+      org.authRepAddressId,
+    ].filter(Boolean) as string[];
+
+    if (addressIds.length === 0) return [];
+
+    return await db
+      .select()
+      .from(addresses)
+      .where(
+        addressIds.length === 1
+          ? eq(addresses.id, addressIds[0])
+          : sql`${addresses.id} IN (${sql.join(addressIds.map(id => sql`${id}`), sql`,`)})`
+      );
   }
 }
 

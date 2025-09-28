@@ -52,6 +52,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { apiRequest } from "@/lib/queryClient";
+import { CorporateFormationMinuteBook } from "@/components/CorporateFormationMinuteBook";
 import { 
   Plus, 
   Book, 
@@ -63,7 +64,8 @@ import {
   XCircle, 
   RefreshCw, 
   Search,
-  Calendar 
+  Calendar,
+  Building2
 } from "lucide-react";
 import type { MinuteBook, Template } from "@shared/schema";
 
@@ -83,6 +85,7 @@ export default function MinuteBooks() {
   const queryClient = useQueryClient();
   const { currentEntity } = useEntityContext();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCorporateFormationDialogOpen, setIsCorporateFormationDialogOpen] = useState(false);
   const [selectedTemplateIds, setSelectedTemplateIds] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   
@@ -186,6 +189,26 @@ export default function MinuteBooks() {
       templateIds: []
     });
     setSelectedTemplateIds([]);
+  };
+
+  const handleMinuteBookTypeSelect = (type: MinuteBookType) => {
+    if (type === "incorporation") {
+      setIsCreateDialogOpen(false);
+      setIsCorporateFormationDialogOpen(true);
+    } else {
+      setFormData(prev => ({ ...prev, type }));
+    }
+  };
+
+  const handleCorporateFormationCreated = (minuteBookId: string) => {
+    queryClient.invalidateQueries({ 
+      queryKey: ["/api/orgs", currentEntity?.id, "minute-books"] 
+    });
+    setIsCorporateFormationDialogOpen(false);
+    toast({
+      title: "Success",
+      description: "Corporate formation minute book created successfully",
+    });
   };
 
   const getStatusBadge = (status: MinuteBookStatus) => {
@@ -333,15 +356,21 @@ export default function MinuteBooks() {
                       <Label htmlFor="mb-type">Type</Label>
                       <Select
                         value={formData.type}
-                        onValueChange={(value: MinuteBookType) => 
-                          setFormData(prev => ({ ...prev, type: value }))
-                        }
+                        onValueChange={handleMinuteBookTypeSelect}
                       >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="incorporation">Incorporation</SelectItem>
+                          <SelectItem value="incorporation">
+                            <div className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4" />
+                              <div>
+                                <div>Incorporation</div>
+                                <div className="text-xs text-muted-foreground">Corporate formation with standard resolutions</div>
+                              </div>
+                            </div>
+                          </SelectItem>
                           <SelectItem value="annual">Annual</SelectItem>
                           <SelectItem value="special">Special Resolution</SelectItem>
                           <SelectItem value="full">Full Minute Book</SelectItem>
@@ -584,6 +613,14 @@ export default function MinuteBooks() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Corporate Formation Minute Book Dialog */}
+      <CorporateFormationMinuteBook
+        open={isCorporateFormationDialogOpen}
+        onOpenChange={setIsCorporateFormationDialogOpen}
+        onMinuteBookCreated={handleCorporateFormationCreated}
+        orgId={currentEntity?.id || ""}
+      />
     </div>
   );
 }
