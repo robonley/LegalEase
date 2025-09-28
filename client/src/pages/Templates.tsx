@@ -436,53 +436,60 @@ export default function Templates() {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="space-y-6">
-                  {commonResolutions.map((categoryGroup, categoryIndex) => (
-                    <div key={categoryIndex}>
-                      <h3 className="text-lg font-semibold mb-4 text-primary">{categoryGroup.category}</h3>
+                  {/* Group resolutions by category to avoid duplicates */}
+                  {Object.entries(
+                    commonResolutions.reduce((acc, group) => {
+                      if (!acc[group.category]) {
+                        acc[group.category] = [];
+                      }
+                      acc[group.category].push(group);
+                      return acc;
+                    }, {} as Record<string, typeof commonResolutions>)
+                  ).map(([category, groups]) => (
+                    <div key={category}>
+                      <h3 className="text-lg font-semibold mb-4 text-primary">{category}</h3>
                       
-                      {/* Group by type within category */}
-                      {commonResolutions
-                        .filter(group => group.category === categoryGroup.category)
-                        .map((group, groupIndex) => (
-                          <Collapsible key={`${categoryIndex}-${groupIndex}`} className="mb-6">
-                            <CollapsibleTrigger asChild>
-                              <Button
-                                variant="outline"
-                                className="w-full justify-between p-4 h-auto"
-                                data-testid={`resolution-group-${group.type.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
+                      {/* Render each group type within the category */}
+                      {groups.map((group, groupIndex) => (
+                        <Collapsible key={`${category}-${groupIndex}`} className="mb-6">
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="w-full justify-between p-4 h-auto"
+                              data-testid={`resolution-group-${group.type.toLowerCase().replace(/[^a-z0-9]/g, '-')}`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                                  <i className="fas fa-file-signature text-primary"></i>
+                                </div>
+                                <div className="text-left">
+                                  <div className="font-medium">{group.type}</div>
+                                  <div className="text-sm text-muted-foreground">{group.resolutions.length} resolutions</div>
+                                </div>
+                              </div>
+                              <ChevronDown className="h-4 w-4" />
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="space-y-2 mt-2">
+                            {group.resolutions.map((resolution) => (
+                              <div
+                                key={resolution.id}
+                                className="flex items-center gap-3 p-3 ml-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                                onClick={() => handleOpenStarterTemplate(resolution)}
+                                data-testid={`resolution-${resolution.id}`}
                               >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                                    <i className="fas fa-file-signature text-primary"></i>
-                                  </div>
-                                  <div className="text-left">
-                                    <div className="font-medium">{group.type}</div>
-                                    <div className="text-sm text-muted-foreground">{group.resolutions.length} resolutions</div>
-                                  </div>
+                                <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
+                                  <i className={`${resolution.icon} text-sm text-muted-foreground`}></i>
                                 </div>
-                                <ChevronDown className="h-4 w-4" />
-                              </Button>
-                            </CollapsibleTrigger>
-                            <CollapsibleContent className="space-y-2 mt-2">
-                              {group.resolutions.map((resolution) => (
-                                <div
-                                  key={resolution.id}
-                                  className="flex items-center gap-3 p-3 ml-4 border border-border rounded-lg hover:bg-accent cursor-pointer transition-colors"
-                                  onClick={() => handleOpenStarterTemplate(resolution)}
-                                  data-testid={`resolution-${resolution.id}`}
-                                >
-                                  <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
-                                    <i className={`${resolution.icon} text-sm text-muted-foreground`}></i>
-                                  </div>
-                                  <div className="flex-1">
-                                    <div className="text-sm font-medium">{resolution.name}</div>
-                                  </div>
-                                  <FileText className="h-4 w-4 text-muted-foreground" />
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium">{resolution.name}</div>
                                 </div>
-                              ))}
-                            </CollapsibleContent>
-                          </Collapsible>
-                        ))}
+                                <FileText className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            ))}
+                          </CollapsibleContent>
+                        </Collapsible>
+                      ))}
                     </div>
                   ))}
                 </div>
