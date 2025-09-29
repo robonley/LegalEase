@@ -162,31 +162,45 @@ export default function People() {
     },
   });
 
-  // Create flattened list of person-role combinations for table view
-  const personRoles = people.flatMap(person => 
-    person.roles.map(role => ({
-      id: `${person.id}-${role.id}`,
+  // Group people and consolidate their roles into single rows
+  const consolidatedPeople = people.map(person => {
+    const activeRoles = person.roles.filter(role => !role.endAt);
+    const allRoles = person.roles;
+    
+    // Get unique titles (excluding empty/null titles)
+    const titles = [...new Set(allRoles.map(role => role.title).filter(Boolean))];
+    
+    // Get earliest start date
+    const earliestStart = allRoles.reduce((earliest, role) => {
+      if (!role.startAt) return earliest;
+      if (!earliest) return role.startAt;
+      return new Date(role.startAt) < new Date(earliest) ? role.startAt : earliest;
+    }, null as string | null);
+
+    return {
+      id: person.id,
       personId: person.id,
       firstName: person.firstName,
       lastName: person.lastName,
       email: person.email,
-      role: role.role,
-      title: role.title,
-      startAt: role.startAt,
-      endAt: role.endAt,
-      person: person,
-      roleData: role
-    }))
-  );
+      roles: activeRoles.map(role => role.role),
+      allRoles: allRoles.map(role => role.role),
+      titles: titles,
+      startAt: earliestStart,
+      hasInactiveRoles: allRoles.some(role => role.endAt),
+      person: person
+    };
+  });
 
-  const filteredPersonRoles = personRoles.filter(personRole => {
+  const filteredPeople = consolidatedPeople.filter(personData => {
     const matchesSearch = 
-      `${personRole.firstName} ${personRole.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      personRole.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      personRole.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      personRole.title?.toLowerCase().includes(searchTerm.toLowerCase());
+      `${personData.firstName} ${personData.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      personData.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      personData.allRoles.some(role => role.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      personData.titles.some(title => title.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesRole = roleFilter === "all" || personRole.role.toLowerCase() === roleFilter.toLowerCase();
+    const matchesRole = roleFilter === "all" || 
+      personData.allRoles.some(role => role.toLowerCase() === roleFilter.toLowerCase());
     
     return matchesSearch && matchesRole;
   });
@@ -317,7 +331,7 @@ export default function People() {
           </div>
           <Separator orientation="vertical" className="h-6" />
           <div className="text-sm text-muted-foreground">
-            {filteredPersonRoles.length} role{filteredPersonRoles.length === 1 ? '' : 's'}
+            {filteredPeople.length} person{filteredPeople.length === 1 ? '' : 'people'}
           </div>
         </div>
 
@@ -329,7 +343,7 @@ export default function People() {
               <p className="text-muted-foreground">Loading people...</p>
             </CardContent>
           </Card>
-        ) : filteredPersonRoles.length === 0 ? (
+        ) : filteredPeople.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <i className="fas fa-users text-4xl text-muted-foreground mb-4"></i>
@@ -364,64 +378,74 @@ export default function People() {
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Title</TableHead>
+                    <TableHead>Roles</TableHead>
+                    <TableHead>Titles</TableHead>
                     <TableHead>Start Date</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[100px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredPersonRoles.map((personRole) => (
-                    <TableRow key={personRole.id} data-testid={`role-row-${personRole.personId}-${personRole.role}`}>
+                  {filteredPeople.map((personData) => (
+                    <TableRow key={personData.personId} data-testid={`person-row-${personData.personId}`}>
                       <TableCell>
                         <div 
                           className="flex items-center gap-3 cursor-pointer hover:bg-muted/50 rounded p-2 -m-2 transition-colors"
-                          onClick={() => setViewingPerson(personRole.person)}
-                          data-testid={`view-person-${personRole.personId}`}
+                          onClick={() => setViewingPerson(personData.person)}
+                          data-testid={`view-person-${personData.personId}`}
                         >
                           <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
                             <span className="text-sm font-medium text-primary-foreground">
-                              {personRole.firstName[0]}{personRole.lastName[0]}
+                              {personData.firstName[0]}{personData.lastName[0]}
                             </span>
                           </div>
                           <div>
                             <div className="font-medium hover:text-primary transition-colors">
-                              {personRole.firstName} {personRole.lastName}
+                              {personData.firstName} {personData.lastName}
                             </div>
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
                         <span className="text-muted-foreground">
-                          {personRole.email || 'No email'}
+                          {personData.email || 'No email'}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Badge 
-                          variant={getRoleBadgeVariant(personRole.role)}
-                          className="text-xs"
-                          data-testid={`role-badge-${personRole.personId}-${personRole.role}`}
-                        >
-                          {personRole.role}
-                        </Badge>
+                        <div className="flex flex-wrap gap-1">
+                          {personData.roles.map((role) => (
+                            <Badge 
+                              key={`${personData.personId}-${role}`}
+                              variant={getRoleBadgeVariant(role)}
+                              className="text-xs"
+                              data-testid={`role-badge-${personData.personId}-${role}`}
+                            >
+                              {role}
+                            </Badge>
+                          ))}
+                          {personData.hasInactiveRoles && (
+                            <Badge variant="secondary" className="text-xs opacity-60">
+                              +Past Roles
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <span className="text-sm">
-                          {personRole.title || '-'}
+                          {personData.titles.length > 0 ? personData.titles.join(', ') : '-'}
                         </span>
                       </TableCell>
                       <TableCell>
                         <span className="text-muted-foreground text-sm">
-                          {formatDate(personRole.startAt)}
+                          {formatDate(personData.startAt)}
                         </span>
                       </TableCell>
                       <TableCell>
                         <Badge 
-                          variant={personRole.endAt ? "destructive" : "default"}
+                          variant={personData.roles.length > 0 ? "default" : "destructive"}
                           className="text-xs"
                         >
-                          {personRole.endAt ? "Inactive" : "Active"}
+                          {personData.roles.length > 0 ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -430,7 +454,7 @@ export default function People() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              data-testid={`actions-menu-${personRole.personId}`}
+                              data-testid={`actions-menu-${personData.personId}`}
                             >
                               <i className="fas fa-ellipsis-h"></i>
                             </Button>
@@ -441,8 +465,8 @@ export default function People() {
                             
                             {/* View Person */}
                             <DropdownMenuItem
-                              onClick={() => setViewingPerson(personRole.person)}
-                              data-testid={`view-person-${personRole.personId}`}
+                              onClick={() => setViewingPerson(personData.person)}
+                              data-testid={`view-person-${personData.personId}`}
                             >
                               <i className="fas fa-eye mr-2"></i>
                               View Details
@@ -450,8 +474,8 @@ export default function People() {
                             
                             {/* Edit Person */}
                             <DropdownMenuItem
-                              onClick={() => setEditingPerson(personRole.person)}
-                              data-testid={`edit-person-${personRole.personId}`}
+                              onClick={() => setEditingPerson(personData.person)}
+                              data-testid={`edit-person-${personData.personId}`}
                             >
                               <i className="fas fa-edit mr-2"></i>
                               Edit
@@ -459,8 +483,8 @@ export default function People() {
                             
                             {/* Clone Person */}
                             <DropdownMenuItem
-                              onClick={() => handleClonePerson(personRole.person)}
-                              data-testid={`clone-person-${personRole.personId}`}
+                              onClick={() => handleClonePerson(personData.person)}
+                              data-testid={`clone-person-${personData.personId}`}
                             >
                               <i className="fas fa-copy mr-2"></i>
                               Clone
@@ -469,10 +493,10 @@ export default function People() {
                             <DropdownMenuSeparator />
                             
                             {/* Send Email */}
-                            {personRole.email && (
+                            {personData.email && (
                               <DropdownMenuItem
-                                onClick={() => window.open(`mailto:${personRole.email}`, '_blank')}
-                                data-testid={`email-person-${personRole.personId}`}
+                                onClick={() => window.open(`mailto:${personData.email}`, '_blank')}
+                                data-testid={`email-person-${personData.personId}`}
                               >
                                 <i className="fas fa-envelope mr-2"></i>
                                 Send Email
@@ -480,10 +504,10 @@ export default function People() {
                             )}
                             
                             {/* Call */}
-                            {personRole.person.phone && (
+                            {personData.person.phone && (
                               <DropdownMenuItem
-                                onClick={() => window.open(`tel:${personRole.person.phone}`, '_blank')}
-                                data-testid={`call-person-${personRole.personId}`}
+                                onClick={() => window.open(`tel:${personData.person.phone}`, '_blank')}
+                                data-testid={`call-person-${personData.personId}`}
                               >
                                 <i className="fas fa-phone mr-2"></i>
                                 Call
@@ -498,7 +522,7 @@ export default function People() {
                                 <DropdownMenuItem
                                   onSelect={(e) => e.preventDefault()}
                                   className="text-destructive focus:text-destructive"
-                                  data-testid={`delete-person-${personRole.personId}`}
+                                  data-testid={`delete-person-${personData.personId}`}
                                 >
                                   <i className="fas fa-trash mr-2"></i>
                                   Delete
@@ -508,14 +532,14 @@ export default function People() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Delete Person</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Are you sure you want to delete {personRole.firstName} {personRole.lastName}? 
+                                    Are you sure you want to delete {personData.firstName} {personData.lastName}? 
                                     This action cannot be undone and will remove all associated roles and share holdings.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => deleteMutation.mutate(personRole.personId)}
+                                    onClick={() => deleteMutation.mutate(personData.personId)}
                                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                     disabled={deleteMutation.isPending}
                                   >
