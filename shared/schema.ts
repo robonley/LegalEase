@@ -219,6 +219,21 @@ export const minuteBookDocs = pgTable("minute_book_docs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Entity Relationships Management
+export const entityRelationships = pgTable("entity_relationships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  parentEntityId: varchar("parent_entity_id").notNull().references(() => orgs.id),
+  childEntityId: varchar("child_entity_id").notNull().references(() => orgs.id),
+  relationshipType: text("relationship_type").notNull(), // "subsidiary" | "parent" | "sister" | "related" | "joint_venture"
+  ownershipPercentage: decimal("ownership_percentage", { precision: 5, scale: 2 }), // 0.00 to 100.00
+  notes: text("notes"), // Additional relationship details
+  effectiveDate: timestamp("effective_date"), // When relationship became effective
+  endDate: timestamp("end_date"), // When relationship ended (null for active)
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Relations
 export const orgsRelations = relations(orgs, ({ one, many }) => ({
   registeredOffice: one(addresses, {
@@ -255,6 +270,9 @@ export const orgsRelations = relations(orgs, ({ one, many }) => ({
   // Entity shareholdings - where this org holds shares in other entities
   entityShareholdings: many(shareIssuances, { relationName: "entityShareholder" }),
   minuteBooks: many(minuteBooks),
+  // Entity relationships - parent/subsidiary and related entities
+  parentRelationships: many(entityRelationships, { relationName: "parentEntity" }),
+  childRelationships: many(entityRelationships, { relationName: "childEntity" }),
 }));
 
 export const peopleRelations = relations(people, ({ one, many }) => ({
@@ -403,6 +421,23 @@ export const orgNotesRelations = relations(orgNotes, ({ one }) => ({
   }),
 }));
 
+export const entityRelationshipsRelations = relations(entityRelationships, ({ one }) => ({
+  parentEntity: one(orgs, {
+    fields: [entityRelationships.parentEntityId],
+    references: [orgs.id],
+    relationName: "parentEntity",
+  }),
+  childEntity: one(orgs, {
+    fields: [entityRelationships.childEntityId],
+    references: [orgs.id],
+    relationName: "childEntity",
+  }),
+  createdBy: one(users, {
+    fields: [entityRelationships.createdBy],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertAddressSchema = createInsertSchema(addresses);
 export const insertOrgSchema = createInsertSchema(orgs).omit({
@@ -454,6 +489,12 @@ export const insertMinuteBookDocSchema = createInsertSchema(minuteBookDocs).omit
   createdAt: true
 });
 
+export const insertEntityRelationshipSchema = createInsertSchema(entityRelationships).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -498,6 +539,10 @@ export type InsertMinuteBook = z.infer<typeof insertMinuteBookSchema>;
 
 export type MinuteBookDoc = typeof minuteBookDocs.$inferSelect;
 export type InsertMinuteBookDoc = z.infer<typeof insertMinuteBookDocSchema>;
+
+// Entity Relationships types
+export type EntityRelationship = typeof entityRelationships.$inferSelect;
+export type InsertEntityRelationship = z.infer<typeof insertEntityRelationshipSchema>;
 
 // Ingestion Jobs and Results
 export const ingestionJobs = pgTable("ingestion_jobs", {
