@@ -118,6 +118,14 @@ const TEMPLATE_VARIABLES = {
   "{{CurrentYear}}": { category: "System", description: "Current year" },
   "{{Currency}}": { category: "System", description: "Currency (CAD/USD)" },
   "{{FiscalYearEnd}}": { category: "System", description: "Fiscal year end date" },
+  
+  // Entity Relationships
+  "{{ParentCompany}}": { category: "Relationships", description: "Parent company name (if exists)" },
+  "{{ParentCompanies}}": { category: "Relationships", description: "List of all parent companies" },
+  "{{SubsidiaryCompanies}}": { category: "Relationships", description: "List of subsidiary companies" },
+  "{{RelatedEntities}}": { category: "Relationships", description: "List of related companies" },
+  "{{CorporateStructure}}": { category: "Relationships", description: "Formatted corporate hierarchy with relationship types" },
+  "{{OwnershipPercentages}}": { category: "Relationships", description: "Ownership information and percentages for related entities" },
 };
 
 export function DocumentEditor({
@@ -142,6 +150,7 @@ export function DocumentEditor({
     company: true,
     people: true,
     shares: false,
+    relationships: false,
     variables: false,
   });
   const quillRef = useRef<ReactQuill>(null);
@@ -916,6 +925,132 @@ export function DocumentEditor({
                   </Card>
                 ) : (
                   <div className="text-sm text-muted-foreground italic">No share classes found</div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Entity Relationships */}
+            <Collapsible 
+              open={expandedSections.relationships} 
+              onOpenChange={() => toggleSection('relationships')}
+            >
+              <CollapsibleTrigger className="flex items-center justify-between w-full">
+                <h4 className="font-medium flex items-center gap-2">
+                  <i className="fas fa-sitemap text-primary"></i>
+                  Entity Relationships
+                </h4>
+                <i className={`fas fa-chevron-${expandedSections.relationships ? 'down' : 'right'} text-sm`}></i>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3 space-y-2">
+                {entityData?.relationships && entityData.relationships.length > 0 ? (
+                  <div className="space-y-3">
+                    {/* Parent Companies */}
+                    {entityData.parentCompanies && entityData.parentCompanies.length > 0 && (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-primary">Parent Companies</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0 space-y-2">
+                          {entityData.parentCompanies.map((parent) => (
+                            <button
+                              key={`parent-${parent.id}`}
+                              className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                              onClick={() => insertEntityData(parent.name)}
+                              data-testid={`insert-parent-${parent.id}`}
+                            >
+                              <div className="font-medium">{parent.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {parent.jurisdiction}
+                                {parent.number && <span className="ml-2">#{parent.number}</span>}
+                              </div>
+                            </button>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Subsidiary Companies */}
+                    {entityData.subsidiaryCompanies && entityData.subsidiaryCompanies.length > 0 && (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-primary">Subsidiaries</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0 space-y-2">
+                          {entityData.subsidiaryCompanies.map((subsidiary) => (
+                            <button
+                              key={`subsidiary-${subsidiary.id}`}
+                              className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                              onClick={() => insertEntityData(subsidiary.name)}
+                              data-testid={`insert-subsidiary-${subsidiary.id}`}
+                            >
+                              <div className="font-medium">{subsidiary.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {subsidiary.jurisdiction}
+                                {subsidiary.number && <span className="ml-2">#{subsidiary.number}</span>}
+                              </div>
+                            </button>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Related Entities */}
+                    {entityData.relatedEntities && entityData.relatedEntities.length > 0 && (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-primary">Related Entities</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0 space-y-2">
+                          {entityData.relatedEntities.map((related) => (
+                            <button
+                              key={`related-${related.id}`}
+                              className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                              onClick={() => insertEntityData(related.name)}
+                              data-testid={`insert-related-${related.id}`}
+                            >
+                              <div className="font-medium">{related.name}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {related.jurisdiction}
+                                {related.number && <span className="ml-2">#{related.number}</span>}
+                              </div>
+                            </button>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {/* Ownership Information */}
+                    {entityData.relationships.some(rel => rel.ownershipPercentage && rel.ownershipPercentage > 0) && (
+                      <Card>
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-primary">Ownership Information</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0 space-y-2">
+                          {entityData.relationships
+                            .filter(rel => rel.ownershipPercentage && rel.ownershipPercentage > 0)
+                            .map((rel) => {
+                              const entityName = rel.parentEntity?.name || rel.childEntity?.name || 'Unknown Entity';
+                              const ownershipText = `${entityName}: ${rel.ownershipPercentage}%`;
+                              return (
+                                <button
+                                  key={`ownership-${rel.id}`}
+                                  className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                                  onClick={() => insertEntityData(ownershipText)}
+                                  data-testid={`insert-ownership-${rel.id}`}
+                                >
+                                  <div className="font-medium">{entityName}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {rel.ownershipPercentage}% ownership • {rel.relationshipType}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground italic">No entity relationships found</div>
                 )}
               </CollapsibleContent>
             </Collapsible>

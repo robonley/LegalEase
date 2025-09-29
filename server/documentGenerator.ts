@@ -1,6 +1,8 @@
 import { storage } from "./storage";
 import { CBCA_TEMPLATE_VARIABLES } from "./templateProcessor";
-import type { MinuteBook, Template, Org, Person, ShareClass, ShareIssuance, PersonOnOrg } from "@shared/schema";
+import type { MinuteBook, Template, Org, Person, ShareClass, ShareIssuance, PersonOnOrg, EntityRelationship } from "@shared/schema";
+
+type PersonWithRoles = Person & { roles?: PersonOnOrg[] };
 
 export interface EntityData {
   organization: Org & {
@@ -8,12 +10,19 @@ export interface EntityData {
     recordsOffice?: any;
     mailingAddress?: any;
   };
-  people: (Person & { roles?: PersonOnOrg[] })[];
+  people: PersonWithRoles[];
   shareClasses: ShareClass[];
   shareIssuances: ShareIssuance[];
-  directors: Person[];
-  officers: Person[];
-  shareholders: Person[];
+  directors: PersonWithRoles[];
+  officers: PersonWithRoles[];
+  shareholders: PersonWithRoles[];
+  relationships: Array<EntityRelationship & { 
+    parentEntity: Org; 
+    childEntity: Org; 
+  }>;
+  parentCompanies: Org[];
+  subsidiaryCompanies: Org[];
+  relatedEntities: Org[];
 }
 
 export class DocumentGeneratorService {
@@ -86,7 +95,7 @@ export class DocumentGeneratorService {
           console.error(`Error processing document ${doc.id}:`, docError);
           await storage.updateMinuteBookDoc(doc.id, { 
             status: "error", 
-            errorMessage: docError.message 
+            errorMessage: docError instanceof Error ? docError.message : String(docError)
           });
         }
       }
@@ -115,7 +124,7 @@ export class DocumentGeneratorService {
       // Update status to error
       await storage.updateMinuteBook(minuteBookId, { status: "error" });
       
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
 
@@ -174,6 +183,22 @@ export class DocumentGeneratorService {
     const shareClasses = await storage.getShareClassesByOrg(orgId);
     const shareIssuances = await storage.getShareIssuancesByOrg(orgId);
 
+    // Get entity relationships
+    const relationships = await storage.getEntityRelationshipsByOrg(orgId);
+    
+    // Categorize relationships
+    const parentCompanies = relationships
+      .filter(rel => rel.childEntityId === orgId && rel.relationshipType === 'parent')
+      .map(rel => rel.parentEntity);
+    
+    const subsidiaryCompanies = relationships
+      .filter(rel => rel.parentEntityId === orgId && rel.relationshipType === 'subsidiary')
+      .map(rel => rel.childEntity);
+    
+    const relatedEntities = relationships
+      .filter(rel => ['related', 'sister', 'joint_venture'].includes(rel.relationshipType))
+      .map(rel => rel.parentEntityId === orgId ? rel.childEntity : rel.parentEntity);
+
     return {
       organization: {
         ...organization,
@@ -186,7 +211,11 @@ export class DocumentGeneratorService {
       officers,
       shareholders,
       shareClasses,
-      shareIssuances
+      shareIssuances,
+      relationships,
+      parentCompanies,
+      subsidiaryCompanies,
+      relatedEntities
     };
   }
 
@@ -251,7 +280,7 @@ export class DocumentGeneratorService {
         <br><br>
         <p>_________________________<br>
         ${entityData.directors[0]?.firstName} ${entityData.directors[0]?.lastName}<br>
-        ${entityData.directors[0]?.roles?.[0]?.title || 'Director'}</p>
+        ${entityData.directors[0]?.roles && entityData.directors[0].roles.length > 0 && entityData.directors[0].roles[0].title ? entityData.directors[0].roles[0].title : 'Director'}</p>
     </div>
 </body>
 </html>
@@ -292,7 +321,7 @@ export class DocumentGeneratorService {
                 <ul>
                     ${entityData.directors.map(director => `
                         <li>${director.firstName} ${director.lastName}
-                            ${director.roles?.[0]?.title ? ` - ${director.roles[0].title}` : ''}
+                            ${director.roles && director.roles.length > 0 && director.roles[0].title ? ` - ${director.roles[0].title}` : ''}
                         </li>
                     `).join('')}
                 </ul>
@@ -305,7 +334,7 @@ export class DocumentGeneratorService {
                 <ul>
                     ${entityData.officers.map(officer => `
                         <li>${officer.firstName} ${officer.lastName}
-                            ${officer.roles?.[0]?.title ? ` - ${officer.roles[0].title}` : ''}
+                            ${officer.roles && officer.roles.length > 0 && officer.roles[0].title ? ` - ${officer.roles[0].title}` : ''}
                         </li>
                     `).join('')}
                 </ul>
@@ -406,6 +435,14 @@ export class DocumentGeneratorService {
       '{{ShareClasses}}': entityData.shareClasses.map(sc => sc.name).join(', '),
       '{{AuthorizedShares}}': entityData.shareClasses.reduce((sum, sc) => sum + (sc.voting ? 1000000 : 0), 0).toString(),
       '{{IssuedShares}}': entityData.shareIssuances.reduce((sum, si) => sum + si.quantity, 0).toString(),
+      
+      // Entity Relationship Variables
+      '{{ParentCompany}}': entityData.parentCompanies[0]?.name || '',
+      '{{ParentCompanies}}': entityData.parentCompanies.map(p => p.name).join(', '),
+      '{{SubsidiaryCompanies}}': entityData.subsidiaryCompanies.map(s => s.name).join(', '),
+      '{{RelatedEntities}}': entityData.relatedEntities.map(r => r.name).join(', '),
+      '{{CorporateStructure}}': this.formatCorporateStructure(entityData.relationships),
+      '{{OwnershipPercentages}}': this.formatOwnershipPercentages(entityData.relationships),
     };
 
     // Apply all substitutions
@@ -415,6 +452,55 @@ export class DocumentGeneratorService {
     }
 
     return result;
+  }
+
+  /**
+   * Format corporate structure for document display
+   */
+  private formatCorporateStructure(relationships: any[]): string {
+    if (!relationships || relationships.length === 0) {
+      return 'No corporate relationships on file';
+    }
+    
+    const structure: string[] = [];
+    
+    // Group by relationship type
+    const grouped: Record<string, any[]> = relationships.reduce((acc, rel) => {
+      if (!acc[rel.relationshipType]) acc[rel.relationshipType] = [];
+      acc[rel.relationshipType].push(rel);
+      return acc;
+    }, {} as Record<string, any[]>);
+    
+    // Format each group
+    Object.entries(grouped).forEach(([type, rels]) => {
+      const typeLabel = type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ');
+      const entityNames = rels.map(rel => {
+        const entityName = rel.parentEntity?.name || rel.childEntity?.name || 'Unknown Entity';
+        const ownership = rel.ownershipPercentage ? ` (${rel.ownershipPercentage}%)` : '';
+        return entityName + ownership;
+      }).join(', ');
+      structure.push(`${typeLabel}: ${entityNames}`);
+    });
+    
+    return structure.join('\n');
+  }
+
+  /**
+   * Format ownership percentages for document display
+   */
+  private formatOwnershipPercentages(relationships: any[]): string {
+    if (!relationships || relationships.length === 0) {
+      return 'No ownership information available';
+    }
+    
+    const ownerships = relationships
+      .filter(rel => rel.ownershipPercentage && rel.ownershipPercentage > 0)
+      .map(rel => {
+        const entityName = rel.parentEntity?.name || rel.childEntity?.name || 'Unknown Entity';
+        return `${entityName}: ${rel.ownershipPercentage}%`;
+      });
+    
+    return ownerships.length > 0 ? ownerships.join(', ') : 'No ownership percentages specified';
   }
 }
 

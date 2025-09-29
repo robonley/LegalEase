@@ -101,6 +101,41 @@ export const CBCA_TEMPLATE_VARIABLES = {
     type: 'string',
     default: 'any two officers',
     description: 'Corporate signing authority requirements'
+  },
+
+  // Entity Relationships
+  'ParentCompany': {
+    field: 'parentCompanies[0].name',
+    type: 'string',
+    description: 'Parent company name (if exists)'
+  },
+  'ParentCompanies': {
+    field: 'parentCompanies',
+    type: 'list',
+    format: 'name_list',
+    description: 'List of all parent companies'
+  },
+  'SubsidiaryCompanies': {
+    field: 'subsidiaryCompanies',
+    type: 'list',
+    format: 'name_list',
+    description: 'List of subsidiary companies'
+  },
+  'RelatedEntities': {
+    field: 'relatedEntities',
+    type: 'list',
+    format: 'name_list',
+    description: 'List of related companies'
+  },
+  'CorporateStructure': {
+    field: 'relationships',
+    type: 'corporate_structure',
+    description: 'Formatted corporate hierarchy'
+  },
+  'OwnershipPercentages': {
+    field: 'relationships',
+    type: 'ownership_list',
+    description: 'Ownership information and percentages'
   }
 };
 
@@ -122,8 +157,8 @@ export function createVariableMapping(variables: string[]) {
   const mapping: Record<string, any> = {};
   
   variables.forEach(variable => {
-    if (CBCA_TEMPLATE_VARIABLES[variable]) {
-      mapping[variable] = CBCA_TEMPLATE_VARIABLES[variable];
+    if (variable in CBCA_TEMPLATE_VARIABLES) {
+      mapping[variable] = (CBCA_TEMPLATE_VARIABLES as any)[variable];
     } else {
       // Create default mapping for unknown variables
       mapping[variable] = {
@@ -184,6 +219,10 @@ function extractFieldValue(entityData: any, config: any): any {
       return formatList(value, format);
     case 'address':
       return formatAddress(value);
+    case 'corporate_structure':
+      return formatCorporateStructure(value);
+    case 'ownership_list':
+      return formatOwnershipList(value);
     default:
       return transform === 'uppercase' ? String(value).toUpperCase() : value;
   }
@@ -230,9 +269,11 @@ function formatList(items: any[], format?: string): string {
   if (!Array.isArray(items)) return String(items);
   
   if (format === 'name_list') {
-    return items.map(item => 
-      typeof item === 'string' ? item : `${item.firstName} ${item.lastName}`
-    ).join(', ');
+    return items.map(item => {
+      if (typeof item === 'string') return item;
+      if (item.name) return item.name; // For organizations
+      return `${item.firstName} ${item.lastName}`; // For people
+    }).join(', ');
   }
   
   return items.join(', ');
@@ -243,10 +284,11 @@ function formatAddress(address: any): string {
   
   if (address && typeof address === 'object') {
     const parts = [
-      address.street,
+      address.line1,
+      address.line2,
       address.city,
-      address.province || address.state,
-      address.postalCode || address.zipCode,
+      address.region || address.province || address.state,
+      address.postal || address.postalCode || address.zipCode,
       address.country
     ].filter(Boolean);
     
@@ -254,4 +296,47 @@ function formatAddress(address: any): string {
   }
   
   return '[Address]';
+}
+
+function formatCorporateStructure(relationships: any[]): string {
+  if (!Array.isArray(relationships) || relationships.length === 0) {
+    return 'No corporate relationships on file';
+  }
+  
+  const structure: string[] = [];
+  
+  // Group by relationship type
+  const grouped: Record<string, any[]> = relationships.reduce((acc, rel) => {
+    if (!acc[rel.relationshipType]) acc[rel.relationshipType] = [];
+    acc[rel.relationshipType].push(rel);
+    return acc;
+  }, {} as Record<string, any[]>);
+  
+  // Format each group
+  Object.entries(grouped).forEach(([type, rels]) => {
+    const typeLabel = type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ');
+    const entityNames = rels.map(rel => {
+      const entityName = rel.parentEntity?.name || rel.childEntity?.name || 'Unknown Entity';
+      const ownership = rel.ownershipPercentage ? ` (${rel.ownershipPercentage}%)` : '';
+      return entityName + ownership;
+    }).join(', ');
+    structure.push(`${typeLabel}: ${entityNames}`);
+  });
+  
+  return structure.join('\n');
+}
+
+function formatOwnershipList(relationships: any[]): string {
+  if (!Array.isArray(relationships) || relationships.length === 0) {
+    return 'No ownership information available';
+  }
+  
+  const ownerships = relationships
+    .filter(rel => rel.ownershipPercentage && rel.ownershipPercentage > 0)
+    .map(rel => {
+      const entityName = rel.parentEntity?.name || rel.childEntity?.name || 'Unknown Entity';
+      return `${entityName}: ${rel.ownershipPercentage}%`;
+    });
+  
+  return ownerships.length > 0 ? ownerships.join(', ') : 'No ownership percentages specified';
 }
