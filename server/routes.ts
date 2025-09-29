@@ -14,7 +14,8 @@ import {
   insertGeneratedDocSchema,
   insertAuditLogSchema,
   insertOrgNoteSchema,
-  insertMinuteBookSchema
+  insertMinuteBookSchema,
+  insertEntityRelationshipSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { extractTemplateVariables, createVariableMapping, CBCA_TEMPLATE_VARIABLES } from "./templateProcessor";
@@ -32,7 +33,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
 }
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2024-06-20",
+  apiVersion: "2025-08-27.basil",
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -1838,7 +1839,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.json({
               subscriptionId: subscription.id,
               status: subscription.status,
-              currentPeriodEnd: subscription.current_period_end
+              currentPeriodEnd: (subscription as any).current_period_end
             });
           }
         } catch (error) {
@@ -1891,7 +1892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const invoice = subscription.latest_invoice as Stripe.Invoice;
-      const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
+      const paymentIntent = (invoice as any).payment_intent as Stripe.PaymentIntent;
   
       res.json({
         subscriptionId: subscription.id,
@@ -1920,9 +1921,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subscription: {
           id: subscription.id,
           status: subscription.status,
-          current_period_start: subscription.current_period_start,
-          current_period_end: subscription.current_period_end,
-          cancel_at_period_end: subscription.cancel_at_period_end
+          current_period_start: (subscription as any).current_period_start,
+          current_period_end: (subscription as any).current_period_end,
+          cancel_at_period_end: (subscription as any).cancel_at_period_end
         }
       });
     } catch (error: any) {
@@ -2002,13 +2003,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { orgId } = req.params;
       
       // Get organization documents
-      const documents = await storage.getGeneratedDocumentsByOrgId(orgId);
+      const documents = await storage.getGeneratedDocsByOrg(orgId);
       
       // Transform documents for analysis
-      const documentContents = documents.map(doc => ({
-        name: doc.fileName || 'Unknown Document',
+      const documentContents = documents.map((doc: any) => ({
+        name: doc.fileKey || 'Unknown Document',
         content: doc.content || '',
-        type: doc.status || 'document'
+        type: 'document'
       }));
 
       // Run AI analysis
@@ -2041,7 +2042,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { orgId } = req.params;
       
       // Get organization details
-      const org = await storage.getOrg(orgId);
+      const org = await storage.getOrgById(orgId);
       if (!org) {
         return res.status(404).json({ message: "Organization not found" });
       }
@@ -2183,6 +2184,268 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Search error:", error);
       res.status(500).json({ error: "Failed to perform search" });
+    }
+  });
+
+  // Entity relationship routes
+  app.get('/api/entity-relationships/:orgId', async (req: any, res) => {
+    try {
+      const { orgId } = req.params;
+      
+      // Validate that the organization exists
+      const org = await storage.getOrgById(orgId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const relationships = await storage.getEntityRelationshipsByOrg(orgId);
+      res.json(relationships);
+    } catch (error) {
+      console.error("Error fetching entity relationships:", error);
+      res.status(500).json({ message: "Failed to fetch entity relationships" });
+    }
+  });
+
+  app.post('/api/entity-relationships', async (req: any, res) => {
+    try {
+      // Use a default test user ID for development
+      const userId = "test-user-123";
+      
+      // Convert date strings to Date objects if provided
+      const processedBody = { ...req.body };
+      if (processedBody.effectiveDate && processedBody.effectiveDate !== '') {
+        processedBody.effectiveDate = new Date(processedBody.effectiveDate);
+      }
+      if (processedBody.endDate && processedBody.endDate !== '') {
+        processedBody.endDate = new Date(processedBody.endDate);
+      }
+      
+      // Remove empty string dates to avoid validation errors
+      if (processedBody.effectiveDate === '') {
+        delete processedBody.effectiveDate;
+      }
+      if (processedBody.endDate === '') {
+        delete processedBody.endDate;
+      }
+
+      // Validate relationship types
+      const validRelationshipTypes = ["subsidiary", "parent", "sister", "related", "joint_venture"];
+      if (!validRelationshipTypes.includes(processedBody.relationshipType)) {
+        return res.status(400).json({ 
+          message: `Invalid relationship type. Must be one of: ${validRelationshipTypes.join(", ")}` 
+        });
+      }
+
+      // Validate ownership percentage if provided
+      if (processedBody.ownershipPercentage !== undefined) {
+        const percentage = parseFloat(processedBody.ownershipPercentage);
+        if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+          return res.status(400).json({ 
+            message: "Ownership percentage must be a number between 0 and 100" 
+          });
+        }
+        processedBody.ownershipPercentage = percentage.toString();
+      }
+
+      // Validate that parent and child entities exist and are different
+      const [parentEntity, childEntity] = await Promise.all([
+        storage.getOrgById(processedBody.parentEntityId),
+        storage.getOrgById(processedBody.childEntityId)
+      ]);
+
+      if (!parentEntity) {
+        return res.status(400).json({ message: "Parent entity not found" });
+      }
+      if (!childEntity) {
+        return res.status(400).json({ message: "Child entity not found" });
+      }
+      if (processedBody.parentEntityId === processedBody.childEntityId) {
+        return res.status(400).json({ message: "Parent and child entities must be different" });
+      }
+
+      const relationshipData = insertEntityRelationshipSchema.parse({
+        ...processedBody,
+        createdBy: userId
+      });
+      
+      const relationship = await storage.createEntityRelationship(relationshipData);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        orgId: relationship.parentEntityId,
+        actorId: userId,
+        action: "CREATE_ENTITY_RELATIONSHIP",
+        payload: { 
+          relationshipId: relationship.id,
+          parentEntity: parentEntity.name,
+          childEntity: childEntity.name,
+          relationshipType: relationship.relationshipType,
+          ownershipPercentage: relationship.ownershipPercentage
+        }
+      });
+
+      // Return relationship with full entity details
+      const relationshipWithEntities = {
+        ...relationship,
+        parentEntity,
+        childEntity
+      };
+
+      res.status(201).json(relationshipWithEntities);
+    } catch (error) {
+      console.error("Error creating entity relationship:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create entity relationship" });
+    }
+  });
+
+  app.put('/api/entity-relationships/:id', async (req: any, res) => {
+    try {
+      // Use a default test user ID for development
+      const userId = "test-user-123";
+      const { id } = req.params;
+      
+      // Check if relationship exists
+      const existingRelationship = await storage.getEntityRelationshipById(id);
+      if (!existingRelationship) {
+        return res.status(404).json({ message: "Entity relationship not found" });
+      }
+
+      // Convert date strings to Date objects if provided
+      const processedBody = { ...req.body };
+      if (processedBody.effectiveDate && processedBody.effectiveDate !== '') {
+        processedBody.effectiveDate = new Date(processedBody.effectiveDate);
+      }
+      if (processedBody.endDate && processedBody.endDate !== '') {
+        processedBody.endDate = new Date(processedBody.endDate);
+      }
+      
+      // Remove empty string dates to avoid validation errors
+      if (processedBody.effectiveDate === '') {
+        delete processedBody.effectiveDate;
+      }
+      if (processedBody.endDate === '') {
+        delete processedBody.endDate;
+      }
+
+      // Validate relationship types if provided
+      if (processedBody.relationshipType) {
+        const validRelationshipTypes = ["subsidiary", "parent", "sister", "related", "joint_venture"];
+        if (!validRelationshipTypes.includes(processedBody.relationshipType)) {
+          return res.status(400).json({ 
+            message: `Invalid relationship type. Must be one of: ${validRelationshipTypes.join(", ")}` 
+          });
+        }
+      }
+
+      // Validate ownership percentage if provided
+      if (processedBody.ownershipPercentage !== undefined) {
+        const percentage = parseFloat(processedBody.ownershipPercentage);
+        if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+          return res.status(400).json({ 
+            message: "Ownership percentage must be a number between 0 and 100" 
+          });
+        }
+        processedBody.ownershipPercentage = percentage.toString();
+      }
+
+      // Validate entities if IDs are being changed
+      if (processedBody.parentEntityId || processedBody.childEntityId) {
+        const parentId = processedBody.parentEntityId || existingRelationship.parentEntityId;
+        const childId = processedBody.childEntityId || existingRelationship.childEntityId;
+
+        if (parentId === childId) {
+          return res.status(400).json({ message: "Parent and child entities must be different" });
+        }
+
+        const [parentEntity, childEntity] = await Promise.all([
+          storage.getOrgById(parentId),
+          storage.getOrgById(childId)
+        ]);
+
+        if (!parentEntity) {
+          return res.status(400).json({ message: "Parent entity not found" });
+        }
+        if (!childEntity) {
+          return res.status(400).json({ message: "Child entity not found" });
+        }
+      }
+
+      const updates = insertEntityRelationshipSchema.partial().parse(processedBody);
+      const updatedRelationship = await storage.updateEntityRelationship(id, updates);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        orgId: updatedRelationship.parentEntityId,
+        actorId: userId,
+        action: "UPDATE_ENTITY_RELATIONSHIP",
+        payload: { 
+          relationshipId: updatedRelationship.id,
+          updates
+        }
+      });
+
+      // Get full entity details for response
+      const [parentEntity, childEntity] = await Promise.all([
+        storage.getOrgById(updatedRelationship.parentEntityId),
+        storage.getOrgById(updatedRelationship.childEntityId)
+      ]);
+
+      const relationshipWithEntities = {
+        ...updatedRelationship,
+        parentEntity,
+        childEntity
+      };
+
+      res.json(relationshipWithEntities);
+    } catch (error) {
+      console.error("Error updating entity relationship:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to update entity relationship" });
+    }
+  });
+
+  app.delete('/api/entity-relationships/:id', async (req: any, res) => {
+    try {
+      // Use a default test user ID for development
+      const userId = "test-user-123";
+      const { id } = req.params;
+      
+      // Check if relationship exists
+      const existingRelationship = await storage.getEntityRelationshipById(id);
+      if (!existingRelationship) {
+        return res.status(404).json({ message: "Entity relationship not found" });
+      }
+
+      await storage.deleteEntityRelationship(id);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        orgId: existingRelationship.parentEntityId,
+        actorId: userId,
+        action: "DELETE_ENTITY_RELATIONSHIP",
+        payload: { 
+          relationshipId: id,
+          parentEntityId: existingRelationship.parentEntityId,
+          childEntityId: existingRelationship.childEntityId,
+          relationshipType: existingRelationship.relationshipType
+        }
+      });
+
+      res.json({ message: "Entity relationship deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting entity relationship:", error);
+      res.status(500).json({ message: "Failed to delete entity relationship" });
     }
   });
 

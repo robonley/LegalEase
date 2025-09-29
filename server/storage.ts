@@ -14,6 +14,7 @@ import {
   orgNotes,
   minuteBooks,
   minuteBookDocs,
+  entityRelationships,
   type User,
   type UpsertUser,
   type Org,
@@ -45,6 +46,10 @@ import {
   type InsertMinuteBook,
   type MinuteBookDoc,
   type InsertMinuteBookDoc,
+  type EntityRelationship,
+  type InsertEntityRelationship,
+  type EntityData,
+  type PersonWithRoles,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, ilike, or, sql } from "drizzle-orm";
@@ -168,6 +173,16 @@ export interface IStorage {
     entityId: string; 
     roleType: string;
   }>>;
+
+  // Entity relationship operations
+  createEntityRelationship(relationship: InsertEntityRelationship): Promise<EntityRelationship>;
+  getEntityRelationshipsByOrg(orgId: string): Promise<Array<EntityRelationship & { 
+    parentEntity: Org; 
+    childEntity: Org; 
+  }>>;
+  getEntityRelationshipById(id: string): Promise<EntityRelationship | undefined>;
+  updateEntityRelationship(id: string, updates: Partial<InsertEntityRelationship>): Promise<EntityRelationship>;
+  deleteEntityRelationship(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -813,18 +828,15 @@ export class DatabaseStorage implements IStorage {
         email: people.email,
         dob: people.dob,
         addressId: people.addressId,
+        kycId: people.kycId,
         createdAt: people.createdAt,
-        updatedAt: people.updatedAt,
         // PersonOnOrg fields
         orgId: personOnOrgs.orgId,
+        personId: personOnOrgs.personId,
         role: personOnOrgs.role,
         title: personOnOrgs.title,
         startAt: personOnOrgs.startAt,
         endAt: personOnOrgs.endAt,
-        shareQuantity: personOnOrgs.shareQuantity,
-        shareType: personOnOrgs.shareType,
-        shareClass: personOnOrgs.shareClass,
-        shareIssueDate: personOnOrgs.shareIssueDate,
         // Entity info
         entityName: orgs.name,
         entityId: orgs.id,
@@ -847,6 +859,76 @@ export class DatabaseStorage implements IStorage {
       type: 'person' as const,
       roleType: result.role
     }));
+  }
+
+  // Entity relationship operations
+  async createEntityRelationship(relationship: InsertEntityRelationship): Promise<EntityRelationship> {
+    const [created] = await db.insert(entityRelationships).values(relationship).returning();
+    return created;
+  }
+
+  async getEntityRelationshipsByOrg(orgId: string): Promise<Array<EntityRelationship & { 
+    parentEntity: Org; 
+    childEntity: Org; 
+  }>> {
+    // Get relationships where this org is either parent or child
+    const relationships = await db
+      .select()
+      .from(entityRelationships)
+      .where(
+        or(
+          eq(entityRelationships.parentEntityId, orgId),
+          eq(entityRelationships.childEntityId, orgId)
+        )
+      )
+      .orderBy(desc(entityRelationships.createdAt));
+
+    // Get all unique entity IDs that we need to fetch
+    const entityIds = new Set<string>();
+    relationships.forEach(rel => {
+      entityIds.add(rel.parentEntityId);
+      entityIds.add(rel.childEntityId);
+    });
+
+    // Fetch all entities at once
+    const entities = await db
+      .select()
+      .from(orgs)
+      .where(sql`${orgs.id} IN (${sql.join(Array.from(entityIds).map(id => sql`${id}`), sql`,`)})`);
+
+    // Create a map for quick lookup
+    const entityMap = new Map<string, Org>();
+    entities.forEach(entity => {
+      entityMap.set(entity.id, entity);
+    });
+
+    // Combine relationships with entity details
+    return relationships.map(relationship => ({
+      ...relationship,
+      parentEntity: entityMap.get(relationship.parentEntityId)!,
+      childEntity: entityMap.get(relationship.childEntityId)!,
+    }));
+  }
+
+  async getEntityRelationshipById(id: string): Promise<EntityRelationship | undefined> {
+    const [relationship] = await db
+      .select()
+      .from(entityRelationships)
+      .where(eq(entityRelationships.id, id));
+    return relationship;
+  }
+
+  async updateEntityRelationship(id: string, updates: Partial<InsertEntityRelationship>): Promise<EntityRelationship> {
+    const [updated] = await db
+      .update(entityRelationships)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(entityRelationships.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteEntityRelationship(id: string): Promise<void> {
+    await db.delete(entityRelationships).where(eq(entityRelationships.id, id));
   }
 }
 
