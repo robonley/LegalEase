@@ -624,6 +624,10 @@ export interface EntityData {
   shareClasses: ShareClass[];
   shareIssuances: ShareIssuance[];
   addresses: Address[];
+  relationships?: EntityRelationship[];
+  parentCompanies?: Org[];
+  subsidiaryCompanies?: Org[];
+  relatedEntities?: Org[];
 }
 
 // Corporate Formation Resolution Structure

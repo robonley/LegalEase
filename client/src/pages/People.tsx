@@ -617,9 +617,9 @@ export default function People() {
                         role: role.role as "Director" | "Officer" | "Shareholder",
                         title: role.title || "",
                         startAt: role.startAt ? new Date(role.startAt).toISOString().split('T')[0] : "",
-                        shareQuantity: role.shareQuantity?.toString() || "",
-                        shareType: (role.shareType as "Common" | "Preferred") || "Common",
-                        shareClass: role.shareClass || "",
+                        shareQuantity: "",
+                        shareType: "Common" as "Common" | "Preferred",
+                        shareClass: "",
                       }))
                     }}
                     onSubmit={(data) => {
@@ -669,25 +669,15 @@ export default function People() {
                         <p className="mt-1">{viewingPerson.email || "Not provided"}</p>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-muted-foreground">Phone</label>
-                        <p className="mt-1">{viewingPerson.phone || "Not provided"}</p>
-                      </div>
-                      <div>
                         <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
                         <p className="mt-1">
-                          {viewingPerson.dateOfBirth 
-                            ? formatDate(viewingPerson.dateOfBirth) 
+                          {viewingPerson.dob 
+                            ? formatDate(viewingPerson.dob) 
                             : "Not provided"
                           }
                         </p>
                       </div>
                     </div>
-                    {viewingPerson.address && (
-                      <div className="mt-4">
-                        <label className="text-sm font-medium text-muted-foreground">Address</label>
-                        <p className="mt-1">{viewingPerson.address}</p>
-                      </div>
-                    )}
                   </div>
 
                   {/* Roles and Responsibilities */}
@@ -704,27 +694,12 @@ export default function People() {
                           </div>
                           <div className="grid grid-cols-2 gap-2 text-sm">
                             <div>
-                              <span className="font-medium">Start Date:</span> {role.startDate ? formatDate(role.startDate) : "Not set"}
+                              <span className="font-medium">Start Date:</span> {role.startAt ? formatDate(role.startAt) : "Not set"}
                             </div>
-                            {role.role === 'Shareholder' && role.shareQuantity && (
-                              <>
-                                <div>
-                                  <span className="font-medium">Shares:</span> {role.shareQuantity.toLocaleString()}
-                                </div>
-                                <div>
-                                  <span className="font-medium">Share Type:</span> {role.shareType}
-                                </div>
-                                {role.shareClass && (
-                                  <div>
-                                    <span className="font-medium">Share Class:</span> {role.shareClass}
-                                  </div>
-                                )}
-                                {role.shareIssueDate && (
-                                  <div>
-                                    <span className="font-medium">Issue Date:</span> {formatDate(role.shareIssueDate)}
-                                  </div>
-                                )}
-                              </>
+                            {role.endAt && (
+                              <div>
+                                <span className="font-medium">End Date:</span> {formatDate(role.endAt)}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -771,9 +746,9 @@ export default function People() {
                     role: role.role as "Director" | "Officer" | "Shareholder",
                     title: role.title || "",
                     startAt: role.startAt ? new Date(role.startAt).toISOString().split('T')[0] : "",
-                    shareQuantity: role.shareQuantity?.toString() || "",
-                    shareType: (role.shareType as "Common" | "Preferred") || "Common",
-                    shareClass: role.shareClass || "",
+                    shareQuantity: "",
+                    shareType: "Common" as "Common" | "Preferred",
+                    shareClass: "",
                   }))
                 }}
                 onSubmit={(data) => {

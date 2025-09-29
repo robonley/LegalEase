@@ -415,7 +415,7 @@ export function DocumentEditor({
 
   // Auto-populate template when entity data loads or entity selection changes
   useEffect(() => {
-    if (originalTemplate && entityData?.organization && !documentId) {
+    if (originalTemplate && entityData?.organization) {
       // Always re-populate from original template to ensure clean substitution
       const populatedContent = populateTemplatePlaceholders(originalTemplate);
       setContent(populatedContent);
@@ -763,8 +763,10 @@ export function DocumentEditor({
                     const consolidatedPeople = entityData.people.reduce((acc, person) => {
                       const existingPerson = acc.find(p => p.id === person.id);
                       if (existingPerson) {
-                        // Merge roles from duplicate person entries
-                        existingPerson.roles = [...existingPerson.roles, ...person.roles];
+                        // Merge roles from duplicate person entries and deduplicate by role id
+                        const roleIds = new Set(existingPerson.roles.map(r => r.id));
+                        const newRoles = person.roles.filter(r => !roleIds.has(r.id));
+                        existingPerson.roles = [...existingPerson.roles, ...newRoles];
                       } else {
                         acc.push({ ...person });
                       }
@@ -1020,16 +1022,16 @@ export function DocumentEditor({
                     )}
 
                     {/* Ownership Information */}
-                    {entityData.relationships.some(rel => rel.ownershipPercentage && rel.ownershipPercentage > 0) && (
+                    {entityData.relationships?.some(rel => rel.ownershipPercentage && Number(rel.ownershipPercentage) > 0) && (
                       <Card>
                         <CardHeader className="pb-2">
                           <CardTitle className="text-sm font-medium text-primary">Ownership Information</CardTitle>
                         </CardHeader>
                         <CardContent className="pt-0 space-y-2">
                           {entityData.relationships
-                            .filter(rel => rel.ownershipPercentage && rel.ownershipPercentage > 0)
+                            .filter(rel => rel.ownershipPercentage && Number(rel.ownershipPercentage) > 0)
                             .map((rel) => {
-                              const entityName = rel.parentEntity?.name || rel.childEntity?.name || 'Unknown Entity';
+                              const entityName = `Entity ${rel.parentEntityId || rel.childEntityId}`;
                               const ownershipText = `${entityName}: ${rel.ownershipPercentage}%`;
                               return (
                                 <button
