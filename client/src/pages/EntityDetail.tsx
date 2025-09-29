@@ -13,6 +13,7 @@ import { PDFIngestion } from "@/components/PDFIngestion";
 import { ExtractionResultsModal } from "@/components/ExtractionResultsModal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { EntityRelationships } from "@/components/EntityRelationships";
 import { Upload, MessageSquarePlus, ChevronDown, ChevronUp } from "lucide-react";
 import type { Org, OrgNote } from "@shared/schema";
 
@@ -464,6 +465,12 @@ export default function EntityDetail() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Entity Relationships */}
+        <EntityRelationships 
+          orgId={entity.id}
+          orgName={entity.name}
+        />
 
         {/* Recent Activity Section */}
         <Card>
