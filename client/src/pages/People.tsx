@@ -96,17 +96,17 @@ export default function People() {
       firstName: `${person.firstName} (Copy)`,
       lastName: person.lastName,
       email: "", // Clear email to avoid conflicts
-      phone: person.phone,
-      address: person.address,
-      dateOfBirth: person.dateOfBirth,
+      phone: (person as any).phone || "",
+      address: (person as any).address || "",
+      dateOfBirth: (person as any).dateOfBirth || "",
       roles: person.roles.map(role => ({
         role: role.role,
         title: role.title,
-        startDate: role.startDate,
-        shareQuantity: role.shareQuantity,
-        shareType: role.shareType,
-        shareClass: role.shareClass,
-        shareIssueDate: role.shareIssueDate,
+        startDate: role.startAt,
+        shareQuantity: (role as any).shareQuantity,
+        shareType: (role as any).shareType,
+        shareClass: (role as any).shareClass,
+        shareIssueDate: (role as any).shareIssueDate,
       })),
     };
     // You would pass this data to PersonForm in create mode
@@ -168,14 +168,23 @@ export default function People() {
     const allRoles = person.roles;
     
     // Get unique titles (excluding empty/null titles)
-    const titles = [...new Set(allRoles.map(role => role.title).filter(Boolean))];
+    const titles = Array.from(new Set(allRoles.map(role => role.title).filter(Boolean)));
     
     // Get earliest start date
-    const earliestStart = allRoles.reduce((earliest, role) => {
+    const earliestStart = allRoles.reduce((earliest: string | null, role) => {
       if (!role.startAt) return earliest;
-      if (!earliest) return role.startAt;
-      return new Date(role.startAt) < new Date(earliest) ? role.startAt : earliest;
-    }, null as string | null);
+      
+      // Convert role.startAt to string format
+      const roleStartString = role.startAt instanceof Date 
+        ? role.startAt.toISOString() 
+        : String(role.startAt);
+      
+      if (!earliest) return roleStartString;
+      
+      const roleDate = new Date(roleStartString);
+      const earliestDate = new Date(earliest);
+      return roleDate < earliestDate ? roleStartString : earliest;
+    }, null);
 
     return {
       id: person.id,
@@ -197,7 +206,7 @@ export default function People() {
       `${personData.firstName} ${personData.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       personData.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       personData.allRoles.some(role => role.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      personData.titles.some(title => title.toLowerCase().includes(searchTerm.toLowerCase()));
+      personData.titles.some(title => title && title.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesRole = roleFilter === "all" || 
       personData.allRoles.some(role => role.toLowerCase() === roleFilter.toLowerCase());
@@ -504,9 +513,9 @@ export default function People() {
                             )}
                             
                             {/* Call */}
-                            {personData.person.phone && (
+                            {(personData.person as any).phone && (
                               <DropdownMenuItem
-                                onClick={() => window.open(`tel:${personData.person.phone}`, '_blank')}
+                                onClick={() => window.open(`tel:${(personData.person as any).phone}`, '_blank')}
                                 data-testid={`call-person-${personData.personId}`}
                               >
                                 <i className="fas fa-phone mr-2"></i>
