@@ -890,6 +890,11 @@ export class DatabaseStorage implements IStorage {
       entityIds.add(rel.childEntityId);
     });
 
+    // If no relationships exist, return empty array early
+    if (entityIds.size === 0) {
+      return [];
+    }
+
     // Fetch all entities at once
     const entities = await db
       .select()
