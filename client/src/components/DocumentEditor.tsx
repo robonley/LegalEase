@@ -741,120 +741,134 @@ export function DocumentEditor({
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3 space-y-2">
                 {entityData?.people && entityData.people.length > 0 ? (
-                  <div className="space-y-3">
-                    {/* Directors */}
-                    {entityData.people.filter(p => p.roles.some(r => r.role.toLowerCase() === 'director')).length > 0 && (
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-medium text-primary">Directors</CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0 space-y-2">
-                          {entityData.people
-                            .filter(p => p.roles.some(r => r.role.toLowerCase() === 'director'))
-                            .map((person) => (
+                  (() => {
+                    // Consolidate people to avoid duplicates
+                    const consolidatedPeople = entityData.people.reduce((acc, person) => {
+                      const existingPerson = acc.find(p => p.id === person.id);
+                      if (existingPerson) {
+                        // Merge roles from duplicate person entries
+                        existingPerson.roles = [...existingPerson.roles, ...person.roles];
+                      } else {
+                        acc.push({ ...person });
+                      }
+                      return acc;
+                    }, [] as typeof entityData.people);
+
+                    const directors = consolidatedPeople.filter(p => p.roles.some(r => r.role.toLowerCase() === 'director'));
+                    const officers = consolidatedPeople.filter(p => p.roles.some(r => r.role.toLowerCase() === 'officer'));
+                    const shareholders = consolidatedPeople.filter(p => p.roles.some(r => r.role.toLowerCase() === 'shareholder'));
+
+                    return (
+                      <div className="space-y-3">
+                        {/* Directors */}
+                        {directors.length > 0 && (
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm font-medium text-primary">Directors</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-0 space-y-2">
+                              {directors.map((person) => (
+                                <button
+                                  key={`director-${person.id}`}
+                                  className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                                  onClick={() => insertEntityData(`${person.firstName} ${person.lastName}`)}
+                                  data-testid={`insert-director-${person.id}`}
+                                >
+                                  <div className="font-medium">{person.firstName} {person.lastName}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {person.email}
+                                    <span className="ml-2 text-primary">
+                                      {person.roles.filter(r => r.role.toLowerCase() === 'director').map(r => r.title).filter(Boolean).join(', ')}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {/* Officers */}
+                        {officers.length > 0 && (
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm font-medium text-primary">Officers</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-0 space-y-2">
+                              {officers.map((person) => (
+                                <button
+                                  key={`officer-${person.id}`}
+                                  className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                                  onClick={() => insertEntityData(`${person.firstName} ${person.lastName}`)}
+                                  data-testid={`insert-officer-${person.id}`}
+                                >
+                                  <div className="font-medium">{person.firstName} {person.lastName}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {person.email}
+                                    <span className="ml-2 text-primary">
+                                      {person.roles.filter(r => r.role.toLowerCase() === 'officer').map(r => r.title).filter(Boolean).join(', ')}
+                                    </span>
+                                  </div>
+                                </button>
+                              ))}
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {/* Shareholders */}
+                        {shareholders.length > 0 && (
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm font-medium text-primary">Shareholders</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-0 space-y-2">
+                              {shareholders.map((person) => (
+                                <button
+                                  key={`shareholder-${person.id}`}
+                                  className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                                  onClick={() => insertEntityData(`${person.firstName} ${person.lastName}`)}
+                                  data-testid={`insert-shareholder-${person.id}`}
+                                >
+                                  <div className="font-medium">{person.firstName} {person.lastName}</div>
+                                  <div className="text-xs text-muted-foreground">{person.email}</div>
+                                </button>
+                              ))}
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {/* All People (fallback) */}
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">All People</CardTitle>
+                          </CardHeader>
+                          <CardContent className="pt-0 space-y-2">
+                            {consolidatedPeople.map((person) => (
                               <button
-                                key={`director-${person.id}`}
+                                key={person.id}
                                 className="text-left text-sm hover:bg-muted p-2 rounded w-full"
                                 onClick={() => insertEntityData(`${person.firstName} ${person.lastName}`)}
-                                data-testid={`insert-director-${person.id}`}
+                                data-testid={`insert-person-${person.id}`}
                               >
                                 <div className="font-medium">{person.firstName} {person.lastName}</div>
                                 <div className="text-xs text-muted-foreground">
                                   {person.email}
-                                  <span className="ml-2 text-primary">
-                                    {person.roles.filter(r => r.role.toLowerCase() === 'director').map(r => r.title).filter(Boolean).join(', ')}
-                                  </span>
+                                  {person.roles.length > 0 && (
+                                    <div className="mt-1">
+                                      {person.roles.map(role => (
+                                        <Badge key={role.id} variant="secondary" className="text-xs mr-1">
+                                          {role.title || role.role}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </button>
                             ))}
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Officers */}
-                    {entityData.people.filter(p => p.roles.some(r => r.role.toLowerCase() === 'officer')).length > 0 && (
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-medium text-primary">Officers</CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0 space-y-2">
-                          {entityData.people
-                            .filter(p => p.roles.some(r => r.role.toLowerCase() === 'officer'))
-                            .map((person) => (
-                              <button
-                                key={`officer-${person.id}`}
-                                className="text-left text-sm hover:bg-muted p-2 rounded w-full"
-                                onClick={() => insertEntityData(`${person.firstName} ${person.lastName}`)}
-                                data-testid={`insert-officer-${person.id}`}
-                              >
-                                <div className="font-medium">{person.firstName} {person.lastName}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {person.email}
-                                  <span className="ml-2 text-primary">
-                                    {person.roles.filter(r => r.role.toLowerCase() === 'officer').map(r => r.title).filter(Boolean).join(', ')}
-                                  </span>
-                                </div>
-                              </button>
-                            ))}
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Shareholders */}
-                    {entityData.people.filter(p => p.roles.some(r => r.role.toLowerCase() === 'shareholder')).length > 0 && (
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-sm font-medium text-primary">Shareholders</CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0 space-y-2">
-                          {entityData.people
-                            .filter(p => p.roles.some(r => r.role.toLowerCase() === 'shareholder'))
-                            .map((person) => (
-                              <button
-                                key={`shareholder-${person.id}`}
-                                className="text-left text-sm hover:bg-muted p-2 rounded w-full"
-                                onClick={() => insertEntityData(`${person.firstName} ${person.lastName}`)}
-                                data-testid={`insert-shareholder-${person.id}`}
-                              >
-                                <div className="font-medium">{person.firstName} {person.lastName}</div>
-                                <div className="text-xs text-muted-foreground">{person.email}</div>
-                              </button>
-                            ))}
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* All People (fallback) */}
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-muted-foreground">All People</CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-0 space-y-2">
-                        {entityData.people.map((person) => (
-                          <button
-                            key={person.id}
-                            className="text-left text-sm hover:bg-muted p-2 rounded w-full"
-                            onClick={() => insertEntityData(`${person.firstName} ${person.lastName}`)}
-                            data-testid={`insert-person-${person.id}`}
-                          >
-                            <div className="font-medium">{person.firstName} {person.lastName}</div>
-                            <div className="text-xs text-muted-foreground">
-                              {person.email}
-                              {person.roles.length > 0 && (
-                                <div className="mt-1">
-                                  {person.roles.map(role => (
-                                    <Badge key={role.id} variant="secondary" className="text-xs mr-1">
-                                      {role.title || role.role}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </button>
-                        ))}
-                      </CardContent>
-                    </Card>
-                  </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    );
+                  })())
                 ) : (
                   <div className="text-sm text-muted-foreground italic">No people found</div>
                 )}
