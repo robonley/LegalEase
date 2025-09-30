@@ -15,6 +15,7 @@ import {
   minuteBooks,
   minuteBookDocs,
   entityRelationships,
+  documentDrafts,
   type User,
   type UpsertUser,
   type Org,
@@ -48,6 +49,8 @@ import {
   type InsertMinuteBookDoc,
   type EntityRelationship,
   type InsertEntityRelationship,
+  type DocumentDraft,
+  type InsertDocumentDraft,
   type EntityData,
   type PersonWithRoles,
 } from "@shared/schema";
@@ -183,6 +186,13 @@ export interface IStorage {
   getEntityRelationshipById(id: string): Promise<EntityRelationship | undefined>;
   updateEntityRelationship(id: string, updates: Partial<InsertEntityRelationship>): Promise<EntityRelationship>;
   deleteEntityRelationship(id: string): Promise<void>;
+
+  // Document draft operations
+  listDraftsByUser(userId: string): Promise<DocumentDraft[]>;
+  getDraft(draftId: string): Promise<DocumentDraft | null>;
+  createDraft(draft: InsertDocumentDraft): Promise<DocumentDraft>;
+  updateDraft(draftId: string, updates: Partial<InsertDocumentDraft>): Promise<DocumentDraft>;
+  deleteDraft(draftId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -934,6 +944,44 @@ export class DatabaseStorage implements IStorage {
 
   async deleteEntityRelationship(id: string): Promise<void> {
     await db.delete(entityRelationships).where(eq(entityRelationships.id, id));
+  }
+
+  // Document draft operations
+  async listDraftsByUser(userId: string): Promise<DocumentDraft[]> {
+    return await db
+      .select()
+      .from(documentDrafts)
+      .where(eq(documentDrafts.userId, userId))
+      .orderBy(desc(documentDrafts.lastSaved));
+  }
+
+  async getDraft(draftId: string): Promise<DocumentDraft | null> {
+    const [draft] = await db
+      .select()
+      .from(documentDrafts)
+      .where(eq(documentDrafts.id, draftId));
+    return draft || null;
+  }
+
+  async createDraft(draft: InsertDocumentDraft): Promise<DocumentDraft> {
+    const [created] = await db
+      .insert(documentDrafts)
+      .values(draft)
+      .returning();
+    return created;
+  }
+
+  async updateDraft(draftId: string, updates: Partial<InsertDocumentDraft>): Promise<DocumentDraft> {
+    const [updated] = await db
+      .update(documentDrafts)
+      .set({ ...updates, lastSaved: new Date() })
+      .where(eq(documentDrafts.id, draftId))
+      .returning();
+    return updated;
+  }
+
+  async deleteDraft(draftId: string): Promise<void> {
+    await db.delete(documentDrafts).where(eq(documentDrafts.id, draftId));
   }
 }
 

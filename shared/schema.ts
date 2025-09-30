@@ -234,6 +234,18 @@ export const entityRelationships = pgTable("entity_relationships", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Document Drafts
+export const documentDrafts = pgTable("document_drafts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  orgId: varchar("org_id").references(() => orgs.id),
+  templateId: varchar("template_id").references(() => templates.id),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  lastSaved: timestamp("last_saved").notNull().defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const orgsRelations = relations(orgs, ({ one, many }) => ({
   registeredOffice: one(addresses, {
@@ -438,6 +450,21 @@ export const entityRelationshipsRelations = relations(entityRelationships, ({ on
   }),
 }));
 
+export const documentDraftsRelations = relations(documentDrafts, ({ one }) => ({
+  user: one(users, {
+    fields: [documentDrafts.userId],
+    references: [users.id],
+  }),
+  org: one(orgs, {
+    fields: [documentDrafts.orgId],
+    references: [orgs.id],
+  }),
+  template: one(templates, {
+    fields: [documentDrafts.templateId],
+    references: [templates.id],
+  }),
+}));
+
 // Insert schemas
 export const insertAddressSchema = createInsertSchema(addresses);
 export const insertOrgSchema = createInsertSchema(orgs).omit({
@@ -495,6 +522,12 @@ export const insertEntityRelationshipSchema = createInsertSchema(entityRelations
   updatedAt: true,
 });
 
+export const insertDocumentDraftSchema = createInsertSchema(documentDrafts).omit({
+  id: true,
+  createdAt: true,
+  lastSaved: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -543,6 +576,10 @@ export type InsertMinuteBookDoc = z.infer<typeof insertMinuteBookDocSchema>;
 // Entity Relationships types
 export type EntityRelationship = typeof entityRelationships.$inferSelect;
 export type InsertEntityRelationship = z.infer<typeof insertEntityRelationshipSchema>;
+
+// Document Drafts types
+export type DocumentDraft = typeof documentDrafts.$inferSelect;
+export type InsertDocumentDraft = z.infer<typeof insertDocumentDraftSchema>;
 
 // Ingestion Jobs and Results
 export const ingestionJobs = pgTable("ingestion_jobs", {

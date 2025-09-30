@@ -15,7 +15,8 @@ import {
   insertAuditLogSchema,
   insertOrgNoteSchema,
   insertMinuteBookSchema,
-  insertEntityRelationshipSchema
+  insertEntityRelationshipSchema,
+  insertDocumentDraftSchema
 } from "@shared/schema";
 import { z } from "zod";
 import { extractTemplateVariables, createVariableMapping, CBCA_TEMPLATE_VARIABLES } from "./templateProcessor";
@@ -2446,6 +2447,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting entity relationship:", error);
       res.status(500).json({ message: "Failed to delete entity relationship" });
+    }
+  });
+
+  // Document Draft routes
+  app.get('/api/drafts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const drafts = await storage.listDraftsByUser(userId);
+      res.json(drafts);
+    } catch (error) {
+      console.error("Error fetching drafts:", error);
+      res.status(500).json({ message: "Failed to fetch drafts" });
+    }
+  });
+
+  app.get('/api/drafts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const draft = await storage.getDraft(req.params.id);
+      
+      if (!draft) {
+        return res.status(404).json({ message: "Draft not found" });
+      }
+
+      if (draft.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      res.json(draft);
+    } catch (error) {
+      console.error("Error fetching draft:", error);
+      res.status(500).json({ message: "Failed to fetch draft" });
+    }
+  });
+
+  app.post('/api/drafts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const draftData = insertDocumentDraftSchema.parse({
+        ...req.body,
+        userId
+      });
+
+      const draft = await storage.createDraft(draftData);
+      res.status(201).json(draft);
+    } catch (error) {
+      console.error("Error creating draft:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create draft" });
+    }
+  });
+
+  app.patch('/api/drafts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const draft = await storage.getDraft(req.params.id);
+      
+      if (!draft) {
+        return res.status(404).json({ message: "Draft not found" });
+      }
+
+      if (draft.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const updates = insertDocumentDraftSchema.partial().parse(req.body);
+      const updatedDraft = await storage.updateDraft(req.params.id, updates);
+      
+      res.json(updatedDraft);
+    } catch (error) {
+      console.error("Error updating draft:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to update draft" });
+    }
+  });
+
+  app.delete('/api/drafts/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const draft = await storage.getDraft(req.params.id);
+      
+      if (!draft) {
+        return res.status(404).json({ message: "Draft not found" });
+      }
+
+      if (draft.userId !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      await storage.deleteDraft(req.params.id);
+      res.json({ message: "Draft deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting draft:", error);
+      res.status(500).json({ message: "Failed to delete draft" });
     }
   });
 
