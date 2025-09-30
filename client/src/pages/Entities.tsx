@@ -319,9 +319,9 @@ export default function Entities() {
                     <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
                       <i className="fas fa-magic text-white text-xl"></i>
                     </div>
-                    <h3 className="text-lg font-semibold mb-2">Smart Document Extraction</h3>
+                    <h3 className="text-lg font-semibold mb-2">✨ Smart Document Extraction</h3>
                     <p className="text-sm text-muted-foreground">
-                      Upload incorporation documents or articles of organization to automatically extract entity information and save time
+                      Upload incorporation documents or articles of organization. Our AI scanning technology automatically extracts entity information and saves you time
                     </p>
                   </div>
                   <PDFIngestion 

@@ -16,7 +16,8 @@ import {
   insertOrgNoteSchema,
   insertMinuteBookSchema,
   insertEntityRelationshipSchema,
-  insertDocumentDraftSchema
+  insertDocumentDraftSchema,
+  type InsertAddress
 } from "@shared/schema";
 import { z } from "zod";
 import { extractTemplateVariables, createVariableMapping, CBCA_TEMPLATE_VARIABLES } from "./templateProcessor";
@@ -1640,38 +1641,365 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to parse address string into Address object
+  function parseAddressString(addressStr: string | undefined | null): Partial<InsertAddress> {
+    if (!addressStr) {
+      return {
+        line1: '',
+        city: '',
+        region: '',
+        country: '',
+        postal: ''
+      };
+    }
+
+    const parts = addressStr.split(',').map(p => p.trim());
+    
+    // Extract postal code patterns (Canadian or US)
+    const canadianPostalMatch = addressStr.match(/([A-Z]\d[A-Z]\s?\d[A-Z]\d)/);
+    const usPostalMatch = addressStr.match(/([\d]{5}(?:-[\d]{4})?)/);
+    
+    let postal = '';
+    let country = '';
+    
+    if (canadianPostalMatch) {
+      postal = canadianPostalMatch[1];
+      country = 'Canada';
+    } else if (usPostalMatch) {
+      postal = usPostalMatch[1];
+      country = 'United States';
+    }
+    
+    // Parse address components
+    if (parts.length >= 3) {
+      const line1 = parts.slice(0, -2).join(', ');
+      const city = parts[parts.length - 2];
+      const lastPart = parts[parts.length - 1];
+      
+      // Extract region (state/province abbreviation)
+      const regionMatch = lastPart.match(/\b([A-Z]{2})\b/);
+      const region = regionMatch ? regionMatch[1] : lastPart.replace(/[\d\-\s]/g, '').trim();
+      
+      // If we have a region but no postal code match, try to infer country from common state codes
+      if (!country && region.length === 2) {
+        const usStates = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 
+                          'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS',
+                          'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK',
+                          'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV',
+                          'WI', 'WY', 'DC'];
+        const canadianProvinces = ['AB', 'BC', 'MB', 'NB', 'NL', 'NS', 'NT', 'NU', 'ON', 'PE', 'QC', 'SK', 'YT'];
+        
+        if (usStates.includes(region)) {
+          country = 'United States';
+        } else if (canadianProvinces.includes(region)) {
+          country = 'Canada';
+        }
+        // If region doesn't match known codes, leave country blank
+      }
+      
+      return {
+        line1,
+        city,
+        region,
+        country,
+        postal
+      };
+    }
+    
+    // Fallback for poorly formatted addresses
+    return {
+      line1: addressStr,
+      city: '',
+      region: '',
+      country,
+      postal
+    };
+  }
+
   // Apply extraction results (create entities/people from extraction)
   app.post('/api/ingest/:jobId/apply', isAuthenticated, async (req: any, res) => {
+    const { jobId } = req.params;
+    const userId = req.user.claims.sub;
+    
+    const job = await storage.getIngestionJobById(jobId);
+    
+    if (!job) {
+      return res.status(404).json({ message: 'Job not found' });
+    }
+    
+    if (job.userId !== userId) {
+      return res.status(403).json({ message: 'Access denied: This extraction result belongs to another user' });
+    }
+    
+    if (job.status !== 'completed' || !job.extractionResult) {
+      return res.status(400).json({ message: 'Job not completed or no results available' });
+    }
+    
+    const extractionResult = job.extractionResult as any; // ExtractionResult type
+    const createdResources = {
+      addresses: [] as string[],
+      orgId: null as string | null,
+      personIds: [] as string[],
+      relationshipIds: [] as string[],
+      shareClassIds: [] as string[],
+      shareIssuanceIds: [] as string[]
+    };
+
     try {
-      const { jobId } = req.params;
-      const userId = req.user.claims.sub;
-      const { decisions } = req.body; // User's decisions on what to create/update
+      const createdPersonIds: string[] = [];
+      let createdOrgId: string | null = null;
       
-      const job = await storage.getIngestionJobById(jobId);
-      
-      if (!job) {
-        return res.status(404).json({ message: 'Job not found' });
+      // 1. Create organization if data exists
+      if (extractionResult.organization && extractionResult.organization.legalName) {
+        const orgData = extractionResult.organization;
+        
+        // Create registered office address if provided
+        let registeredOfficeId: string | undefined;
+        if (orgData.registeredOffice) {
+          const parsedAddress = parseAddressString(orgData.registeredOffice);
+          if (parsedAddress && parsedAddress.line1) {
+            const registeredOffice = await storage.createAddress(parsedAddress as InsertAddress);
+            registeredOfficeId = registeredOffice.id;
+            createdResources.addresses.push(registeredOffice.id);
+          }
+        }
+        
+        // Create records office address if provided
+        let recordsOfficeId: string | undefined;
+        if (orgData.recordsOffice) {
+          const parsedAddress = parseAddressString(orgData.recordsOffice);
+          if (parsedAddress && parsedAddress.line1) {
+            const recordsOffice = await storage.createAddress(parsedAddress as InsertAddress);
+            recordsOfficeId = recordsOffice.id;
+            createdResources.addresses.push(recordsOffice.id);
+          }
+        }
+        
+        // Create organization
+        const org = await storage.createOrg({
+          name: orgData.legalName,
+          number: orgData.number || undefined,
+          jurisdiction: orgData.jurisdiction || 'CBCA',
+          formationAt: orgData.formationDate ? new Date(orgData.formationDate) : undefined,
+          registeredOfficeId,
+          recordsOfficeId,
+          createdById: userId
+        });
+        
+        createdOrgId = org.id;
+        createdResources.orgId = org.id;
+        
+        // Create audit log for org creation
+        await storage.createAuditLog({
+          orgId: org.id,
+          actorId: userId,
+          action: 'CREATE_ORG_FROM_EXTRACTION',
+          payload: { 
+            orgId: org.id, 
+            name: org.name,
+            source: 'AI Scanner',
+            jobId 
+          }
+        });
       }
       
-      if (job.userId !== userId) {
-        return res.status(403).json({ message: 'Access denied' });
+      if (!createdOrgId) {
+        return res.status(400).json({ message: 'No organization data found in extraction results' });
       }
       
-      if (job.status !== 'completed' || !job.extractionResult) {
-        return res.status(400).json({ message: 'Job not completed or no results available' });
+      // 2. Create people from extracted people array
+      const allPeople = [...(extractionResult.people || []), ...(extractionResult.shareholders || [])];
+      const uniquePeopleMap = new Map();
+      
+      // Deduplicate people by full name
+      for (const personData of allPeople) {
+        const key = personData.fullName.toLowerCase().trim();
+        if (!uniquePeopleMap.has(key)) {
+          uniquePeopleMap.set(key, personData);
+        } else {
+          // Merge data if person appears multiple times
+          const existing = uniquePeopleMap.get(key);
+          uniquePeopleMap.set(key, { ...existing, ...personData });
+        }
       }
       
-      // TODO: Implement the logic to create entities/people based on extraction results
-      // This would involve:
-      // 1. Creating organization if needed
-      // 2. Creating people records
-      // 3. Creating person-org relationships
-      // 4. Creating share issuances
+      const shareClassMap = new Map<string, string>(); // shareClassName -> shareClassId
       
-      res.json({ message: 'Extraction results applied successfully' });
+      // Process each unique person
+      for (const [_, personData] of Array.from(uniquePeopleMap)) {
+        // Create address if provided
+        let addressId: string | undefined;
+        if (personData.address || (personData.city && personData.province)) {
+          const addressData: any = {};
+          
+          if (personData.address) {
+            const parsed = parseAddressString(personData.address);
+            if (parsed) {
+              Object.assign(addressData, parsed);
+            }
+          }
+          
+          // Override with specific fields if available
+          if (personData.city) addressData.city = personData.city;
+          if (personData.province) addressData.region = personData.province;
+          if (personData.country) addressData.country = personData.country;
+          if (personData.postalCode) addressData.postal = personData.postalCode;
+          
+          // Ensure required fields
+          if (!addressData.line1) addressData.line1 = personData.address || 'Unknown';
+          if (!addressData.city) addressData.city = 'Unknown';
+          if (!addressData.region) addressData.region = 'Unknown';
+          if (!addressData.country) addressData.country = 'Canada';
+          if (!addressData.postal) addressData.postal = 'Unknown';
+          
+          const address = await storage.createAddress(addressData);
+          addressId = address.id;
+          createdResources.addresses.push(address.id);
+        }
+        
+        // Parse first/last name from fullName if not provided
+        let firstName = personData.firstName;
+        let lastName = personData.lastName;
+        
+        if (!firstName || !lastName) {
+          const nameParts = personData.fullName.trim().split(/\s+/);
+          if (nameParts.length === 1) {
+            firstName = nameParts[0];
+            lastName = nameParts[0];
+          } else {
+            firstName = nameParts[0];
+            lastName = nameParts.slice(1).join(' ');
+          }
+        }
+        
+        // Create person
+        const person = await storage.createPerson({
+          firstName,
+          lastName,
+          email: personData.email || undefined,
+          addressId
+        });
+        
+        createdPersonIds.push(person.id);
+        createdResources.personIds.push(person.id);
+        
+        // 3. Create person-org relationships based on roles
+        const roles: Array<{ role: string; title?: string }> = [];
+        
+        if (personData.isDirector) {
+          roles.push({ role: 'Director' });
+        }
+        
+        if (personData.isOfficer) {
+          roles.push({ 
+            role: 'Officer',
+            title: personData.officerTitle
+          });
+        }
+        
+        if (personData.isShareholder) {
+          roles.push({ role: 'Shareholder' });
+        }
+        
+        // Create each role relationship
+        for (const roleData of roles) {
+          const relation = await storage.createPersonOnOrg({
+            orgId: createdOrgId,
+            personId: person.id,
+            role: roleData.role,
+            title: roleData.title,
+            startAt: new Date()
+          });
+          createdResources.relationshipIds.push(relation.id);
+        }
+        
+        // 4. Create share class and issuance for shareholders
+        if (personData.isShareholder && personData.shareClass && personData.shares) {
+          // Check if share class already exists
+          let shareClassId = shareClassMap.get(personData.shareClass);
+          
+          if (!shareClassId) {
+            // Extract short code from share class name (e.g., "Class A" -> "A")
+            const shortCodeMatch = personData.shareClass.match(/Class\s+([A-Z])/i);
+            const shortCode = shortCodeMatch ? shortCodeMatch[1].toUpperCase() : personData.shareClass.charAt(0).toUpperCase();
+            
+            // Create share class
+            const shareClass = await storage.createShareClass({
+              orgId: createdOrgId,
+              name: personData.shareClass,
+              shortCode,
+              voting: true,
+              participating: true,
+              redemption: false
+            });
+            
+            shareClassId = shareClass.id;
+            shareClassMap.set(personData.shareClass, shareClassId);
+            createdResources.shareClassIds.push(shareClass.id);
+          }
+          
+          // Generate certificate number
+          const certNumber = `CERT-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+          
+          // Create share issuance
+          const issuance = await storage.createShareIssuance({
+            orgId: createdOrgId,
+            shareholderType: 'person',
+            shareholderId: person.id,
+            shareClassId,
+            quantity: personData.shares,
+            certNumber,
+            issueDate: personData.issueDate ? new Date(personData.issueDate) : new Date()
+          });
+          createdResources.shareIssuanceIds.push(issuance.id);
+        }
+        
+        // Create audit log for person creation
+        await storage.createAuditLog({
+          orgId: createdOrgId,
+          actorId: userId,
+          action: 'CREATE_PERSON_FROM_EXTRACTION',
+          payload: { 
+            personId: person.id,
+            name: `${firstName} ${lastName}`,
+            roles: roles.map(r => r.role),
+            source: 'AI Scanner',
+            jobId 
+          }
+        });
+      }
+      
+      res.json({ 
+        success: true, 
+        orgId: createdOrgId, 
+        personIds: createdPersonIds,
+        message: `Successfully created organization and ${createdPersonIds.length} people from extraction results`
+      });
     } catch (error) {
       console.error('Error applying extraction results:', error);
-      res.status(500).json({ message: 'Failed to apply extraction results' });
+      
+      // Attempt cleanup of partially created records
+      try {
+        for (const id of createdResources.shareIssuanceIds) {
+          await storage.deleteShareIssuance(id).catch(() => {});
+        }
+        for (const id of createdResources.shareClassIds) {
+          await storage.deleteShareClass(id).catch(() => {});
+        }
+        for (const id of createdResources.relationshipIds) {
+          await storage.deletePersonOnOrg(id).catch(() => {});
+        }
+        if (createdResources.orgId) {
+          await storage.deleteOrg(createdResources.orgId).catch(() => {});
+        }
+      } catch (cleanupError) {
+        console.error('Cleanup failed:', cleanupError);
+      }
+      
+      return res.status(500).json({ 
+        message: 'Failed to apply extraction results', 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
     }
   });
 

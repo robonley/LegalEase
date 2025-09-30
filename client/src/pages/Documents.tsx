@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import { useEntityContext } from "@/hooks/useEntityContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { DocumentEditor } from "@/components/DocumentEditor";
-import type { GeneratedDoc } from "@shared/schema";
+import type { GeneratedDoc, IngestionJob, ExtractionResult } from "@shared/schema";
 
 export default function Documents() {
   const { currentEntity } = useEntityContext();
@@ -40,12 +40,31 @@ export default function Documents() {
   const [showDocEditor, setShowDocEditor] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [newJobIds, setNewJobIds] = useState<string[]>([]);
 
   // Fetch documents for current entity
   const { data: documents = [], isLoading } = useQuery<GeneratedDoc[]>({
     queryKey: ["/api/documents", currentEntity?.id],
     enabled: !!currentEntity?.id,
   });
+
+  // Fetch user's ingestion jobs
+  const { data: ingestionJobs = [], isLoading: loadingJobs } = useQuery<IngestionJob[]>({
+    queryKey: ["/api/ingest/jobs"],
+  });
+
+  // Track new jobs - mark completed jobs as "new" within the last 5 minutes
+  useEffect(() => {
+    if (ingestionJobs.length > 0) {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const recentCompleted = ingestionJobs.filter((job) => 
+        job.status === 'completed' && 
+        job.completedAt &&
+        new Date(job.completedAt) > fiveMinutesAgo
+      ).map((job) => job.id);
+      setNewJobIds(recentCompleted);
+    }
+  }, [ingestionJobs]);
 
   // Single document creation mutation
   const createDocumentMutation = useMutation({
@@ -282,6 +301,11 @@ export default function Documents() {
             <TabsTrigger value="uploads" data-testid="uploads-tab">
               <i className="fas fa-cloud-upload-alt mr-2"></i>
               Uploads
+              {newJobIds.length > 0 && (
+                <Badge variant="secondary" className="ml-2 bg-blue-500 text-white">
+                  {newJobIds.length} New
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="templates" data-testid="templates-tab">
               <i className="fas fa-file-text mr-2"></i>
@@ -304,28 +328,60 @@ export default function Documents() {
               </Button>
             </div>
 
-            {/* Uploaded Documents Placeholder */}
-            <Card>
-              <CardContent className="p-12 text-center">
-                <i className="fas fa-cloud-upload-alt text-4xl text-muted-foreground mb-4"></i>
-                <CardTitle className="mb-2">Document Upload Feature</CardTitle>
-                <CardDescription className="mb-4">
-                  Upload and organize your corporate documents including registration papers, 
-                  amendments, and other official records.
-                </CardDescription>
-                <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground">
-                    <strong>Coming Features:</strong>
-                  </div>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    <li>• Document classification (Registration, Corporate Records, etc.)</li>
-                    <li>• PDF, Word, and image file support</li>
-                    <li>• Document version control</li>
-                    <li>• Advanced search and filtering</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Uploaded Documents */}
+            {loadingJobs ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <i className="fas fa-spinner fa-spin text-4xl text-muted-foreground mb-4"></i>
+                  <CardTitle className="mb-2">Loading...</CardTitle>
+                </CardContent>
+              </Card>
+            ) : ingestionJobs.length === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <i className="fas fa-cloud-upload-alt text-4xl text-muted-foreground mb-4"></i>
+                  <CardTitle className="mb-2">No Uploaded Documents</CardTitle>
+                  <CardDescription>
+                    Use the Entity Scan feature to upload and extract data from corporate documents.
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                {ingestionJobs.map((job) => (
+                  <Card key={job.id} className={newJobIds.includes(job.id) ? "border-blue-500 border-2" : ""} data-testid={`ingestion-job-${job.id}`}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <i className="fas fa-file-pdf text-2xl text-blue-500"></i>
+                          <div>
+                            <CardTitle className="text-base">{job.filename}</CardTitle>
+                            <CardDescription className="text-xs">
+                              Uploaded {job.createdAt ? new Date(job.createdAt).toLocaleString() : 'Unknown'}
+                            </CardDescription>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {newJobIds.includes(job.id) && (
+                            <Badge variant="secondary" className="bg-blue-500 text-white" data-testid={`new-badge-${job.id}`}>New</Badge>
+                          )}
+                          <Badge variant={job.status === 'completed' ? 'default' : job.status === 'failed' ? 'destructive' : 'secondary'} data-testid={`status-badge-${job.id}`}>
+                            {job.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    {job.extractionResult ? (
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                          Extracted: {(job.extractionResult as ExtractionResult).people?.length || 0} people, {(job.extractionResult as ExtractionResult).shareholders?.length || 0} shareholders
+                        </p>
+                      </CardContent>
+                    ) : null}
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           {/* Templates Tab */}

@@ -210,11 +210,12 @@ export function PDFIngestion({ onExtractionComplete, className }: PDFIngestionPr
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
-            Upload Corporate Documents
+            ✨ Smart Document Extraction
           </CardTitle>
           <CardDescription>
             Upload incorporation papers, shareholder agreements, minute books, or other corporate documents. 
-            Multiple files can be uploaded at once. Supported formats: PDF, PNG, JPEG, TIFF.
+            Our AI scanning technology extracts structured data automatically. Multiple files can be uploaded at once. 
+            Supported formats: PDF, PNG, JPEG, TIFF.
           </CardDescription>
         </CardHeader>
         <CardContent>
