@@ -1,0 +1,57 @@
+
+⸻
+
+Objective:
+Develop a minimum viable product (MVP) for a Contract Lifecycle Management (CLM) platform focused on contract tracking and management. The application should be built with web‑based technologies and support a remote, agile development workflow. Use JIRA to manage user stories and tasks. Approval flows will be added later.
+
+Core Functional Features
+	1.	Centralized Contract Repository
+	•	Implement a secure, cloud‑backed storage system for contracts and related documents.
+	•	Provide version management, audit logs and advanced search to give a single source of truth ￼.
+	•	Ensure documents can be tagged with metadata (e.g., contract name, parties, value, effective date).
+	2.	Version Control & Audit Trail
+	•	Track edits made to each contract, storing previous versions and showing who made changes and when ￼.
+	•	Allow users to view and compare versions.
+	3.	Template & Clause Library
+	•	Include a library of pre‑approved contract templates and reusable clauses ￼.
+	•	Enable non‑legal users to generate contracts via self‑service tools ￼.
+	4.	Contract Creation & Editing Interface
+	•	Build a form‑based editor where users can assemble contracts from templates, insert clauses and edit text.
+	•	Support collaborative editing, redlining and commenting for remote teams ￼.
+	•	Capture metadata such as parties, dates and contract values.
+	5.	Searchable Contract Library
+	•	Implement a powerful search feature that allows users to find contracts by name, metadata or specific clause content ￼.
+	•	Use indexing to ensure quick search results.
+	6.	Notifications & Alerts
+	•	Create automated alerts for events such as upcoming renewal dates, expirations or changes to a contract ￼ ￼.
+	•	Allow users to customize reminder schedules.
+	7.	Risk, Compliance & Analytics
+	•	Include compliance checks against internal policies and regulatory requirements ￼ ￼.
+	•	Provide basic reporting dashboards to track contract performance, renewals and risk metrics ￼.
+	8.	E‑Signature Integration
+	•	Integrate with a legally compliant e‑signature service so contracts can be signed electronically ￼ ￼.
+	•	Store signed documents in the repository.
+	9.	Mobile Access
+	•	Ensure the application is mobile‑responsive so users can view and manage contracts on phones and tablets ￼.
+
+AI & OCR Enhancements
+	10.	OCR Ingest & Data Extraction
+	•	Implement an OCR engine capable of converting scanned or photographed contracts into machine‑readable text ￼.
+	•	Use advanced OCR features—zone‑based extraction, multi‑language support and table recognition—to capture structured data from different document layouts ￼.
+	•	OCR should significantly reduce manual data entry time and operate at high accuracy levels ￼.
+	11.	AI‑Driven Contract Summarization
+	•	Develop natural language processing routines to automatically extract key information from contracts, including parties, payment terms, contract values, start and end dates, renewal dates, termination clauses and critical obligations ￼ ￼.
+	•	Generate concise summaries of each contract’s essential terms and obligations.
+	•	Ensure AI summaries are consistent and reduce human error ￼.
+	•	Detect risks and highlight important deadlines; create tasks in the system or JIRA when obligations require follow‑up ￼.
+
+Development & Workflow Guidelines
+	•	Follow agile best practices. Break the MVP into epics (e.g., repository, editor, search, OCR, AI summarization) and user stories, and manage them in JIRA.
+	•	Use remote collaboration tools (e.g., video calls, chat) for daily stand‑ups, sprint planning and retrospectives.
+	•	Prioritize security, especially for document storage and user authentication.
+	•	Design a clean, intuitive UI with clear navigation between repository, creation/editing, search and analytics.
+	•	Write modular, well‑documented code to facilitate future enhancements such as approval workflows and deeper analytics.
+
+⸻
+
+You can paste this prompt into Replit as a starting brief to generate code or scaffold your project. It covers all critical features of your MVP while outlining implementation priorities and references to authoritative sources.
