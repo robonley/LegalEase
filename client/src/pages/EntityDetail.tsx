@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,14 +8,467 @@ import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { PDFIngestion } from "@/components/PDFIngestion";
 import { ExtractionResultsModal } from "@/components/ExtractionResultsModal";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { EntityRelationships } from "@/components/EntityRelationships";
-import { Upload, MessageSquarePlus, ChevronDown, ChevronUp } from "lucide-react";
+import { Upload, MessageSquarePlus, ChevronDown, ChevronUp, FileText, Calendar, DollarSign, AlertTriangle, TrendingUp } from "lucide-react";
+import { differenceInDays } from "date-fns";
 import type { Org, OrgNote } from "@shared/schema";
+
+type Contract = {
+  id: string;
+  orgId: string;
+  name: string;
+  contractType: string;
+  status: string;
+  description?: string;
+  contractValue?: string;
+  currency?: string;
+  effectiveDate?: string | Date;
+  expirationDate?: string | Date;
+  renewalDate?: string | Date;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+};
+
+const CONTRACT_TYPES = [
+  { value: "vendor", label: "Vendor Agreement" },
+  { value: "customer", label: "Customer Agreement" },
+  { value: "employment", label: "Employment Contract" },
+  { value: "nda", label: "Non-Disclosure Agreement" },
+  { value: "license", label: "License Agreement" },
+  { value: "other", label: "Other" },
+];
+
+function EntityContractsSection({ orgId }: { orgId: string }) {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch contracts for this entity
+  const { data: contracts = [], isLoading } = useQuery<Contract[]>({
+    queryKey: ["/api/contracts/org", orgId],
+    enabled: !!orgId,
+  });
+
+  // Calculate per-currency totals
+  const currencyTotals = useMemo(() => {
+    const totals: Record<string, number> = {};
+    
+    contracts.forEach(contract => {
+      if (contract.contractValue) {
+        const value = parseFloat(contract.contractValue);
+        const currency = contract.currency || 'Unknown';
+        totals[currency] = (totals[currency] || 0) + value;
+      }
+    });
+    
+    return totals;
+  }, [contracts]);
+
+  // Check if mixed currencies
+  const currencies = Object.keys(currencyTotals);
+  const hasMixedCurrencies = currencies.length > 1;
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const total = contracts.length;
+    const active = contracts.filter(c => c.status === 'active').length;
+    
+    // Expiring soon (within 30 days)
+    const expiringSoon = contracts.filter(c => {
+      if (!c.expirationDate || c.status !== 'active') return false;
+      const expDate = typeof c.expirationDate === 'string' ? new Date(c.expirationDate) : c.expirationDate;
+      const daysUntil = differenceInDays(expDate, new Date());
+      return daysUntil >= 0 && daysUntil <= 30;
+    }).length;
+    
+    return { total, active, expiringSoon };
+  }, [contracts]);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (contractId: string) => {
+      return await apiRequest("DELETE", `/api/contracts/${contractId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts/org", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      toast({
+        title: "Success",
+        description: "Contract deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const getStatusBadge = (status: string) => {
+    const statusMap: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", color: string }> = {
+      draft: { variant: "secondary", color: "bg-yellow-500" },
+      active: { variant: "default", color: "bg-green-500" },
+      expired: { variant: "destructive", color: "bg-red-500" },
+      terminated: { variant: "outline", color: "bg-gray-500" },
+      pending_signature: { variant: "secondary", color: "bg-blue-500" },
+    };
+    
+    const config = statusMap[status] || statusMap.draft;
+    
+    return (
+      <Badge variant={config.variant} data-testid={`status-${status}`}>
+        <span className={`w-2 h-2 rounded-full ${config.color} mr-1.5`}></span>
+        {status.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+      </Badge>
+    );
+  };
+
+  const getExpirationWarning = (expirationDate: string | Date | undefined) => {
+    if (!expirationDate) return null;
+    
+    const expDate = typeof expirationDate === 'string' ? new Date(expirationDate) : expirationDate;
+    const daysUntilExpiration = differenceInDays(expDate, new Date());
+    
+    if (daysUntilExpiration < 0) {
+      return (
+        <Badge variant="destructive" className="ml-2" data-testid="badge-expired">
+          <AlertTriangle className="w-3 h-3 mr-1" />
+          Expired
+        </Badge>
+      );
+    }
+    
+    if (daysUntilExpiration <= 30) {
+      return (
+        <Badge variant="secondary" className="ml-2 bg-orange-500 text-white" data-testid="badge-expiring-soon">
+          <AlertTriangle className="w-3 h-3 mr-1" />
+          Expires in {daysUntilExpiration} days
+        </Badge>
+      );
+    }
+    
+    return null;
+  };
+
+  const formatDate = (date: string | Date | undefined | null) => {
+    if (!date) return "N/A";
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const formatCurrency = (value: number, currency: string = "USD") => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const handleViewContract = (contractId: string) => {
+    setLocation(`/contracts/${contractId}`);
+  };
+
+  const handleCreateContract = () => {
+    setLocation(`/contracts/new?orgId=${orgId}`);
+  };
+
+  const handleDeleteContract = (contractId: string, contractName: string) => {
+    if (confirm(`Are you sure you want to delete "${contractName}"? This action cannot be undone.`)) {
+      deleteMutation.mutate(contractId);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Contracts</CardTitle>
+            <CardDescription>
+              Manage contracts and agreements for this entity
+            </CardDescription>
+          </div>
+          <Button onClick={handleCreateContract} data-testid="button-create-contract-entity">
+            <FileText className="w-4 h-4 mr-2" />
+            Create Contract
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs">Total Contracts</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-muted-foreground" />
+                <span className="text-2xl font-bold" data-testid="text-total-contracts">{stats.total}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs">Active</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                <span className="text-2xl font-bold" data-testid="text-active-contracts">{stats.active}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription className="text-xs">Expiring Soon</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <AlertTriangle className={`w-4 h-4 ${stats.expiringSoon > 0 ? 'text-orange-500' : 'text-muted-foreground'}`} />
+                <span className="text-2xl font-bold" data-testid="text-expiring-contracts">{stats.expiringSoon}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {hasMixedCurrencies ? (
+                <div className="space-y-1" data-testid="text-total-value">
+                  <div className="text-xs text-muted-foreground">Multi-currency:</div>
+                  {currencies.map(currency => (
+                    <div key={currency} className="text-sm font-medium">
+                      {currency === 'Unknown' 
+                        ? `${currencyTotals[currency].toFixed(2)} (Currency not set)`
+                        : formatCurrency(currencyTotals[currency], currency)
+                      }
+                    </div>
+                  ))}
+                </div>
+              ) : currencies.length === 1 ? (
+                <div className="text-2xl font-bold" data-testid="text-total-value">
+                  {currencies[0] === 'Unknown'
+                    ? `${currencyTotals['Unknown'].toFixed(2)} (Unknown)`
+                    : formatCurrency(currencyTotals[currencies[0]], currencies[0])
+                  }
+                </div>
+              ) : (
+                <div className="text-2xl font-bold" data-testid="text-total-value">-</div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Contracts List */}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <i className="fas fa-spinner fa-spin text-2xl text-muted-foreground"></i>
+          </div>
+        ) : contracts.length === 0 ? (
+          <div className="text-center py-12 border rounded-lg bg-muted/20">
+            <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <CardTitle className="text-base mb-2" data-testid="text-no-contracts">No contracts yet</CardTitle>
+            <CardDescription className="mb-4">
+              Create your first contract for this entity
+            </CardDescription>
+            <Button onClick={handleCreateContract} data-testid="button-create-first-contract">
+              <FileText className="w-4 h-4 mr-2" />
+              Create Contract
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* Desktop Table View */}
+            <div className="hidden md:block border rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Contract Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Value</TableHead>
+                    <TableHead>Effective Date</TableHead>
+                    <TableHead>Expiration Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {contracts.map((contract) => (
+                    <TableRow 
+                      key={contract.id} 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleViewContract(contract.id)}
+                      data-testid={`row-contract-${contract.id}`}
+                    >
+                      <TableCell className="font-medium">
+                        <div className="flex items-center">
+                          <FileText className="w-4 h-4 mr-2 text-muted-foreground" />
+                          <div>
+                            <div data-testid={`text-contract-name-${contract.id}`}>{contract.name}</div>
+                            {contract.description && (
+                              <div className="text-xs text-muted-foreground">{contract.description}</div>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell data-testid={`text-contract-type-${contract.id}`}>
+                        {CONTRACT_TYPES.find(t => t.value === contract.contractType)?.label || contract.contractType}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center">
+                          {getStatusBadge(contract.status)}
+                          {getExpirationWarning(contract.expirationDate)}
+                        </div>
+                      </TableCell>
+                      <TableCell data-testid={`text-contract-value-${contract.id}`}>
+                        {contract.contractValue ? (
+                          contract.currency ? (
+                            formatCurrency(parseFloat(contract.contractValue), contract.currency)
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {parseFloat(contract.contractValue).toFixed(2)} (Unknown)
+                            </span>
+                          )
+                        ) : '-'}
+                      </TableCell>
+                      <TableCell data-testid={`text-effective-date-${contract.id}`}>
+                        <div className="flex items-center">
+                          <Calendar className="w-3 h-3 mr-1 text-muted-foreground" />
+                          {formatDate(contract.effectiveDate)}
+                        </div>
+                      </TableCell>
+                      <TableCell data-testid={`text-expiration-date-${contract.id}`}>
+                        <div className="flex items-center">
+                          <Calendar className="w-3 h-3 mr-1 text-muted-foreground" />
+                          {formatDate(contract.expirationDate)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteContract(contract.id, contract.name);
+                          }}
+                          disabled={deleteMutation.isPending}
+                          data-testid={`button-delete-${contract.id}`}
+                        >
+                          <i className="fas fa-trash text-destructive"></i>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden space-y-4">
+              {contracts.map((contract) => (
+                <Card 
+                  key={contract.id} 
+                  className="cursor-pointer hover:border-primary"
+                  onClick={() => handleViewContract(contract.id)}
+                  data-testid={`card-contract-${contract.id}`}
+                >
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <CardTitle className="text-base" data-testid={`text-contract-name-${contract.id}`}>
+                          {contract.name}
+                        </CardTitle>
+                        {contract.description && (
+                          <CardDescription className="mt-1">{contract.description}</CardDescription>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteContract(contract.id, contract.name);
+                        }}
+                        disabled={deleteMutation.isPending}
+                        data-testid={`button-delete-${contract.id}`}
+                      >
+                        <i className="fas fa-trash text-destructive"></i>
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Type:</span>
+                      <span className="text-sm font-medium" data-testid={`text-contract-type-${contract.id}`}>
+                        {CONTRACT_TYPES.find(t => t.value === contract.contractType)?.label || contract.contractType}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Status:</span>
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(contract.status)}
+                        {getExpirationWarning(contract.expirationDate)}
+                      </div>
+                    </div>
+                    {contract.contractValue && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Value:</span>
+                        <span className="text-sm font-medium flex items-center" data-testid={`text-contract-value-${contract.id}`}>
+                          {contract.currency ? (
+                            <>
+                              <DollarSign className="w-3 h-3 mr-1" />
+                              {formatCurrency(parseFloat(contract.contractValue), contract.currency)}
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              {parseFloat(contract.contractValue).toFixed(2)} (Unknown)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Effective:</span>
+                      <span className="text-sm flex items-center" data-testid={`text-effective-date-${contract.id}`}>
+                        <Calendar className="w-3 h-3 mr-1" />
+                        {formatDate(contract.effectiveDate)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Expires:</span>
+                      <span className="text-sm flex items-center" data-testid={`text-expiration-date-${contract.id}`}>
+                        <Calendar className="w-3 h-3 mr-1" />
+                        {formatDate(contract.expirationDate)}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function EntityDetail() {
   const { id } = useParams();
@@ -471,6 +924,9 @@ export default function EntityDetail() {
           orgId={entity.id}
           orgName={entity.name}
         />
+
+        {/* Contracts Section */}
+        <EntityContractsSection orgId={entity.id} />
 
         {/* Recent Activity Section */}
         <Card>
