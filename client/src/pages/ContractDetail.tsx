@@ -323,7 +323,7 @@ export default function ContractDetail() {
               Delete
             </Button>
             <Button
-              onClick={() => toast({ title: "Coming Soon", description: "Edit functionality will be added soon" })}
+              onClick={() => setLocation(`/contracts/${id}/edit`)}
               data-testid="button-edit"
             >
               <Edit className="h-4 w-4 mr-2" />
