@@ -14,16 +14,17 @@ import {
 } from "@/components/ui/dialog";
 import { TemplateUploader } from "./TemplateUploader";
 import { useToast } from "@/hooks/use-toast";
-import type { Template } from "@shared/schema";
+import type { Template, GeneratedDoc } from "@shared/schema";
 
 interface TemplateSelectorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onTemplateSelect: (templateId: string, templateType: 'starter' | 'custom') => void;
+  onDraftSelect: (draftId: string) => void;
   orgId: string;
 }
 
-export function TemplateSelector({ open, onOpenChange, onTemplateSelect, orgId }: TemplateSelectorProps) {
+export function TemplateSelector({ open, onOpenChange, onTemplateSelect, onDraftSelect, orgId }: TemplateSelectorProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("starter");
 
@@ -36,6 +37,13 @@ export function TemplateSelector({ open, onOpenChange, onTemplateSelect, orgId }
   // Fetch organization templates
   const { data: orgTemplates = [], isLoading: loadingOrg } = useQuery<Template[]>({
     queryKey: ["/api/orgs", orgId, "templates"],
+    retry: false,
+  });
+
+  // Fetch draft documents
+  const { data: draftDocs = [], isLoading: loadingDrafts } = useQuery<GeneratedDoc[]>({
+    queryKey: ["/api/orgs", orgId, "drafts"],
+    enabled: !!orgId,
     retry: false,
   });
 
@@ -84,7 +92,7 @@ export function TemplateSelector({ open, onOpenChange, onTemplateSelect, orgId }
 
         <div className="flex-1 overflow-hidden">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="starter" data-testid="starter-templates-tab">
                 <i className="fas fa-star mr-2"></i>
                 Starter Templates
@@ -92,6 +100,10 @@ export function TemplateSelector({ open, onOpenChange, onTemplateSelect, orgId }
               <TabsTrigger value="custom" data-testid="custom-templates-tab">
                 <i className="fas fa-upload mr-2"></i>
                 Custom Templates
+              </TabsTrigger>
+              <TabsTrigger value="drafts" data-testid="drafts-tab">
+                <i className="fas fa-file-alt mr-2"></i>
+                Drafts
               </TabsTrigger>
             </TabsList>
 
@@ -215,6 +227,59 @@ export function TemplateSelector({ open, onOpenChange, onTemplateSelect, orgId }
                   </div>
                 )}
               </div>
+            </TabsContent>
+
+            {/* Drafts Tab */}
+            <TabsContent value="drafts" className="space-y-4 h-96 overflow-y-auto">
+              {loadingDrafts ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="text-muted-foreground">Loading drafts...</div>
+                </div>
+              ) : draftDocs.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <i className="fas fa-file-alt text-4xl text-muted-foreground mb-4"></i>
+                    <CardTitle className="mb-2">No Draft Documents</CardTitle>
+                    <CardDescription>
+                      Start creating a document from a template to see drafts here
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4">
+                  {draftDocs.map((draft) => (
+                    <Card 
+                      key={draft.id} 
+                      className="hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => {
+                        onDraftSelect(draft.id);
+                        onOpenChange(false);
+                      }}
+                      data-testid={`draft-${draft.id}`}
+                    >
+                      <CardContent className="p-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-lg flex items-center justify-center">
+                              <i className="fas fa-file-alt text-amber-600 dark:text-amber-400"></i>
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-lg">{draft.fileKey || "Untitled Document"}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                Last updated: {draft.updatedAt ? new Date(draft.updatedAt).toLocaleDateString() : 'Unknown'}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950">
+                            <i className="fas fa-pencil mr-1"></i>
+                            Draft
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>

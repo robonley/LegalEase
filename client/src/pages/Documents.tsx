@@ -173,6 +173,22 @@ export default function Documents() {
     });
   };
 
+  const handleDraftSelect = async (draftId: string) => {
+    try {
+      // Fetch the draft document
+      const response = await apiRequest("GET", `/api/documents/${draftId}`);
+      const draft: GeneratedDoc = await response.json();
+      setSelectedDoc(draft);
+      setShowDocEditor(true);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load draft document",
+        variant: "destructive",
+      });
+    }
+  };
+
   const formatDate = (date: string | Date | null) => {
     if (!date) return 'Not set';
     const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -407,6 +423,7 @@ export default function Documents() {
               open={false}
               onOpenChange={() => {}}
               onTemplateSelect={handleTemplateSelect}
+              onDraftSelect={handleDraftSelect}
               orgId={currentEntity.id}
             />
           </TabsContent>
@@ -473,6 +490,7 @@ export default function Documents() {
         open={showTemplateSelector}
         onOpenChange={setShowTemplateSelector}
         onTemplateSelect={handleTemplateSelect}
+        onDraftSelect={handleDraftSelect}
         orgId={currentEntity.id}
       />
     </div>

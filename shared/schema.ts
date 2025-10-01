@@ -161,9 +161,11 @@ export const generatedDocs = pgTable("generated_docs", {
   fileKey: text("file_key").notNull(), // output .docx
   pdfKey: text("pdf_key"),
   content: text("content"), // rich text content for editing
+  status: text("status").notNull().default("draft"), // "draft" | "finalized"
   dataUsed: json("data_used").notNull(),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const auditLogs = pgTable("audit_logs", {

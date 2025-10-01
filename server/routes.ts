@@ -749,11 +749,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document content endpoint
-  app.get('/api/documents/:documentId/content', isAuthenticated, async (req, res) => {
+  app.get('/api/documents/:documentId/content', isAuthenticated, async (req: any, res) => {
     try {
+      const userId = req.user.claims.sub;
       const document = await storage.getGeneratedDocById(req.params.documentId);
+      
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // Authorization check: verify user owns this document
+      if (document.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
       }
       
       // For now, return empty content - in the future this could load from file storage
@@ -769,11 +776,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const documentId = req.params.documentId;
       const { content } = req.body;
-      const userId = req.user?.claims?.sub || "test-user-123";
+      const userId = req.user.claims.sub;
 
       const document = await storage.getGeneratedDocById(documentId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Authorization check: verify user owns this document
+      if (document.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
       }
 
       // Update document content
@@ -806,10 +818,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/documents/:documentId', isAuthenticated, async (req: any, res) => {
     try {
       const documentId = req.params.documentId;
+      const userId = req.user.claims.sub;
       const document = await storage.getGeneratedDocById(documentId);
       
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
+      }
+      
+      // Authorization check: verify user owns this document
+      if (document.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
       }
       
       res.json(document);
@@ -824,7 +842,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const documentId = req.params.documentId;
       const { fileKey } = req.body;
-      const userId = req.user?.claims?.sub || "test-user-123";
+      const userId = req.user.claims.sub;
 
       if (!fileKey || !fileKey.trim()) {
         return res.status(400).json({ message: "File name is required" });
@@ -833,6 +851,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const document = await storage.getGeneratedDocById(documentId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Authorization check: verify user owns this document
+      if (document.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
       }
 
       const oldName = document.fileKey;
@@ -868,11 +891,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const documentId = req.params.documentId;
       const { content } = req.body;
-      const userId = req.user?.claims?.sub || "test-user-123";
+      const userId = req.user.claims.sub;
 
       const document = await storage.getGeneratedDocById(documentId);
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Authorization check: verify user owns this document
+      if (document.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
       }
 
       // Import html-pdf-node
@@ -1203,6 +1231,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/orgs/:orgId/drafts - Get draft documents for organization
+  app.get("/api/orgs/:orgId/drafts", isAuthenticated, async (req: any, res) => {
+    try {
+      const { orgId } = req.params;
+      const userId = req.user.claims.sub;
+      const drafts = await storage.getDraftDocuments(orgId, userId);
+      res.json(drafts);
+    } catch (error) {
+      console.error("Error fetching drafts:", error);
+      res.status(500).json({ message: "Failed to fetch drafts" });
+    }
+  });
+
   app.post('/api/orgs/:orgId/templates', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -1449,6 +1490,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Document not found" });
       }
 
+      // Authorization check: verify user owns this document
+      if (document.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
       // Create audit log for document download
       await storage.createEnhancedAuditLog({
         orgId: document.orgId,
@@ -1483,15 +1529,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Document view route (for getting document details)
-  app.get('/api/documents/:docId', isAuthenticated, async (req, res) => {
+  app.get('/api/documents/:docId', isAuthenticated, async (req: any, res) => {
     try {
       const { docId } = req.params;
+      const userId = req.user.claims.sub;
       
       // Get document details with related data
       const document = await storage.getGeneratedDocById(docId);
       
       if (!document) {
         return res.status(404).json({ message: "Document not found" });
+      }
+
+      // Authorization check: verify user owns this document
+      if (document.createdBy !== userId) {
+        return res.status(403).json({ message: "Access denied" });
       }
 
       // Get organization details to show what data was used

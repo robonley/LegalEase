@@ -145,6 +145,7 @@ export interface IStorage {
   createGeneratedDoc(doc: InsertGeneratedDoc): Promise<GeneratedDoc>;
   getGeneratedDocsByOrg(orgId: string): Promise<GeneratedDoc[]>;
   getGeneratedDocById(id: string): Promise<GeneratedDoc | undefined>;
+  getDraftDocuments(orgId: string, userId: string): Promise<GeneratedDoc[]>;
   
   // Audit log operations
   createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
@@ -596,6 +597,22 @@ export class DatabaseStorage implements IStorage {
   async getGeneratedDocById(id: string): Promise<GeneratedDoc | undefined> {
     const [doc] = await db.select().from(generatedDocs).where(eq(generatedDocs.id, id));
     return doc;
+  }
+
+  async getDraftDocuments(orgId: string, userId: string): Promise<GeneratedDoc[]> {
+    const docs = await db
+      .select()
+      .from(generatedDocs)
+      .where(
+        and(
+          eq(generatedDocs.orgId, orgId),
+          eq(generatedDocs.createdBy, userId),
+          eq(generatedDocs.status, 'draft')
+        )
+      )
+      .orderBy(desc(generatedDocs.updatedAt));
+    
+    return docs;
   }
 
   async updateGeneratedDoc(id: string, updates: Partial<Pick<GeneratedDoc, 'content' | 'fileKey'>>): Promise<GeneratedDoc> {
