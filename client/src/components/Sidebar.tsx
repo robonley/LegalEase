@@ -126,6 +126,7 @@ export function Sidebar() {
       return [
         { href: "/", icon: "fas fa-tachometer-alt", label: "Dashboard" },
         { href: "/entities", icon: "fas fa-building", label: "Entities" },
+        { href: "/entity-network", icon: "fas fa-project-diagram", label: "Entity Network" },
         { 
           href: "/documents", 
           icon: "fas fa-file-alt", 

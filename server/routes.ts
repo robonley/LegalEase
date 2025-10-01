@@ -2524,6 +2524,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Entity network visualization endpoint
+  app.get('/api/entity-network', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const networkData = await storage.getEntityNetworkData(userId);
+      res.json(networkData);
+    } catch (error) {
+      console.error("Error fetching entity network data:", error);
+      res.status(500).json({ message: "Failed to fetch entity network data" });
+    }
+  });
+
   // Entity relationship routes
   app.get('/api/entity-relationships/:orgId', async (req: any, res) => {
     try {

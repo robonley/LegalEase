@@ -29,6 +29,7 @@ import ContractNew from "@/pages/ContractNew";
 import ContractEdit from "@/pages/ContractEdit";
 import Notifications from "@/pages/Notifications";
 import Settings from "@/pages/Settings";
+import EntityNetworkVisualization from "@/pages/EntityNetworkVisualization";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -70,6 +71,7 @@ function Router() {
             <Route path="/settings" component={Settings} />
             <Route path="/audit-log" component={AuditLog} />
             <Route path="/billing" component={BillingSettings} />
+            <Route path="/entity-network" component={EntityNetworkVisualization} />
           </Layout>
         </EntityProvider>
       )}

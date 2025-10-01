@@ -74,6 +74,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, ilike, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -250,6 +251,21 @@ export interface IStorage {
   markNotificationAsRead(notificationId: string): Promise<void>;
   markAllNotificationsAsRead(userId: string): Promise<void>;
   deleteNotification(notificationId: string): Promise<void>;
+
+  // Entity network visualization operations
+  getEntityNetworkData(userId: string): Promise<{
+    entities: Org[];
+    relationships: Array<Omit<EntityRelationship, 'ownershipPercentage'> & { 
+      parentEntity: Org; 
+      childEntity: Org;
+      ownershipPercentage: number | null;
+    }>;
+    peopleByOrg: Record<string, Array<{
+      person: Omit<Person, 'email' | 'dob'>;
+      relation: PersonOnOrg & { relationId: string };
+    }>>;
+    shareIssuancesByOrg: Record<string, ShareIssuance[]>;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1225,6 +1241,157 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(contractNotifications)
       .where(eq(contractNotifications.id, notificationId));
+  }
+
+  // Entity network visualization operations
+  async getEntityNetworkData(userId: string): Promise<{
+    entities: Org[];
+    relationships: Array<Omit<EntityRelationship, 'ownershipPercentage'> & { 
+      parentEntity: Org; 
+      childEntity: Org;
+      ownershipPercentage: number | null;
+    }>;
+    peopleByOrg: Record<string, Array<{
+      person: Omit<Person, 'email' | 'dob'>;
+      relation: PersonOnOrg & { relationId: string };
+    }>>;
+    shareIssuancesByOrg: Record<string, ShareIssuance[]>;
+  }> {
+    // Get all entities owned by the authenticated user
+    const entities = await db
+      .select()
+      .from(orgs)
+      .where(eq(orgs.createdById, userId));
+
+    const entityIds = entities.map(e => e.id);
+
+    // Early return if user has no entities
+    if (entityIds.length === 0) {
+      return {
+        entities: [],
+        relationships: [],
+        peopleByOrg: {},
+        shareIssuancesByOrg: {},
+      };
+    }
+
+    // Get relationships where BOTH parent AND child entities are owned by the user
+    // We need to alias the orgs table for the two joins
+    const parentOrg = alias(orgs, 'parent_org');
+    const childOrg = alias(orgs, 'child_org');
+    
+    const relationshipsData = await db
+      .select({
+        relationship: entityRelationships,
+        parentEntity: parentOrg,
+        childEntity: childOrg,
+      })
+      .from(entityRelationships)
+      .innerJoin(parentOrg, eq(entityRelationships.parentEntityId, parentOrg.id))
+      .innerJoin(childOrg, eq(entityRelationships.childEntityId, childOrg.id))
+      .where(
+        and(
+          eq(parentOrg.createdById, userId),
+          eq(childOrg.createdById, userId)
+        )
+      );
+
+    // Transform relationships to match the return type
+    const relationships = relationshipsData.map((rel) => ({
+      id: rel.relationship.id,
+      parentEntityId: rel.relationship.parentEntityId,
+      childEntityId: rel.relationship.childEntityId,
+      relationshipType: rel.relationship.relationshipType,
+      ownershipPercentage: rel.relationship.ownershipPercentage 
+        ? Number(rel.relationship.ownershipPercentage) 
+        : null,
+      notes: rel.relationship.notes,
+      effectiveDate: rel.relationship.effectiveDate,
+      endDate: rel.relationship.endDate,
+      createdBy: rel.relationship.createdBy,
+      createdAt: rel.relationship.createdAt,
+      updatedAt: rel.relationship.updatedAt,
+      parentEntity: rel.parentEntity,
+      childEntity: rel.childEntity,
+    }));
+
+    // Get all people with their org relationships for user's entities only
+    const peopleWithOrgs = await db
+      .select({
+        personId: people.id,
+        firstName: people.firstName,
+        lastName: people.lastName,
+        addressId: people.addressId,
+        kycId: people.kycId,
+        createdAt: people.createdAt,
+        relationId: personOnOrgs.id,
+        orgId: personOnOrgs.orgId,
+        role: personOnOrgs.role,
+        title: personOnOrgs.title,
+        startAt: personOnOrgs.startAt,
+        endAt: personOnOrgs.endAt,
+      })
+      .from(people)
+      .innerJoin(personOnOrgs, eq(people.id, personOnOrgs.personId))
+      .where(
+        sql`${personOnOrgs.orgId} IN (${sql.join(entityIds.map(id => sql`${id}`), sql`, `)})`
+      );
+
+    // Organize people by org with proper DTO structure
+    const peopleByOrg: Record<string, Array<{
+      person: Omit<Person, 'email' | 'dob'>;
+      relation: PersonOnOrg & { relationId: string };
+    }>> = {};
+    
+    peopleWithOrgs.forEach((p) => {
+      if (!peopleByOrg[p.orgId]) {
+        peopleByOrg[p.orgId] = [];
+      }
+      peopleByOrg[p.orgId].push({
+        person: {
+          id: p.personId,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          addressId: p.addressId,
+          kycId: p.kycId,
+          createdAt: p.createdAt,
+        },
+        relation: {
+          id: p.relationId,
+          relationId: p.relationId,
+          personId: p.personId,
+          orgId: p.orgId,
+          role: p.role,
+          title: p.title,
+          startAt: p.startAt,
+          endAt: p.endAt,
+        },
+      });
+    });
+
+    // Get all share issuances for user's entities only
+    const allShareIssuances = await db
+      .select()
+      .from(shareIssuances)
+      .where(
+        sql`${shareIssuances.orgId} IN (${sql.join(entityIds.map(id => sql`${id}`), sql`, `)})`
+      );
+
+    // Organize share issuances by org
+    const shareIssuancesByOrg: Record<string, ShareIssuance[]> = {};
+    allShareIssuances.forEach((issuance) => {
+      if (!shareIssuancesByOrg[issuance.orgId]) {
+        shareIssuancesByOrg[issuance.orgId] = [];
+      }
+      shareIssuancesByOrg[issuance.orgId].push(issuance);
+    });
+
+    return {
+      entities,
+      relationships,
+      peopleByOrg,
+      shareIssuancesByOrg,
+    };
   }
 }
 
