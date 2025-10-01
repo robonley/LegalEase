@@ -16,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -34,7 +35,9 @@ import {
   ChevronUp,
   List,
   DollarSign,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles,
+  CheckCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -189,6 +192,8 @@ export default function ContractEditor({
   const [tags, setTags] = useState<string>(initialData?.tags?.join(", ") || "");
   const [saveAsVersion, setSaveAsVersion] = useState(false);
   const [versionSummary, setVersionSummary] = useState("");
+  const [showAnalysisDialog, setShowAnalysisDialog] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -363,6 +368,72 @@ export default function ContractEditor({
     },
   });
 
+  // AI Analysis mutation
+  const analyzeMutation = useMutation({
+    mutationFn: async () => {
+      if (!contractId || mode !== "edit") {
+        throw new Error("Contract must be saved before analysis");
+      }
+      return await apiRequest("POST", `/api/contracts/${contractId}/analyze`, {});
+    },
+    onSuccess: (analysis) => {
+      setAnalysisResult(analysis);
+      setShowAnalysisDialog(true);
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", contractId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", contractId, "parties"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", contractId, "obligations"] });
+      toast({
+        title: "Analysis Complete",
+        description: "Contract has been analyzed successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Analysis Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAnalyze = () => {
+    if (!content || content.trim().length === 0) {
+      toast({
+        title: "No Content",
+        description: "Please add contract content before analyzing",
+        variant: "destructive",
+      });
+      return;
+    }
+    analyzeMutation.mutate();
+  };
+
+  const handleApplyAnalysis = () => {
+    if (!analysisResult) return;
+    
+    // Apply analysis results to form
+    const updates: any = {};
+    if (analysisResult.contractType) updates.contractType = analysisResult.contractType;
+    if (analysisResult.contractValue) updates.contractValue = analysisResult.contractValue.toString();
+    if (analysisResult.currency) updates.currency = analysisResult.currency;
+    if (analysisResult.governingLaw) updates.governingLaw = analysisResult.governingLaw;
+    if (analysisResult.autoRenewal !== undefined) updates.autoRenewal = analysisResult.autoRenewal;
+    if (analysisResult.renewalNoticeDays) updates.renewalNoticeDays = analysisResult.renewalNoticeDays;
+    if (analysisResult.terminationNoticeDays) updates.terminationNoticeDays = analysisResult.terminationNoticeDays;
+    if (analysisResult.riskLevel) updates.riskLevel = analysisResult.riskLevel;
+    if (analysisResult.effectiveDate) updates.effectiveDate = new Date(analysisResult.effectiveDate);
+    if (analysisResult.expirationDate) updates.expirationDate = new Date(analysisResult.expirationDate);
+    if (analysisResult.renewalDate) updates.renewalDate = new Date(analysisResult.renewalDate);
+    
+    form.reset({ ...form.getValues(), ...updates });
+    setShowAnalysisDialog(false);
+    
+    toast({
+      title: "Applied",
+      description: "Analysis results have been applied to the form",
+    });
+  };
+
   const onSubmit = (data: z.infer<typeof formSchema>) => {
     // Parse tags from comma-separated string
     const parsedTags = tags
@@ -474,6 +545,18 @@ export default function ContractEditor({
                 >
                   <X className="w-4 h-4 mr-2" />
                   Cancel
+                </Button>
+              )}
+              {mode === "edit" && contractId && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAnalyze}
+                  disabled={analyzeMutation.isPending}
+                  data-testid="button-analyze"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  {analyzeMutation.isPending ? "Analyzing..." : "Analyze with AI"}
                 </Button>
               )}
               <Button
@@ -1230,6 +1313,199 @@ export default function ContractEditor({
           </div>
         </form>
       </Form>
+
+      {/* AI Analysis Results Dialog */}
+      <Dialog open={showAnalysisDialog} onOpenChange={setShowAnalysisDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" data-testid="dialog-analysis-results">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5" />
+              AI Contract Analysis Results
+            </DialogTitle>
+            <DialogDescription>
+              Review the AI-extracted information and apply it to your contract
+            </DialogDescription>
+          </DialogHeader>
+          
+          {analysisResult && (
+            <div className="space-y-6">
+              {/* Confidence Score */}
+              <div className="flex items-center gap-2">
+                <Badge variant={analysisResult.confidence > 0.8 ? "default" : analysisResult.confidence > 0.6 ? "secondary" : "outline"}>
+                  Confidence: {Math.round(analysisResult.confidence * 100)}%
+                </Badge>
+                {analysisResult.riskLevel && (
+                  <Badge variant={analysisResult.riskLevel === "high" ? "destructive" : analysisResult.riskLevel === "medium" ? "secondary" : "outline"}>
+                    Risk: {analysisResult.riskLevel}
+                  </Badge>
+                )}
+              </div>
+
+              {/* AI Summary */}
+              {analysisResult.aiSummary && (
+                <div>
+                  <h3 className="font-semibold mb-2">Executive Summary</h3>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{analysisResult.aiSummary}</p>
+                </div>
+              )}
+
+              {/* Contract Metadata */}
+              <div>
+                <h3 className="font-semibold mb-2">Contract Metadata</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {analysisResult.contractType && (
+                    <div>
+                      <span className="font-medium">Type:</span> {analysisResult.contractType}
+                    </div>
+                  )}
+                  {analysisResult.contractValue && (
+                    <div>
+                      <span className="font-medium">Value:</span> {analysisResult.currency} {analysisResult.contractValue}
+                    </div>
+                  )}
+                  {analysisResult.effectiveDate && (
+                    <div>
+                      <span className="font-medium">Effective:</span> {analysisResult.effectiveDate}
+                    </div>
+                  )}
+                  {analysisResult.expirationDate && (
+                    <div>
+                      <span className="font-medium">Expiration:</span> {analysisResult.expirationDate}
+                    </div>
+                  )}
+                  {analysisResult.governingLaw && (
+                    <div>
+                      <span className="font-medium">Governing Law:</span> {analysisResult.governingLaw}
+                    </div>
+                  )}
+                  {analysisResult.autoRenewal !== undefined && (
+                    <div>
+                      <span className="font-medium">Auto-Renewal:</span> {analysisResult.autoRenewal ? "Yes" : "No"}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Parties */}
+              {analysisResult.parties && analysisResult.parties.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Parties ({analysisResult.parties.length})</h3>
+                  <div className="space-y-2">
+                    {analysisResult.parties.map((party: any, idx: number) => (
+                      <div key={idx} className="flex items-start gap-2 text-sm p-2 bg-accent rounded">
+                        <Users className="w-4 h-4 mt-0.5" />
+                        <div className="flex-1">
+                          <div className="font-medium">{party.name}</div>
+                          <div className="text-xs text-muted-foreground">Role: {party.role}</div>
+                          {party.contactInfo && (
+                            <div className="text-xs text-muted-foreground">Contact: {party.contactInfo}</div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Obligations */}
+              {analysisResult.obligations && analysisResult.obligations.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Key Obligations ({analysisResult.obligations.length})</h3>
+                  <div className="space-y-2">
+                    {analysisResult.obligations.slice(0, 5).map((obligation: any, idx: number) => (
+                      <div key={idx} className="text-sm p-2 bg-accent rounded">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="text-xs">{obligation.party}</Badge>
+                          <Badge variant={obligation.priority === "high" ? "destructive" : obligation.priority === "medium" ? "secondary" : "outline"} className="text-xs">
+                            {obligation.priority}
+                          </Badge>
+                          {obligation.dueDate && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <CalendarIcon className="w-3 h-3" />
+                              {obligation.dueDate}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs">{obligation.description}</div>
+                      </div>
+                    ))}
+                    {analysisResult.obligations.length > 5 && (
+                      <p className="text-xs text-muted-foreground">
+                        + {analysisResult.obligations.length - 5} more obligations
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Risks */}
+              {analysisResult.risks && analysisResult.risks.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Identified Risks ({analysisResult.risks.length})</h3>
+                  <div className="space-y-2">
+                    {analysisResult.risks.slice(0, 5).map((risk: any, idx: number) => (
+                      <div key={idx} className="text-sm p-2 bg-accent rounded">
+                        <div className="flex items-center gap-2 mb-1">
+                          <AlertTriangle className="w-4 h-4" />
+                          <Badge variant="outline" className="text-xs">{risk.type}</Badge>
+                          <Badge variant={risk.severity === "high" ? "destructive" : risk.severity === "medium" ? "secondary" : "outline"} className="text-xs">
+                            {risk.severity}
+                          </Badge>
+                        </div>
+                        <div className="text-xs">{risk.description}</div>
+                      </div>
+                    ))}
+                    {analysisResult.risks.length > 5 && (
+                      <p className="text-xs text-muted-foreground">
+                        + {analysisResult.risks.length - 5} more risks
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Key Dates */}
+              {analysisResult.keyDates && analysisResult.keyDates.length > 0 && (
+                <div>
+                  <h3 className="font-semibold mb-2">Key Dates ({analysisResult.keyDates.length})</h3>
+                  <div className="space-y-2">
+                    {analysisResult.keyDates.map((date: any, idx: number) => (
+                      <div key={idx} className="flex items-start gap-2 text-sm p-2 bg-accent rounded">
+                        <CalendarIcon className="w-4 h-4 mt-0.5" />
+                        <div className="flex-1">
+                          <div className="font-medium">{date.date}</div>
+                          <div className="text-xs text-muted-foreground">{date.description}</div>
+                          <Badge variant="outline" className="text-xs mt-1">{date.type}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAnalysisDialog(false)}
+                  data-testid="button-close-analysis"
+                >
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleApplyAnalysis}
+                  data-testid="button-apply-analysis"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Apply to Form
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -3301,6 +3301,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Analyze contract with AI
+  app.post('/api/contracts/:id/analyze', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      const contractId = req.params.id;
+      
+      const contract = await storage.getContractById(contractId);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      if (!contract.content || contract.content.trim().length === 0) {
+        return res.status(400).json({ message: "Contract has no content to analyze" });
+      }
+
+      // Import the ContractAnalyzer
+      const { ContractAnalyzer } = await import('./services/contractAnalyzer');
+      const analyzer = new ContractAnalyzer();
+      
+      // Perform analysis
+      let analysis;
+      try {
+        analysis = await analyzer.analyzeContract(contract.content);
+      } catch (error: any) {
+        if (error instanceof z.ZodError) {
+          console.error('Contract analysis parse error:', error.errors);
+          console.error('Failed to parse GPT response - this may indicate the AI returned unexpected data types');
+          return res.status(400).json({ 
+            message: 'Failed to parse AI analysis results. The AI may have returned data in an unexpected format.',
+            errors: error.errors 
+          });
+        }
+        throw error;
+      }
+      
+      // Update contract with analysis results
+      const contractUpdates: any = {};
+      if (analysis.aiSummary) contractUpdates.aiSummary = analysis.aiSummary;
+      if (analysis.riskLevel) contractUpdates.riskLevel = analysis.riskLevel;
+      if (analysis.complianceStatus) contractUpdates.complianceStatus = analysis.complianceStatus;
+      if (analysis.contractType) contractUpdates.contractType = analysis.contractType;
+      if (analysis.contractValue) contractUpdates.contractValue = analysis.contractValue.toString();
+      if (analysis.currency) contractUpdates.currency = analysis.currency;
+      if (analysis.governingLaw) contractUpdates.governingLaw = analysis.governingLaw;
+      if (analysis.autoRenewal !== undefined) contractUpdates.autoRenewal = analysis.autoRenewal;
+      if (analysis.renewalNoticeDays) contractUpdates.renewalNoticeDays = analysis.renewalNoticeDays;
+      if (analysis.terminationNoticeDays) contractUpdates.terminationNoticeDays = analysis.terminationNoticeDays;
+      
+      // Handle dates
+      if (analysis.effectiveDate) {
+        contractUpdates.effectiveDate = new Date(analysis.effectiveDate);
+      }
+      if (analysis.expirationDate) {
+        contractUpdates.expirationDate = new Date(analysis.expirationDate);
+      }
+      if (analysis.renewalDate) {
+        contractUpdates.renewalDate = new Date(analysis.renewalDate);
+      }
+
+      await storage.updateContract(contractId, contractUpdates);
+      
+      // Create parties from analysis
+      for (const party of analysis.parties) {
+        try {
+          await storage.createContractParty({
+            contractId,
+            partyType: 'external',
+            externalPartyName: party.name,
+            role: party.role,
+            signatureStatus: 'pending'
+          });
+        } catch (error) {
+          console.error("Error creating party:", error);
+        }
+      }
+      
+      // Create obligations from analysis
+      for (const obligation of analysis.obligations) {
+        try {
+          const obligationData: any = {
+            contractId,
+            title: `${obligation.party}: ${obligation.description.substring(0, 100)}`,
+            description: obligation.description,
+            obligationType: 'general',
+            priority: obligation.priority,
+            status: 'pending'
+          };
+          
+          if (obligation.dueDate) {
+            obligationData.dueDate = new Date(obligation.dueDate);
+          }
+          
+          await storage.createContractObligation(obligationData);
+        } catch (error) {
+          console.error("Error creating obligation:", error);
+        }
+      }
+      
+      // Create audit log
+      await storage.createAuditLog({
+        orgId: contract.orgId,
+        actorId: userId,
+        action: "AI_ANALYZE_CONTRACT",
+        payload: { 
+          contractId,
+          confidence: analysis.confidence,
+          partiesFound: analysis.parties.length,
+          obligationsFound: analysis.obligations.length,
+          risksFound: analysis.risks.length
+        }
+      });
+
+      res.json(analysis);
+    } catch (error: any) {
+      console.error("Error analyzing contract:", error);
+      res.status(500).json({ 
+        message: "Failed to analyze contract",
+        error: error.message 
+      });
+    }
+  });
+
   app.get('/api/clauses', async (req: any, res) => {
     try {
       const userId = "test-user-123";
