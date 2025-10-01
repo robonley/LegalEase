@@ -17,7 +17,14 @@ import {
   insertMinuteBookSchema,
   insertEntityRelationshipSchema,
   insertDocumentDraftSchema,
-  type InsertAddress
+  insertContractSchema,
+  insertContractVersionSchema,
+  insertContractPartySchema,
+  insertContractObligationSchema,
+  insertContractClauseSchema,
+  type InsertAddress,
+  type Contract,
+  type ContractVersion
 } from "@shared/schema";
 import { z } from "zod";
 import { extractTemplateVariables, createVariableMapping, CBCA_TEMPLATE_VARIABLES } from "./templateProcessor";
@@ -2879,6 +2886,406 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting draft:", error);
       res.status(500).json({ message: "Failed to delete draft" });
+    }
+  });
+
+  // Contract routes
+  app.get('/api/contracts', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      const contracts = await storage.getContracts(userId);
+      res.json(contracts);
+    } catch (error) {
+      console.error("Error fetching contracts:", error);
+      res.status(500).json({ message: "Failed to fetch contracts" });
+    }
+  });
+
+  app.get('/api/contracts/:id', async (req, res) => {
+    try {
+      const contract = await storage.getContractById(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      res.json(contract);
+    } catch (error) {
+      console.error("Error fetching contract:", error);
+      res.status(500).json({ message: "Failed to fetch contract" });
+    }
+  });
+
+  app.post('/api/contracts', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      
+      // Convert date strings to Date objects if provided
+      const processedBody = { ...req.body };
+      if (processedBody.effectiveDate) {
+        processedBody.effectiveDate = new Date(processedBody.effectiveDate);
+      }
+      if (processedBody.expirationDate) {
+        processedBody.expirationDate = new Date(processedBody.expirationDate);
+      }
+      if (processedBody.renewalDate) {
+        processedBody.renewalDate = new Date(processedBody.renewalDate);
+      }
+      
+      const contractData = insertContractSchema.parse({ ...processedBody, createdBy: userId });
+      const contract = await storage.createContract(contractData);
+      
+      // Create enhanced audit log
+      await storage.createEnhancedAuditLog({
+        orgId: contract.orgId,
+        actorId: userId,
+        action: "CREATE_CONTRACT",
+        entityType: "contract",
+        entityId: contract.id,
+        newValues: contract,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: { name: contract.name, contractType: contract.contractType }
+      });
+
+      res.status(201).json(contract);
+    } catch (error) {
+      console.error("Error creating contract:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create contract" });
+    }
+  });
+
+  app.patch('/api/contracts/:id', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      
+      // Get the old contract for audit log
+      const oldContract = await storage.getContractById(req.params.id);
+      if (!oldContract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+      
+      // Convert date strings to Date objects if provided
+      const processedBody = { ...req.body };
+      if (processedBody.effectiveDate) {
+        processedBody.effectiveDate = new Date(processedBody.effectiveDate);
+      }
+      if (processedBody.expirationDate) {
+        processedBody.expirationDate = new Date(processedBody.expirationDate);
+      }
+      if (processedBody.renewalDate) {
+        processedBody.renewalDate = new Date(processedBody.renewalDate);
+      }
+      
+      const updates = insertContractSchema.partial().parse(processedBody);
+      const contract = await storage.updateContract(req.params.id, updates);
+      
+      // Create enhanced audit log
+      await storage.createEnhancedAuditLog({
+        orgId: contract.orgId,
+        actorId: userId,
+        action: "UPDATE_CONTRACT",
+        entityType: "contract",
+        entityId: contract.id,
+        oldValues: oldContract,
+        newValues: contract,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: { name: contract.name }
+      });
+
+      res.json(contract);
+    } catch (error) {
+      console.error("Error updating contract:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to update contract" });
+    }
+  });
+
+  app.delete('/api/contracts/:id', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      
+      const contract = await storage.getContractById(req.params.id);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      await storage.deleteContract(req.params.id);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        orgId: contract.orgId,
+        actorId: userId,
+        action: "DELETE_CONTRACT",
+        payload: { contractId: req.params.id, name: contract.name }
+      });
+
+      res.json({ message: "Contract deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting contract:", error);
+      res.status(500).json({ message: "Failed to delete contract" });
+    }
+  });
+
+  app.get('/api/contracts/org/:orgId', async (req, res) => {
+    try {
+      const contracts = await storage.getContractsByOrg(req.params.orgId);
+      res.json(contracts);
+    } catch (error) {
+      console.error("Error fetching contracts by org:", error);
+      res.status(500).json({ message: "Failed to fetch contracts" });
+    }
+  });
+
+  app.post('/api/contracts/:id/version', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      const contractId = req.params.id;
+      
+      const contract = await storage.getContractById(contractId);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      // Get existing versions to determine next version number
+      const versions = await storage.getContractVersions(contractId);
+      const nextVersionNumber = versions.length > 0 
+        ? Math.max(...versions.map(v => v.versionNumber)) + 1 
+        : 1;
+
+      const versionData = insertContractVersionSchema.parse({
+        contractId,
+        versionNumber: nextVersionNumber,
+        content: req.body.content || contract.content || '',
+        fileKey: req.body.fileKey,
+        pdfKey: req.body.pdfKey,
+        changesSummary: req.body.changesSummary,
+        changeLog: req.body.changeLog,
+        isCurrent: true,
+        createdBy: userId
+      });
+
+      const version = await storage.createContractVersion(versionData);
+      
+      // Set this version as current (will set all others to false)
+      await storage.setCurrentVersion(contractId, version.id);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        orgId: contract.orgId,
+        actorId: userId,
+        action: "CREATE_CONTRACT_VERSION",
+        payload: { 
+          contractId, 
+          versionId: version.id,
+          versionNumber: version.versionNumber 
+        }
+      });
+
+      res.status(201).json(version);
+    } catch (error) {
+      console.error("Error creating contract version:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create contract version" });
+    }
+  });
+
+  app.get('/api/contracts/:id/versions', async (req, res) => {
+    try {
+      const versions = await storage.getContractVersions(req.params.id);
+      res.json(versions);
+    } catch (error) {
+      console.error("Error fetching contract versions:", error);
+      res.status(500).json({ message: "Failed to fetch contract versions" });
+    }
+  });
+
+  app.get('/api/contracts/:id/parties', async (req, res) => {
+    try {
+      const contractId = req.params.id;
+      
+      const contract = await storage.getContractById(contractId);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      res.json(contract.parties || []);
+    } catch (error) {
+      console.error("Error fetching contract parties:", error);
+      res.status(500).json({ message: "Failed to fetch contract parties" });
+    }
+  });
+
+  app.post('/api/contracts/:id/parties', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      const contractId = req.params.id;
+      
+      const contract = await storage.getContractById(contractId);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      const partyData = insertContractPartySchema.parse({
+        ...req.body,
+        contractId
+      });
+
+      const party = await storage.createContractParty(partyData);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        orgId: contract.orgId,
+        actorId: userId,
+        action: "ADD_CONTRACT_PARTY",
+        payload: { 
+          contractId, 
+          partyId: party.id,
+          role: party.role 
+        }
+      });
+
+      res.status(201).json(party);
+    } catch (error) {
+      console.error("Error adding contract party:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to add contract party" });
+    }
+  });
+
+  app.get('/api/contracts/:id/obligations', async (req, res) => {
+    try {
+      const contractId = req.params.id;
+      
+      const contract = await storage.getContractById(contractId);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      res.json(contract.obligations || []);
+    } catch (error) {
+      console.error("Error fetching contract obligations:", error);
+      res.status(500).json({ message: "Failed to fetch contract obligations" });
+    }
+  });
+
+  app.post('/api/contracts/:id/obligations', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      const contractId = req.params.id;
+      
+      const contract = await storage.getContractById(contractId);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      // Convert date strings to Date objects if provided
+      const processedBody = { ...req.body };
+      if (processedBody.dueDate) {
+        processedBody.dueDate = new Date(processedBody.dueDate);
+      }
+      if (processedBody.completedAt) {
+        processedBody.completedAt = new Date(processedBody.completedAt);
+      }
+
+      const obligationData = insertContractObligationSchema.parse({
+        ...processedBody,
+        contractId
+      });
+
+      const obligation = await storage.createContractObligation(obligationData);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        orgId: contract.orgId,
+        actorId: userId,
+        action: "ADD_CONTRACT_OBLIGATION",
+        payload: { 
+          contractId, 
+          obligationId: obligation.id,
+          title: obligation.title 
+        }
+      });
+
+      res.status(201).json(obligation);
+    } catch (error) {
+      console.error("Error adding contract obligation:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to add contract obligation" });
+    }
+  });
+
+  app.get('/api/clauses', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      const clauses = await storage.getClauses(userId);
+      res.json(clauses);
+    } catch (error) {
+      console.error("Error fetching clauses:", error);
+      res.status(500).json({ message: "Failed to fetch clauses" });
+    }
+  });
+
+  app.post('/api/clauses', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      
+      const clauseData = insertContractClauseSchema.parse({
+        ...req.body,
+        createdBy: userId
+      });
+
+      const clause = await storage.createClause(clauseData);
+      
+      // Create audit log if orgId is provided
+      if (clause.orgId) {
+        await storage.createAuditLog({
+          orgId: clause.orgId,
+          actorId: userId,
+          action: "CREATE_CONTRACT_CLAUSE",
+          payload: { 
+            clauseId: clause.id,
+            name: clause.name,
+            category: clause.category 
+          }
+        });
+      }
+
+      res.status(201).json(clause);
+    } catch (error) {
+      console.error("Error creating clause:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create clause" });
     }
   });
 

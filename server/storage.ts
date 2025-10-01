@@ -16,6 +16,11 @@ import {
   minuteBookDocs,
   entityRelationships,
   documentDrafts,
+  contracts,
+  contractVersions,
+  contractParties,
+  contractObligations,
+  contractClauses,
   type User,
   type UpsertUser,
   type Org,
@@ -53,6 +58,16 @@ import {
   type InsertDocumentDraft,
   type EntityData,
   type PersonWithRoles,
+  type Contract,
+  type InsertContract,
+  type ContractVersion,
+  type InsertContractVersion,
+  type ContractParty,
+  type InsertContractParty,
+  type ContractObligation,
+  type InsertContractObligation,
+  type ContractClause,
+  type InsertContractClause,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, ilike, or, sql } from "drizzle-orm";
@@ -193,6 +208,37 @@ export interface IStorage {
   createDraft(draft: InsertDocumentDraft): Promise<DocumentDraft>;
   updateDraft(draftId: string, updates: Partial<InsertDocumentDraft>): Promise<DocumentDraft>;
   deleteDraft(draftId: string): Promise<void>;
+
+  // Contract operations
+  getContracts(userId: string): Promise<Contract[]>;
+  getContractById(id: string): Promise<Contract & {
+    versions?: ContractVersion[];
+    parties?: (ContractParty & {
+      person?: Person | null;
+      org?: Org | null;
+    })[];
+    obligations?: (ContractObligation & {
+      responsibleParty?: ContractParty | null;
+    })[];
+    currentVersion?: ContractVersion | null;
+  } | undefined>;
+  getContractsByOrg(orgId: string): Promise<Contract[]>;
+  createContract(data: InsertContract): Promise<Contract>;
+  updateContract(id: string, data: Partial<InsertContract>): Promise<Contract>;
+  deleteContract(id: string): Promise<void>;
+
+  // Contract version operations
+  getContractVersions(contractId: string): Promise<ContractVersion[]>;
+  createContractVersion(data: InsertContractVersion): Promise<ContractVersion>;
+  setCurrentVersion(contractId: string, versionId: string): Promise<void>;
+
+  // Contract party and obligation operations
+  createContractParty(data: InsertContractParty): Promise<ContractParty>;
+  createContractObligation(data: InsertContractObligation): Promise<ContractObligation>;
+
+  // Contract clause operations
+  getClauses(userId: string): Promise<ContractClause[]>;
+  createClause(data: InsertContractClause): Promise<ContractClause>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -982,6 +1028,145 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDraft(draftId: string): Promise<void> {
     await db.delete(documentDrafts).where(eq(documentDrafts.id, draftId));
+  }
+
+  // Contract operations
+  async getContracts(userId: string): Promise<Contract[]> {
+    return await db
+      .select()
+      .from(contracts)
+      .innerJoin(orgs, eq(contracts.orgId, orgs.id))
+      .where(eq(orgs.createdById, userId))
+      .orderBy(desc(contracts.updatedAt))
+      .then(rows => rows.map(row => row.contracts));
+  }
+
+  async getContractById(id: string): Promise<Contract & {
+    versions?: ContractVersion[];
+    parties?: (ContractParty & {
+      person?: Person | null;
+      org?: Org | null;
+    })[];
+    obligations?: (ContractObligation & {
+      responsibleParty?: ContractParty | null;
+    })[];
+    currentVersion?: ContractVersion | null;
+  } | undefined> {
+    const contract = await db.query.contracts.findFirst({
+      where: eq(contracts.id, id),
+      with: {
+        versions: true,
+        parties: {
+          with: {
+            person: true,
+            org: true,
+          }
+        },
+        obligations: {
+          with: {
+            responsibleParty: true,
+          }
+        },
+      },
+    });
+    
+    if (!contract) {
+      return undefined;
+    }
+    
+    // Find the current version
+    const currentVersion = contract.versions?.find(v => v.isCurrent) || null;
+    
+    return {
+      ...contract,
+      currentVersion
+    };
+  }
+
+  async getContractsByOrg(orgId: string): Promise<Contract[]> {
+    return await db
+      .select()
+      .from(contracts)
+      .where(eq(contracts.orgId, orgId))
+      .orderBy(desc(contracts.updatedAt));
+  }
+
+  async createContract(data: InsertContract): Promise<Contract> {
+    const [created] = await db.insert(contracts).values(data).returning();
+    return created;
+  }
+
+  async updateContract(id: string, data: Partial<InsertContract>): Promise<Contract> {
+    const [updated] = await db
+      .update(contracts)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(contracts.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteContract(id: string): Promise<void> {
+    await db.delete(contracts).where(eq(contracts.id, id));
+  }
+
+  // Contract version operations
+  async getContractVersions(contractId: string): Promise<ContractVersion[]> {
+    return await db
+      .select()
+      .from(contractVersions)
+      .where(eq(contractVersions.contractId, contractId))
+      .orderBy(desc(contractVersions.versionNumber));
+  }
+
+  async createContractVersion(data: InsertContractVersion): Promise<ContractVersion> {
+    const [created] = await db.insert(contractVersions).values(data).returning();
+    return created;
+  }
+
+  async setCurrentVersion(contractId: string, versionId: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      // Set all versions to not current
+      await tx
+        .update(contractVersions)
+        .set({ isCurrent: false })
+        .where(eq(contractVersions.contractId, contractId));
+      
+      // Set the specified version to current
+      await tx
+        .update(contractVersions)
+        .set({ isCurrent: true })
+        .where(eq(contractVersions.id, versionId));
+    });
+  }
+
+  // Contract party and obligation operations
+  async createContractParty(data: InsertContractParty): Promise<ContractParty> {
+    const [created] = await db.insert(contractParties).values(data).returning();
+    return created;
+  }
+
+  async createContractObligation(data: InsertContractObligation): Promise<ContractObligation> {
+    const [created] = await db.insert(contractObligations).values(data).returning();
+    return created;
+  }
+
+  // Contract clause operations
+  async getClauses(userId: string): Promise<ContractClause[]> {
+    return await db
+      .select()
+      .from(contractClauses)
+      .where(
+        or(
+          eq(contractClauses.isStandard, true),
+          eq(contractClauses.createdBy, userId)
+        )
+      )
+      .orderBy(desc(contractClauses.createdAt));
+  }
+
+  async createClause(data: InsertContractClause): Promise<ContractClause> {
+    const [created] = await db.insert(contractClauses).values(data).returning();
+    return created;
   }
 }
 
