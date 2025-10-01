@@ -81,6 +81,18 @@ type Party = {
   signatureStatus?: string;
 };
 
+type ContractObligation = {
+  id: string;
+  contractId: string;
+  title: string;
+  description?: string;
+  obligationType: string;
+  dueDate?: string | Date;
+  completedAt?: string | Date;
+  status?: string;
+  priority?: string;
+};
+
 type Template = {
   id: string;
   name: string;
@@ -175,6 +187,8 @@ export default function ContractEditor({
   const [showPartiesSection, setShowPartiesSection] = useState(false);
   const [showAdvancedFields, setShowAdvancedFields] = useState(false);
   const [tags, setTags] = useState<string>(initialData?.tags?.join(", ") || "");
+  const [saveAsVersion, setSaveAsVersion] = useState(false);
+  const [versionSummary, setVersionSummary] = useState("");
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -199,6 +213,12 @@ export default function ContractEditor({
   const { data: people = [] } = useQuery<Person[]>({
     queryKey: ["/api/orgs", orgId, "people"],
     enabled: !!orgId,
+  });
+
+  // Fetch obligations when in edit mode
+  const { data: obligations = [] } = useQuery<ContractObligation[]>({
+    queryKey: ["/api/contracts", contractId, "obligations"],
+    enabled: !!contractId && mode === "edit",
   });
 
   // Filter clauses by category
@@ -286,6 +306,63 @@ export default function ContractEditor({
     },
   });
 
+  // Create version mutation
+  const createVersionMutation = useMutation({
+    mutationFn: async (data: { content: string; changesSummary: string; formData: any; parties: Party[]; obligations: ContractObligation[] }) => {
+      if (!contractId) throw new Error("Contract ID is required");
+      if (!existingContract) throw new Error("Contract not found");
+      
+      // Build full snapshot including all contract metadata, parties, and obligations
+      const snapshot = {
+        name: data.formData.name,
+        contractType: data.formData.contractType,
+        status: data.formData.status,
+        description: data.formData.description,
+        contractValue: data.formData.contractValue,
+        currency: data.formData.currency,
+        effectiveDate: data.formData.effectiveDate,
+        expirationDate: data.formData.expirationDate,
+        renewalDate: data.formData.renewalDate,
+        autoRenewal: data.formData.autoRenewal,
+        renewalNoticeDays: data.formData.renewalNoticeDays,
+        terminationNoticeDays: data.formData.terminationNoticeDays,
+        governingLaw: data.formData.governingLaw,
+        riskLevel: data.formData.riskLevel,
+        complianceStatus: data.formData.complianceStatus,
+        aiSummary: existingContract.aiSummary,
+        parties: data.parties,
+        obligations: data.obligations,
+      };
+      
+      return await apiRequest("POST", `/api/contracts/${contractId}/versions`, {
+        content: data.content,
+        changesSummary: data.changesSummary,
+        snapshot,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", contractId, "versions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", contractId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts"] });
+      toast({
+        title: "Success",
+        description: "New version created successfully",
+      });
+      setSaveAsVersion(false);
+      setVersionSummary("");
+      if (onSave && existingContract) {
+        onSave(existingContract);
+      }
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: z.infer<typeof formSchema>) => {
     // Parse tags from comma-separated string
     const parsedTags = tags
@@ -293,11 +370,31 @@ export default function ContractEditor({
       .map(tag => tag.trim())
       .filter(tag => tag.length > 0);
 
-    saveMutation.mutate({
-      ...data,
-      tags: parsedTags,
-      content: content,
-    });
+    if (saveAsVersion && mode === "edit") {
+      // Save as new version
+      if (!versionSummary.trim()) {
+        toast({
+          title: "Summary Required",
+          description: "Please provide a summary of changes for the new version",
+          variant: "destructive",
+        });
+        return;
+      }
+      createVersionMutation.mutate({
+        content: content,
+        changesSummary: versionSummary,
+        formData: { ...data, tags: parsedTags },
+        parties: parties,
+        obligations: obligations,
+      });
+    } else {
+      // Regular save
+      saveMutation.mutate({
+        ...data,
+        tags: parsedTags,
+        content: content,
+      });
+    }
   };
 
   const handleTemplateSelect = (templateId: string) => {
@@ -381,14 +478,60 @@ export default function ContractEditor({
               )}
               <Button
                 type="submit"
-                disabled={saveMutation.isPending}
+                disabled={saveMutation.isPending || createVersionMutation.isPending}
                 data-testid="button-save"
               >
                 <Save className="w-4 h-4 mr-2" />
-                {saveMutation.isPending ? "Saving..." : "Save Contract"}
+                {saveMutation.isPending 
+                  ? "Saving..." 
+                  : createVersionMutation.isPending 
+                  ? "Creating Version..." 
+                  : saveAsVersion 
+                  ? "Save as New Version" 
+                  : "Save Contract"}
               </Button>
             </div>
           </div>
+
+          {/* Version Creation Toggle (Edit Mode Only) */}
+          {mode === "edit" && contractId && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="save-as-version"
+                      checked={saveAsVersion}
+                      onCheckedChange={setSaveAsVersion}
+                      data-testid="switch-save-as-version"
+                    />
+                    <Label htmlFor="save-as-version" className="font-medium cursor-pointer">
+                      Save as New Version
+                    </Label>
+                  </div>
+                  {saveAsVersion && (
+                    <div className="flex-1">
+                      <Label htmlFor="version-summary" className="text-sm">
+                        Change Summary *
+                      </Label>
+                      <Textarea
+                        id="version-summary"
+                        placeholder="Describe what changed in this version..."
+                        value={versionSummary}
+                        onChange={(e) => setVersionSummary(e.target.value)}
+                        className="mt-1"
+                        rows={2}
+                        data-testid="textarea-version-summary"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        A new version will be created with the current content. The contract details will not be updated.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Content Area - Left Side */}

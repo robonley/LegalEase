@@ -287,6 +287,7 @@ export const contractVersions = pgTable("contract_versions", {
   pdfKey: text("pdf_key"),
   changesSummary: text("changes_summary"),
   changeLog: json("change_log"), // detailed field-by-field changes
+  snapshot: json("snapshot"), // full contract state including metadata, parties, obligations
   isCurrent: boolean("is_current").notNull().default(false),
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),

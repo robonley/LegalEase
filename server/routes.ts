@@ -3071,6 +3071,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
         pdfKey: req.body.pdfKey,
         changesSummary: req.body.changesSummary,
         changeLog: req.body.changeLog,
+        snapshot: req.body.snapshot, // Store full contract state snapshot
+        isCurrent: true,
+        createdBy: userId
+      });
+
+      const version = await storage.createContractVersion(versionData);
+      
+      // Set this version as current (will set all others to false)
+      await storage.setCurrentVersion(contractId, version.id);
+      
+      // Create audit log
+      await storage.createAuditLog({
+        orgId: contract.orgId,
+        actorId: userId,
+        action: "CREATE_CONTRACT_VERSION",
+        payload: { 
+          contractId, 
+          versionId: version.id,
+          versionNumber: version.versionNumber 
+        }
+      });
+
+      res.status(201).json(version);
+    } catch (error) {
+      console.error("Error creating contract version:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          message: "Validation error", 
+          errors: error.errors 
+        });
+      }
+      res.status(500).json({ message: "Failed to create contract version" });
+    }
+  });
+
+  // Add POST route for creating versions (plural endpoint)
+  app.post('/api/contracts/:id/versions', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      const contractId = req.params.id;
+      
+      const contract = await storage.getContractById(contractId);
+      if (!contract) {
+        return res.status(404).json({ message: "Contract not found" });
+      }
+
+      // Get existing versions to determine next version number
+      const versions = await storage.getContractVersions(contractId);
+      const nextVersionNumber = versions.length > 0 
+        ? Math.max(...versions.map(v => v.versionNumber)) + 1 
+        : 1;
+
+      const versionData = insertContractVersionSchema.parse({
+        contractId,
+        versionNumber: nextVersionNumber,
+        content: req.body.content || contract.content || '',
+        fileKey: req.body.fileKey,
+        pdfKey: req.body.pdfKey,
+        changesSummary: req.body.changesSummary,
+        changeLog: req.body.changeLog,
+        snapshot: req.body.snapshot, // Store full contract state snapshot
         isCurrent: true,
         createdBy: userId
       });

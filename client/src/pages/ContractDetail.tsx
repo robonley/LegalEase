@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,10 +8,16 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { AlertTriangle, ArrowLeft, Edit, Trash2, FileText, Calendar, DollarSign, Users, CheckCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Edit, Trash2, FileText, Calendar, DollarSign, Users, CheckCircle, GitCompare, History, RotateCcw, Plus, Eye } from "lucide-react";
 import { differenceInDays } from "date-fns";
+import VersionCompare from "@/components/VersionCompare";
 
 type Contract = {
   id: string;
@@ -31,6 +38,7 @@ type Contract = {
   riskLevel?: string;
   complianceStatus?: string;
   aiSummary?: string;
+  content?: string;
   createdAt?: string | Date;
   updatedAt?: string | Date;
   org?: {
@@ -76,9 +84,36 @@ type ContractVersion = {
   id: string;
   contractId: string;
   versionNumber: number;
+  content: string;
   changesSummary?: string;
   isCurrent: boolean;
   createdAt: string | Date;
+  createdBy?: string;
+  creator?: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  };
+};
+
+type AuditLog = {
+  id: string;
+  orgId?: string;
+  actorId: string;
+  action: string;
+  entityType?: string;
+  entityId?: string;
+  payload: any;
+  ipAddress?: string;
+  userAgent?: string;
+  createdAt: string | Date;
+  actor?: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  };
 };
 
 export default function ContractDetail() {
@@ -86,6 +121,14 @@ export default function ContractDetail() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // Version control state
+  const [showCompare, setShowCompare] = useState(false);
+  const [compareVersions, setCompareVersions] = useState<{ left: ContractVersion | null; right: ContractVersion | null }>({ left: null, right: null });
+  const [showCreateVersion, setShowCreateVersion] = useState(false);
+  const [newVersionSummary, setNewVersionSummary] = useState("");
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [restoreVersion, setRestoreVersion] = useState<ContractVersion | null>(null);
 
   const { data: contract, isLoading } = useQuery<Contract>({
     queryKey: ["/api/contracts", id],
@@ -105,6 +148,122 @@ export default function ContractDetail() {
   const { data: versions = [] } = useQuery<ContractVersion[]>({
     queryKey: ["/api/contracts", id, "versions"],
     enabled: !!id,
+  });
+
+  const { data: auditLogs = [] } = useQuery<AuditLog[]>({
+    queryKey: ["/api/audit-logs/filter"],
+    queryFn: async () => {
+      const response = await fetch(`/api/audit-logs/filter?entityId=${id}&entityType=contract`);
+      if (!response.ok) throw new Error("Failed to fetch audit logs");
+      return response.json();
+    },
+    enabled: !!id,
+  });
+
+  const createVersionMutation = useMutation({
+    mutationFn: async (data: { content: string; changesSummary: string }) => {
+      if (!contract) throw new Error("Contract not found");
+      
+      // Build full snapshot including all contract metadata, parties, and obligations
+      const snapshot = {
+        name: contract.name,
+        contractType: contract.contractType,
+        status: contract.status,
+        description: contract.description,
+        contractValue: contract.contractValue,
+        currency: contract.currency,
+        effectiveDate: contract.effectiveDate,
+        expirationDate: contract.expirationDate,
+        renewalDate: contract.renewalDate,
+        autoRenewal: contract.autoRenewal,
+        renewalNoticeDays: contract.renewalNoticeDays,
+        terminationNoticeDays: contract.terminationNoticeDays,
+        governingLaw: contract.governingLaw,
+        riskLevel: contract.riskLevel,
+        complianceStatus: contract.complianceStatus,
+        aiSummary: contract.aiSummary,
+        parties: parties,
+        obligations: obligations,
+      };
+      
+      return await apiRequest("POST", `/api/contracts/${id}/versions`, {
+        ...data,
+        snapshot,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", id, "versions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/audit-logs/filter"] });
+      toast({
+        title: "Success",
+        description: "New version created successfully",
+      });
+      setShowCreateVersion(false);
+      setNewVersionSummary("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const restoreVersionMutation = useMutation({
+    mutationFn: async (version: ContractVersion & { snapshot?: any }) => {
+      if (!version.snapshot) {
+        // Backward compatibility: if no snapshot, just restore content
+        return await apiRequest("PATCH", `/api/contracts/${id}`, {
+          content: version.content,
+        });
+      }
+      
+      // Restore full state from snapshot
+      const snapshot = version.snapshot;
+      const restoreData: any = {
+        content: version.content,
+        name: snapshot.name,
+        contractType: snapshot.contractType,
+        status: snapshot.status,
+        description: snapshot.description,
+        contractValue: snapshot.contractValue,
+        currency: snapshot.currency,
+        effectiveDate: snapshot.effectiveDate,
+        expirationDate: snapshot.expirationDate,
+        renewalDate: snapshot.renewalDate,
+        autoRenewal: snapshot.autoRenewal,
+        renewalNoticeDays: snapshot.renewalNoticeDays,
+        terminationNoticeDays: snapshot.terminationNoticeDays,
+        governingLaw: snapshot.governingLaw,
+        riskLevel: snapshot.riskLevel,
+        complianceStatus: snapshot.complianceStatus,
+        aiSummary: snapshot.aiSummary,
+      };
+      
+      return await apiRequest("PATCH", `/api/contracts/${id}`, restoreData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", id, "versions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", id, "parties"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", id, "obligations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/audit-logs/filter"] });
+      toast({
+        title: "Success",
+        description: "Version restored successfully. All contract fields have been updated.",
+      });
+      setShowRestoreDialog(false);
+      setRestoreVersion(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -198,6 +357,94 @@ export default function ContractDetail() {
     if (confirm(`Are you sure you want to delete "${contract?.name}"? This action cannot be undone.`)) {
       deleteMutation.mutate();
     }
+  };
+
+  const handleCompareVersions = (version: ContractVersion) => {
+    const currentVersion = versions.find(v => v.isCurrent);
+    if (currentVersion && version.id !== currentVersion.id) {
+      setCompareVersions({
+        left: version,
+        right: currentVersion,
+      });
+      setShowCompare(true);
+    } else {
+      toast({
+        title: "Cannot Compare",
+        description: "Please select a different version to compare with the current version",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateVersion = () => {
+    if (!contract?.content) {
+      toast({
+        title: "Cannot Create Version",
+        description: "No content available to create a version",
+        variant: "destructive",
+      });
+      return;
+    }
+    setShowCreateVersion(true);
+  };
+
+  const handleSubmitNewVersion = () => {
+    if (!newVersionSummary.trim()) {
+      toast({
+        title: "Summary Required",
+        description: "Please provide a summary of changes",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!contract?.content) {
+      toast({
+        title: "No Content",
+        description: "No content available to create a version",
+        variant: "destructive",
+      });
+      return;
+    }
+    createVersionMutation.mutate({
+      content: contract.content,
+      changesSummary: newVersionSummary,
+    });
+  };
+
+  const handleRestoreVersion = (version: ContractVersion) => {
+    setRestoreVersion(version);
+    setShowRestoreDialog(true);
+  };
+
+  const confirmRestore = () => {
+    if (restoreVersion) {
+      restoreVersionMutation.mutate(restoreVersion);
+    }
+  };
+
+  const getActionLabel = (action: string) => {
+    const actionMap: Record<string, string> = {
+      CREATE_CONTRACT: "Contract Created",
+      UPDATE_CONTRACT: "Contract Updated",
+      DELETE_CONTRACT: "Contract Deleted",
+      CREATE_CONTRACT_VERSION: "Version Created",
+      ADD_CONTRACT_PARTY: "Party Added",
+      ADD_CONTRACT_OBLIGATION: "Obligation Added",
+      UPDATE_CONTRACT_PARTY: "Party Updated",
+      UPDATE_CONTRACT_OBLIGATION: "Obligation Updated",
+    };
+    return actionMap[action] || action;
+  };
+
+  const formatDateTime = (date: string | Date) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   const getContractTypeLabel = (type: string) => {
@@ -526,43 +773,258 @@ export default function ContractDetail() {
           </Card>
         )}
 
-        {/* Contract Versions */}
-        {versions.length > 0 && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Version History
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Version</TableHead>
-                    <TableHead>Changes Summary</TableHead>
-                    <TableHead>Created At</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {versions.map((version) => (
-                    <TableRow key={version.id} data-testid={`version-${version.id}`}>
-                      <TableCell className="font-medium">v{version.versionNumber}</TableCell>
-                      <TableCell>{version.changesSummary || 'No summary provided'}</TableCell>
-                      <TableCell>{formatDate(version.createdAt)}</TableCell>
-                      <TableCell>
-                        {version.isCurrent && (
-                          <Badge variant="default">Current</Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+        {/* Contract Versions & Audit Log */}
+        <Tabs defaultValue="versions" className="w-full">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="versions" data-testid="tab-versions">
+              <History className="h-4 w-4 mr-2" />
+              Version History
+            </TabsTrigger>
+            <TabsTrigger value="audit" data-testid="tab-audit">
+              <FileText className="h-4 w-4 mr-2" />
+              Audit Trail
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="versions" className="mt-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Version History
+                  </CardTitle>
+                  {contract?.content && (
+                    <Button
+                      onClick={handleCreateVersion}
+                      size="sm"
+                      data-testid="button-create-version"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create New Version
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {versions.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Version</TableHead>
+                        <TableHead>Changes Summary</TableHead>
+                        <TableHead>Created At</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {versions.map((version) => (
+                        <TableRow key={version.id} data-testid={`version-${version.id}`}>
+                          <TableCell className="font-medium">v{version.versionNumber}</TableCell>
+                          <TableCell>{version.changesSummary || 'No summary provided'}</TableCell>
+                          <TableCell>{formatDate(version.createdAt)}</TableCell>
+                          <TableCell>
+                            {version.isCurrent && (
+                              <Badge variant="default" data-testid={`badge-current-${version.id}`}>Current</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              {!version.isCurrent && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleCompareVersions(version)}
+                                    data-testid={`button-compare-${version.id}`}
+                                  >
+                                    <GitCompare className="h-4 w-4 mr-1" />
+                                    Compare
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRestoreVersion(version)}
+                                    data-testid={`button-restore-${version.id}`}
+                                  >
+                                    <RotateCcw className="h-4 w-4 mr-1" />
+                                    Restore
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>No version history available</p>
+                    <p className="text-sm">Create a version to start tracking changes</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="audit" className="mt-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Audit Trail
+                </CardTitle>
+                <CardDescription>
+                  Complete history of all changes to this contract
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {auditLogs.length > 0 ? (
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-4">
+                      {auditLogs.map((log) => (
+                        <div
+                          key={log.id}
+                          className="flex gap-4 pb-4 border-b last:border-0"
+                          data-testid={`audit-log-${log.id}`}
+                        >
+                          <div className="flex-shrink-0 w-2 h-2 bg-primary rounded-full mt-2"></div>
+                          <div className="flex-1 space-y-1">
+                            <div className="flex items-start justify-between">
+                              <div>
+                                <p className="font-medium text-sm" data-testid={`audit-action-${log.id}`}>
+                                  {getActionLabel(log.action)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {log.actor?.firstName && log.actor?.lastName
+                                    ? `${log.actor.firstName} ${log.actor.lastName}`
+                                    : log.actor?.email || "Unknown User"}
+                                </p>
+                              </div>
+                              <p className="text-xs text-muted-foreground" data-testid={`audit-time-${log.id}`}>
+                                {formatDateTime(log.createdAt)}
+                              </p>
+                            </div>
+                            {log.payload && (
+                              <p className="text-xs text-muted-foreground">
+                                {JSON.stringify(log.payload, null, 2).substring(0, 100)}
+                                {JSON.stringify(log.payload).length > 100 && "..."}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <History className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>No audit trail available</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Version Compare Dialog */}
+        {compareVersions.left && compareVersions.right && (
+          <VersionCompare
+            open={showCompare}
+            onOpenChange={setShowCompare}
+            leftVersion={compareVersions.left}
+            rightVersion={compareVersions.right}
+            contractName={contract?.name}
+          />
         )}
+
+        {/* Create Version Dialog */}
+        <Dialog open={showCreateVersion} onOpenChange={setShowCreateVersion}>
+          <DialogContent data-testid="dialog-create-version">
+            <DialogHeader>
+              <DialogTitle>Create New Version</DialogTitle>
+              <DialogDescription>
+                Create a new version of this contract. Provide a summary of changes.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label htmlFor="version-summary">Change Summary *</Label>
+                <Textarea
+                  id="version-summary"
+                  placeholder="Describe what changed in this version..."
+                  value={newVersionSummary}
+                  onChange={(e) => setNewVersionSummary(e.target.value)}
+                  className="mt-2"
+                  rows={4}
+                  data-testid="input-version-summary"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowCreateVersion(false)}
+                data-testid="button-cancel-version"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitNewVersion}
+                disabled={createVersionMutation.isPending}
+                data-testid="button-submit-version"
+              >
+                {createVersionMutation.isPending ? "Creating..." : "Create Version"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Restore Version Dialog */}
+        <Dialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
+          <DialogContent data-testid="dialog-restore-version">
+            <DialogHeader>
+              <DialogTitle>Restore Version</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to restore version {restoreVersion?.versionNumber}? This will create a new version with the content from the selected version.
+              </DialogDescription>
+            </DialogHeader>
+            {restoreVersion && (
+              <div className="py-4 space-y-2">
+                <div className="text-sm">
+                  <span className="font-medium">Version:</span> v{restoreVersion.versionNumber}
+                </div>
+                <div className="text-sm">
+                  <span className="font-medium">Created:</span> {formatDate(restoreVersion.createdAt)}
+                </div>
+                {restoreVersion.changesSummary && (
+                  <div className="text-sm">
+                    <span className="font-medium">Summary:</span> {restoreVersion.changesSummary}
+                  </div>
+                )}
+              </div>
+            )}
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowRestoreDialog(false)}
+                data-testid="button-cancel-restore"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmRestore}
+                disabled={restoreVersionMutation.isPending}
+                data-testid="button-confirm-restore"
+              >
+                {restoreVersionMutation.isPending ? "Restoring..." : "Restore Version"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
