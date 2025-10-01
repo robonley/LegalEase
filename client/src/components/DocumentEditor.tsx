@@ -21,6 +21,29 @@ import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import type { Org, ShareClass, ShareIssuance, EntityData } from "@shared/schema";
 
+if (typeof window !== 'undefined' && (window as any).Quill) {
+  const Inline = (window as any).Quill.import('blots/inline');
+
+  class DataFieldBlot extends Inline {
+    static blotName = 'data-field';
+    static tagName = 'span';
+    static className = 'data-field';
+
+    static create(value: string) {
+      const node = super.create();
+      node.setAttribute('data-field-name', value);
+      node.setAttribute('title', `Field: ${value.replace(/[{}]/g, '')}`);
+      return node;
+    }
+
+    static formats(node: HTMLElement) {
+      return node.getAttribute('data-field-name');
+    }
+  }
+
+  (window as any).Quill.register(DataFieldBlot);
+}
+
 interface DocumentEditorProps {
   documentId: string | null;
   orgId: string;
@@ -187,221 +210,34 @@ export function DocumentEditor({
 
   // Function to auto-populate template placeholders with entity data
   const populateTemplatePlaceholders = (templateContent: string) => {
-    if (!entityData?.organization) return templateContent;
+    if (!entityData?.organization) return { content: templateContent, replacements: [] };
 
-    let populatedContent = templateContent;
+    const replacements: Array<{start: number, length: number, variable: string}> = [];
+    let result = templateContent;
+    let offset = 0;
 
-    // COMPANY INFORMATION
-    populatedContent = populatedContent.replace(/\{\{CompanyName\}\}/g, entityData.organization.name || '');
-    populatedContent = populatedContent.replace(/\{\{Jurisdiction\}\}/g, entityData.organization.jurisdiction || '');
-    populatedContent = populatedContent.replace(/\{\{IncorporationNumber\}\}/g, entityData.organization.number || '');
-    
-    // DATES
-    const formatDate = (date: string | Date | null) => {
-      if (!date) return '';
-      return new Date(date).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    };
+    const regex = /\{\{([^}]+)\}\}/g;
+    let match;
 
-    populatedContent = populatedContent.replace(/\{\{FormationDate\}\}/g, formatDate(entityData.organization.formationAt));
-    populatedContent = populatedContent.replace(/\{\{AmendmentDate\}\}/g, formatDate(entityData.organization.amendmentDate));
-    populatedContent = populatedContent.replace(/\{\{CreatedAt\}\}/g, formatDate(entityData.organization.createdAt));
-    populatedContent = populatedContent.replace(/\{\{UpdatedAt\}\}/g, formatDate(entityData.organization.updatedAt));
+    while ((match = regex.exec(templateContent)) !== null) {
+      const placeholder = match[0];
+      const value = computeTemplateValue(placeholder);
 
-    // AMENDMENT INFORMATION  
-    populatedContent = populatedContent.replace(/\{\{PreviousCorporationName\}\}/g, entityData.organization.previousCorporationName || '');
-    populatedContent = populatedContent.replace(/\{\{AmendmentDetails\}\}/g, entityData.organization.amendmentDetails || '');
+      if (value !== 'Not set') {
+        const startPos = match.index + offset;
+        result = result.substring(0, startPos) + value + result.substring(startPos + placeholder.length);
 
-    // ANNUAL RETURN & COMPLIANCE
-    populatedContent = populatedContent.replace(/\{\{AnnualReturnDueAt\}\}/g, formatDate(entityData.organization.annualReturnDueAt));
-    populatedContent = populatedContent.replace(/\{\{AnnualReturnReminderEmail\}\}/g, entityData.organization.annualReturnReminderEmail || '');
-    populatedContent = populatedContent.replace(/\{\{AnnualReturnReminderDays\}\}/g, entityData.organization.annualReturnReminderDays?.toString() || '30');
+        replacements.push({
+          start: startPos,
+          length: value.length,
+          variable: placeholder
+        });
 
-    // AUTHORIZED REPRESENTATIVE
-    populatedContent = populatedContent.replace(/\{\{AuthRepName\}\}/g, entityData.organization.authRepName || '');
-    populatedContent = populatedContent.replace(/\{\{AuthRepCompany\}\}/g, entityData.organization.authRepCompany || '');
-    populatedContent = populatedContent.replace(/\{\{AuthRepEmail\}\}/g, entityData.organization.authRepEmail || '');
-    populatedContent = populatedContent.replace(/\{\{AuthRepPhone\}\}/g, entityData.organization.authRepPhone || '');
-
-    // ADDRESSES
-    const formatAddress = (address: any) => {
-      if (!address) return '';
-      return [
-        address.line1,
-        address.line2,
-        address.city,
-        address.region,
-        address.postal,
-        address.country
-      ].filter(Boolean).join(', ');
-    };
-
-    // Find addresses by type in the addresses array
-    const getAddressByType = (type: string) => {
-      if (!entityData.addresses) return null;
-      // This is a simplified approach - actual address linking would need proper relations
-      return entityData.addresses[0] || null; // Fallback to first address for now
-    };
-
-    populatedContent = populatedContent.replace(/\{\{RegisteredOffice\}\}/g, formatAddress(getAddressByType('registered')));
-    populatedContent = populatedContent.replace(/\{\{RecordsOffice\}\}/g, formatAddress(getAddressByType('records')));
-    populatedContent = populatedContent.replace(/\{\{MailingAddress\}\}/g, formatAddress(getAddressByType('mailing')));
-    populatedContent = populatedContent.replace(/\{\{AuthRepAddress\}\}/g, formatAddress(getAddressByType('authRep')));
-
-    // PEOPLE & ROLES
-    if (entityData.people) {
-      // Directors
-      const directors = entityData.people.filter(person => 
-        person.roles.some(role => role.role.toLowerCase() === 'director')
-      );
-      
-      const directorNames = directors.map(person => `${person.firstName} ${person.lastName}`);
-      populatedContent = populatedContent.replace(/\{\{DirectorNames\}\}/g, directorNames.join(', '));
-      populatedContent = populatedContent.replace(/\{\{FirstDirector\}\}/g, directorNames[0] || '');
-      populatedContent = populatedContent.replace(/\{\{DirectorCount\}\}/g, directors.length.toString());
-
-      // Detailed director information with dates
-      const directorDetails = directors.map(person => {
-        const directorRole = person.roles.find(role => role.role.toLowerCase() === 'director');
-        const startDate = directorRole?.startAt ? formatDate(directorRole.startAt) : '';
-        const endDate = directorRole?.endAt ? formatDate(directorRole.endAt) : 'Present';
-        return `${person.firstName} ${person.lastName} (${startDate} - ${endDate})`;
-      });
-      populatedContent = populatedContent.replace(/\{\{DirectorDetails\}\}/g, directorDetails.join(', '));
-
-      // Officers by title
-      const getOfficerByTitle = (title: string) => {
-        const officer = entityData.people?.find(person => 
-          person.roles.some(role => role.role.toLowerCase() === 'officer' && role.title?.toLowerCase().includes(title.toLowerCase()))
-        );
-        return officer ? `${officer.firstName} ${officer.lastName}` : '';
-      };
-
-      populatedContent = populatedContent.replace(/\{\{President\}\}/g, getOfficerByTitle('president'));
-      populatedContent = populatedContent.replace(/\{\{CEO\}\}/g, getOfficerByTitle('ceo'));
-      populatedContent = populatedContent.replace(/\{\{CFO\}\}/g, getOfficerByTitle('cfo'));
-      populatedContent = populatedContent.replace(/\{\{Secretary\}\}/g, getOfficerByTitle('secretary'));
-      populatedContent = populatedContent.replace(/\{\{Treasurer\}\}/g, getOfficerByTitle('treasurer'));
-      populatedContent = populatedContent.replace(/\{\{CTO\}\}/g, getOfficerByTitle('cto'));
-      populatedContent = populatedContent.replace(/\{\{COO\}\}/g, getOfficerByTitle('coo'));
-
-      // All officers with titles
-      const officers = entityData.people.filter(person => 
-        person.roles.some(role => role.role.toLowerCase() === 'officer')
-      );
-      
-      const officerList = officers.map(person => {
-        const officerRole = person.roles.find(role => role.role.toLowerCase() === 'officer');
-        return `${person.firstName} ${person.lastName} (${officerRole?.title || 'Officer'})`;
-      });
-      populatedContent = populatedContent.replace(/\{\{Officers\}\}/g, officerList.join(', '));
-      populatedContent = populatedContent.replace(/\{\{OfficerCount\}\}/g, officers.length.toString());
-
-      // Shareholders
-      const shareholders = entityData.people.filter(person => 
-        person.roles.some(role => role.role.toLowerCase() === 'shareholder')
-      );
-      
-      const shareholderNames = shareholders.map(person => `${person.firstName} ${person.lastName}`);
-      populatedContent = populatedContent.replace(/\{\{Shareholders\}\}/g, shareholderNames.join(', '));
-      populatedContent = populatedContent.replace(/\{\{ShareholderCount\}\}/g, shareholders.length.toString());
-
-      // All people (complete list)
-      const allPeople = entityData.people.map(person => `${person.firstName} ${person.lastName}`);
-      populatedContent = populatedContent.replace(/\{\{AllPeople\}\}/g, allPeople.join(', '));
-      populatedContent = populatedContent.replace(/\{\{PeopleCount\}\}/g, entityData.people.length.toString());
-
-      // Individual person details (for first person as example)
-      if (entityData.people[0]) {
-        const firstPerson = entityData.people[0];
-        populatedContent = populatedContent.replace(/\{\{FirstPersonFirstName\}\}/g, firstPerson.firstName || '');
-        populatedContent = populatedContent.replace(/\{\{FirstPersonLastName\}\}/g, firstPerson.lastName || '');
-        populatedContent = populatedContent.replace(/\{\{FirstPersonEmail\}\}/g, firstPerson.email || '');
-        populatedContent = populatedContent.replace(/\{\{FirstPersonDOB\}\}/g, formatDate(firstPerson.dob));
+        offset += value.length - placeholder.length;
       }
     }
 
-    // SHARE CLASSES & CAPITAL STRUCTURE
-    if (entityData.shareClasses) {
-      const shareClassNames = entityData.shareClasses.map(sc => sc.name);
-      populatedContent = populatedContent.replace(/\{\{ShareClasses\}\}/g, shareClassNames.join(', '));
-      populatedContent = populatedContent.replace(/\{\{ShareClassCount\}\}/g, entityData.shareClasses.length.toString());
-      
-      // Detailed share class information
-      const shareClassDetails = entityData.shareClasses.map(sc => {
-        const rights = [];
-        if (sc.voting) rights.push('Voting');
-        if (sc.participating) rights.push('Participating');
-        if (sc.redemption) rights.push('Redeemable');
-        return `${sc.name} (${sc.shortCode}) - ${rights.join(', ')}`;
-      });
-      populatedContent = populatedContent.replace(/\{\{ShareClassDetails\}\}/g, shareClassDetails.join('; '));
-      
-      // Calculate total authorized shares
-      // Note: authorizedShares property doesn't exist in schema, using placeholder
-      const totalAuthorized = 0; // entityData.shareClasses.reduce((sum, sc) => sum + (sc.authorizedShares || 0), 0);
-      populatedContent = populatedContent.replace(/\{\{AuthorizedShares\}\}/g, totalAuthorized.toLocaleString());
-
-      // First share class details
-      if (entityData.shareClasses[0]) {
-        const firstClass = entityData.shareClasses[0];
-        populatedContent = populatedContent.replace(/\{\{FirstShareClassName\}\}/g, firstClass.name);
-        populatedContent = populatedContent.replace(/\{\{FirstShareClassCode\}\}/g, firstClass.shortCode);
-        populatedContent = populatedContent.replace(/\{\{FirstShareClassRights\}\}/g, firstClass.specialRights || '');
-      }
-    }
-
-    // SHARE ISSUANCES
-    if (entityData.shareIssuances) {
-      const totalIssued = entityData.shareIssuances.reduce((sum, issuance) => sum + (issuance.quantity || 0), 0);
-      populatedContent = populatedContent.replace(/\{\{IssuedShares\}\}/g, totalIssued.toLocaleString());
-      populatedContent = populatedContent.replace(/\{\{IssuanceCount\}\}/g, entityData.shareIssuances.length.toString());
-      
-      // Calculate total value
-      const totalValue = entityData.shareIssuances.reduce((sum, issuance) => 
-        sum + ((issuance.quantity || 0) * (parseFloat(issuance.issuePrice || '0') || 0)), 0);
-      populatedContent = populatedContent.replace(/\{\{TotalShareValue\}\}/g, totalValue.toLocaleString());
-      
-      // Most recent issuance
-      const sortedIssuances = [...entityData.shareIssuances].sort((a, b) => 
-        new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime());
-      
-      if (sortedIssuances[0]) {
-        const latest = sortedIssuances[0];
-        populatedContent = populatedContent.replace(/\{\{LatestIssuanceDate\}\}/g, formatDate(latest.issueDate));
-        populatedContent = populatedContent.replace(/\{\{LatestIssuanceShares\}\}/g, latest.quantity?.toLocaleString() || '');
-        populatedContent = populatedContent.replace(/\{\{LatestIssuancePrice\}\}/g, latest.issuePrice || '');
-        populatedContent = populatedContent.replace(/\{\{LatestIssuanceCert\}\}/g, latest.certNumber || '');
-      }
-    }
-
-    // SYSTEM & METADATA
-    const currentDate = new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long', 
-      day: 'numeric'
-    });
-    populatedContent = populatedContent.replace(/\{\{CurrentDate\}\}/g, currentDate);
-    
-    const currentYear = new Date().getFullYear().toString();
-    populatedContent = populatedContent.replace(/\{\{CurrentYear\}\}/g, currentYear);
-
-    // Currency based on jurisdiction
-    const currency = entityData.organization.jurisdiction?.includes('Canada') || 
-                    entityData.organization.jurisdiction?.includes('CA') ? 'CAD' : 'USD';
-    populatedContent = populatedContent.replace(/\{\{Currency\}\}/g, currency);
-
-    // Fiscal year end (using formation month or default Dec 31)
-    const formationDate = entityData.organization.formationAt ? new Date(entityData.organization.formationAt) : null;
-    const fiscalYearEnd = formationDate ? 
-      `December 31, ${formationDate.getFullYear()}` : 
-      `December 31, ${currentYear}`;
-    populatedContent = populatedContent.replace(/\{\{FiscalYearEnd\}\}/g, fiscalYearEnd);
-
-    return populatedContent;
+    return { content: result, replacements };
   };
 
   // Store original template when initialContent changes
@@ -416,8 +252,18 @@ export function DocumentEditor({
   useEffect(() => {
     if (originalTemplate && entityData?.organization) {
       // Always re-populate from original template to ensure clean substitution
-      const populatedContent = populateTemplatePlaceholders(originalTemplate);
+      const { content: populatedContent, replacements } = populateTemplatePlaceholders(originalTemplate);
       setContent(populatedContent);
+
+      // Apply formatting after content is set
+      setTimeout(() => {
+        const quill = quillRef.current?.getEditor();
+        if (quill && replacements && replacements.length > 0) {
+          replacements.forEach(({ start, length, variable }) => {
+            quill.formatText(start, length, 'data-field', variable);
+          });
+        }
+      }, 100);
     } else if (originalTemplate && !entityData?.organization) {
       // If no entity data, just use the original template
       setContent(originalTemplate);
@@ -844,6 +690,8 @@ export function DocumentEditor({
       const range = quill.getSelection();
       if (range) {
         quill.insertText(range.index, actualValue);
+        // Apply the data-field format to the inserted text
+        quill.formatText(range.index, actualValue.length, 'data-field', variable);
         quill.setSelection(range.index + actualValue.length);
       }
     }

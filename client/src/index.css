@@ -91,3 +91,15 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+.data-field {
+  background-color: rgba(59, 130, 246, 0.08);
+  border-bottom: 1px dotted rgba(59, 130, 246, 0.4);
+  padding: 0 2px;
+  border-radius: 2px;
+  cursor: help;
+}
+
+.data-field:hover {
+  background-color: rgba(59, 130, 246, 0.15);
+}
