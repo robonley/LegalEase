@@ -21,29 +21,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import type { Org, ShareClass, ShareIssuance, EntityData } from "@shared/schema";
 
-if (typeof window !== 'undefined' && (window as any).Quill) {
-  const Inline = (window as any).Quill.import('blots/inline');
-
-  class DataFieldBlot extends Inline {
-    static blotName = 'data-field';
-    static tagName = 'span';
-    static className = 'data-field';
-
-    static create(value: string) {
-      const node = super.create();
-      node.setAttribute('data-field-name', value);
-      node.setAttribute('title', `Field: ${value.replace(/[{}]/g, '')}`);
-      return node;
-    }
-
-    static formats(node: HTMLElement) {
-      return node.getAttribute('data-field-name');
-    }
-  }
-
-  (window as any).Quill.register(DataFieldBlot);
-}
-
 interface DocumentEditorProps {
   documentId: string | null;
   orgId: string;
@@ -177,6 +154,37 @@ export function DocumentEditor({
     variables: false,
   });
   const quillRef = useRef<ReactQuill>(null);
+
+  // Register custom Quill format once on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).Quill) {
+      const Quill = (window as any).Quill;
+      
+      // Check if already registered to avoid duplicate registration
+      if (!Quill.imports['formats/data-field']) {
+        const Inline = Quill.import('blots/inline');
+        
+        class DataFieldBlot extends Inline {
+          static blotName = 'data-field';
+          static tagName = 'span';
+          static className = 'data-field';
+          
+          static create(value: string) {
+            const node = super.create();
+            node.setAttribute('data-field-name', value);
+            node.setAttribute('title', `Field: ${value.replace(/[{}]/g, '')}`);
+            return node;
+          }
+          
+          static formats(node: HTMLElement) {
+            return node.getAttribute('data-field-name');
+          }
+        }
+        
+        Quill.register(DataFieldBlot);
+      }
+    }
+  }, []);
 
   // Fetch all entities for entity selection
   const { data: allEntities = [] } = useQuery({
