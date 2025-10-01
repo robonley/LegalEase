@@ -9,6 +9,7 @@ import {
   decimal,
   json,
   index,
+  uniqueIndex,
   jsonb
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -246,6 +247,108 @@ export const documentDrafts = pgTable("document_drafts", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Contract Lifecycle Management (CLM)
+export const contracts = pgTable("contracts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orgId: varchar("org_id").notNull().references(() => orgs.id),
+  name: text("name").notNull(),
+  contractType: text("contract_type").notNull(), // "vendor", "customer", "employment", "nda", "license", "other"
+  status: text("status").notNull().default("draft"), // "draft", "active", "expired", "terminated", "pending_signature"
+  description: text("description"),
+  contractValue: decimal("contract_value", { precision: 12, scale: 2 }),
+  currency: text("currency").default("USD"),
+  effectiveDate: timestamp("effective_date"),
+  expirationDate: timestamp("expiration_date"),
+  renewalDate: timestamp("renewal_date"),
+  autoRenewal: boolean("auto_renewal").default(false),
+  renewalNoticeDays: integer("renewal_notice_days").default(30),
+  terminationNoticeDays: integer("termination_notice_days"),
+  governingLaw: text("governing_law"),
+  fileKey: text("file_key"), // storage key for contract document
+  pdfKey: text("pdf_key"),
+  content: text("content"), // rich text content for editing
+  metadata: json("metadata"), // flexible storage for custom fields
+  tags: text("tags").array(),
+  aiSummary: text("ai_summary"), // AI-generated summary
+  aiExtractedData: json("ai_extracted_data"), // key terms, obligations, risks
+  riskLevel: text("risk_level"), // "low", "medium", "high"
+  complianceStatus: text("compliance_status").default("pending"), // "pending", "compliant", "non_compliant", "review_required"
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const contractVersions = pgTable("contract_versions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull().references(() => contracts.id),
+  versionNumber: integer("version_number").notNull(),
+  content: text("content").notNull(),
+  fileKey: text("file_key"),
+  pdfKey: text("pdf_key"),
+  changesSummary: text("changes_summary"),
+  changeLog: json("change_log"), // detailed field-by-field changes
+  isCurrent: boolean("is_current").notNull().default(false),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("contract_version_unique").on(table.contractId, table.versionNumber),
+  uniqueIndex("contract_current_version_unique").on(table.contractId).where(sql`${table.isCurrent} = true`),
+]);
+
+export const contractParties = pgTable("contract_parties", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull().references(() => contracts.id),
+  partyType: text("party_type").notNull(), // "person", "organization", "external"
+  personId: varchar("person_id").references(() => people.id),
+  orgId: varchar("org_id").references(() => orgs.id),
+  externalPartyName: text("external_party_name"), // for parties not in system
+  role: text("role").notNull(), // "client", "vendor", "licensor", "licensee", "employer", "employee"
+  signatureStatus: text("signature_status").default("pending"), // "pending", "signed", "declined"
+  signedAt: timestamp("signed_at"),
+  signatureFileKey: text("signature_file_key"),
+});
+
+export const contractObligations = pgTable("contract_obligations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull().references(() => contracts.id),
+  title: text("title").notNull(),
+  description: text("description"),
+  obligationType: text("obligation_type").notNull(), // "payment", "delivery", "reporting", "compliance", "renewal", "termination", "other"
+  responsiblePartyId: varchar("responsible_party_id").references(() => contractParties.id),
+  dueDate: timestamp("due_date"),
+  completedAt: timestamp("completed_at"),
+  status: text("status").default("pending"), // "pending", "completed", "overdue", "waived"
+  priority: text("priority").default("medium"), // "low", "medium", "high", "critical"
+  reminderDays: integer("reminder_days").default(7),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const contractClauses = pgTable("contract_clauses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  category: text("category").notNull(), // "confidentiality", "termination", "liability", "indemnity", "dispute_resolution", "payment", "other"
+  content: text("content").notNull(),
+  description: text("description"),
+  isStandard: boolean("is_standard").default(false), // system-wide standard clause
+  orgId: varchar("org_id").references(() => orgs.id),
+  tags: text("tags").array(),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const contractNotifications = pgTable("contract_notifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contractId: varchar("contract_id").notNull().references(() => contracts.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  notificationType: text("notification_type").notNull(), // "renewal", "expiration", "obligation_due", "signature_required", "compliance_review"
+  message: text("message").notNull(),
+  scheduledFor: timestamp("scheduled_for").notNull(),
+  sentAt: timestamp("sent_at"),
+  status: text("status").default("pending"), // "pending", "sent", "failed"
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Relations
 export const orgsRelations = relations(orgs, ({ one, many }) => ({
   registeredOffice: one(addresses, {
@@ -285,6 +388,7 @@ export const orgsRelations = relations(orgs, ({ one, many }) => ({
   // Entity relationships - parent/subsidiary and related entities
   parentRelationships: many(entityRelationships, { relationName: "parentEntity" }),
   childRelationships: many(entityRelationships, { relationName: "childEntity" }),
+  contracts: many(contracts),
 }));
 
 export const peopleRelations = relations(people, ({ one, many }) => ({
@@ -465,6 +569,80 @@ export const documentDraftsRelations = relations(documentDrafts, ({ one }) => ({
   }),
 }));
 
+export const contractsRelations = relations(contracts, ({ one, many }) => ({
+  org: one(orgs, {
+    fields: [contracts.orgId],
+    references: [orgs.id],
+  }),
+  createdBy: one(users, {
+    fields: [contracts.createdBy],
+    references: [users.id],
+  }),
+  versions: many(contractVersions),
+  parties: many(contractParties),
+  obligations: many(contractObligations),
+  notifications: many(contractNotifications),
+}));
+
+export const contractVersionsRelations = relations(contractVersions, ({ one }) => ({
+  contract: one(contracts, {
+    fields: [contractVersions.contractId],
+    references: [contracts.id],
+  }),
+  createdBy: one(users, {
+    fields: [contractVersions.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export const contractPartiesRelations = relations(contractParties, ({ one }) => ({
+  contract: one(contracts, {
+    fields: [contractParties.contractId],
+    references: [contracts.id],
+  }),
+  person: one(people, {
+    fields: [contractParties.personId],
+    references: [people.id],
+  }),
+  org: one(orgs, {
+    fields: [contractParties.orgId],
+    references: [orgs.id],
+  }),
+}));
+
+export const contractObligationsRelations = relations(contractObligations, ({ one }) => ({
+  contract: one(contracts, {
+    fields: [contractObligations.contractId],
+    references: [contracts.id],
+  }),
+  responsibleParty: one(contractParties, {
+    fields: [contractObligations.responsiblePartyId],
+    references: [contractParties.id],
+  }),
+}));
+
+export const contractClausesRelations = relations(contractClauses, ({ one }) => ({
+  createdBy: one(users, {
+    fields: [contractClauses.createdBy],
+    references: [users.id],
+  }),
+  org: one(orgs, {
+    fields: [contractClauses.orgId],
+    references: [orgs.id],
+  }),
+}));
+
+export const contractNotificationsRelations = relations(contractNotifications, ({ one }) => ({
+  contract: one(contracts, {
+    fields: [contractNotifications.contractId],
+    references: [contracts.id],
+  }),
+  user: one(users, {
+    fields: [contractNotifications.userId],
+    references: [users.id],
+  }),
+}));
+
 // Insert schemas
 export const insertAddressSchema = createInsertSchema(addresses);
 export const insertOrgSchema = createInsertSchema(orgs).omit({
@@ -528,6 +706,37 @@ export const insertDocumentDraftSchema = createInsertSchema(documentDrafts).omit
   lastSaved: true,
 });
 
+export const insertContractSchema = createInsertSchema(contracts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertContractVersionSchema = createInsertSchema(contractVersions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertContractPartySchema = createInsertSchema(contractParties).omit({
+  id: true,
+});
+
+export const insertContractObligationSchema = createInsertSchema(contractObligations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertContractClauseSchema = createInsertSchema(contractClauses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertContractNotificationSchema = createInsertSchema(contractNotifications).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type UpsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
@@ -580,6 +789,25 @@ export type InsertEntityRelationship = z.infer<typeof insertEntityRelationshipSc
 // Document Drafts types
 export type DocumentDraft = typeof documentDrafts.$inferSelect;
 export type InsertDocumentDraft = z.infer<typeof insertDocumentDraftSchema>;
+
+// CLM types
+export type Contract = typeof contracts.$inferSelect;
+export type InsertContract = z.infer<typeof insertContractSchema>;
+
+export type ContractVersion = typeof contractVersions.$inferSelect;
+export type InsertContractVersion = z.infer<typeof insertContractVersionSchema>;
+
+export type ContractParty = typeof contractParties.$inferSelect;
+export type InsertContractParty = z.infer<typeof insertContractPartySchema>;
+
+export type ContractObligation = typeof contractObligations.$inferSelect;
+export type InsertContractObligation = z.infer<typeof insertContractObligationSchema>;
+
+export type ContractClause = typeof contractClauses.$inferSelect;
+export type InsertContractClause = z.infer<typeof insertContractClauseSchema>;
+
+export type ContractNotification = typeof contractNotifications.$inferSelect;
+export type InsertContractNotification = z.infer<typeof insertContractNotificationSchema>;
 
 // Ingestion Jobs and Results
 export const ingestionJobs = pgTable("ingestion_jobs", {
