@@ -27,6 +27,7 @@ The frontend follows a component-based architecture with reusable UI components.
 - **Documents**: Generated document library with editing capabilities
 - **Templates**: .docx template upload and management with variable mapping
 - **Minute Books**: Document bundle generation for corporate compliance
+- **Contracts**: Contract Lifecycle Management (CLM) module for centralized contract repository
 - **Audit Log**: Complete activity tracking for legal compliance
 
 ### Backend Architecture
@@ -89,6 +90,37 @@ Template variables are mapped to entity data as follows:
 - **DocumentGeneratorService**: Handles template processing and variable substitution
 - **TemplateProcessor**: Extracts variables from uploaded templates
 - **MinuteBooks API**: RESTful endpoints for minute book CRUD operations
+
+### Contract Lifecycle Management (CLM) Module
+The platform includes an integrated CLM module for centralized contract management:
+
+#### Contract Management
+- **Contract Repository**: Centralized view of all contracts with advanced filtering and search
+- **Rich Contract Editor**: ReactQuill-based editor with template selection and clause library integration
+- **Multi-Currency Support**: Proper handling and aggregation of contracts in different currencies
+- **Entity Integration**: Contracts displayed on entity detail pages with context-aware creation
+- **Status Tracking**: Draft, active, expired, terminated, pending signature states with visual indicators
+
+#### Version Control
+- **Complete State Snapshots**: Every version captures full contract metadata, parties, and obligations
+- **Version Comparison**: Side-by-side diff view showing content and metadata changes
+- **Version Restore**: Restore previous versions with full state preservation
+- **Audit Trail**: Complete version history with user and timestamp tracking
+
+#### AI-Powered Analysis
+- **Contract Analyzer**: GPT-4o-mini-powered extraction of contract terms
+- **Automated Extraction**: Parties, obligations, dates, risks, governing law, renewal terms
+- **Executive Summaries**: AI-generated contract summaries
+- **Risk Assessment**: Automatic risk level and compliance status analysis
+- **Smart Data Entry**: "Analyze with AI" feature to auto-populate contract fields
+
+#### Contract Features
+- **Parties Management**: Track contract parties with roles and signature status
+- **Obligations Tracking**: Monitor key obligations with due dates and priorities
+- **Clause Library**: Reusable contract clauses organized by category
+- **Template Integration**: Create contracts from predefined templates
+- **Multi-Version Support**: Track all contract versions with change summaries
+- **Expiration Warnings**: Visual alerts for contracts expiring within 30 days
 
 ### Data Validation & Types
 - **Schema Validation**: Zod schemas for runtime type checking

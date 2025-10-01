@@ -27,6 +27,7 @@ import Contracts from "@/pages/Contracts";
 import ContractDetail from "@/pages/ContractDetail";
 import ContractNew from "@/pages/ContractNew";
 import ContractEdit from "@/pages/ContractEdit";
+import Notifications from "@/pages/Notifications";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -64,6 +65,7 @@ function Router() {
             <Route path="/contracts/new" component={ContractNew} />
             <Route path="/contracts/:id/edit" component={ContractEdit} />
             <Route path="/contracts/:id" component={ContractDetail} />
+            <Route path="/notifications" component={Notifications} />
             <Route path="/audit-log" component={AuditLog} />
             <Route path="/billing" component={BillingSettings} />
           </Layout>

@@ -42,6 +42,49 @@ app.use((req, res, next) => {
   // Start the ingestion worker
   await import('./startWorker');
 
+  // Start notification scheduler
+  const { notificationService } = await import('./services/notificationService');
+  
+  // Run notification checks daily at 9 AM
+  const runDailyNotificationChecks = async () => {
+    const now = new Date();
+    const scheduledTime = new Date();
+    scheduledTime.setHours(9, 0, 0, 0);
+    
+    // If it's past 9 AM today, schedule for tomorrow
+    if (now > scheduledTime) {
+      scheduledTime.setDate(scheduledTime.getDate() + 1);
+    }
+    
+    const timeUntilNextRun = scheduledTime.getTime() - now.getTime();
+    
+    setTimeout(async () => {
+      try {
+        console.log('Running scheduled notification checks...');
+        await notificationService.runAllChecks();
+        console.log('Scheduled notification checks completed');
+      } catch (error) {
+        console.error('Error running scheduled notification checks:', error);
+      }
+      
+      // Schedule next run (24 hours from now)
+      setInterval(async () => {
+        try {
+          console.log('Running scheduled notification checks...');
+          await notificationService.runAllChecks();
+          console.log('Scheduled notification checks completed');
+        } catch (error) {
+          console.error('Error running scheduled notification checks:', error);
+        }
+      }, 24 * 60 * 60 * 1000); // Run every 24 hours
+    }, timeUntilNextRun);
+    
+    log(`Notification checks scheduled for ${scheduledTime.toLocaleString()}`);
+  };
+  
+  // Start the scheduler
+  runDailyNotificationChecks();
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";

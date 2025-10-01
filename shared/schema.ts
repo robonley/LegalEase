@@ -340,14 +340,14 @@ export const contractClauses = pgTable("contract_clauses", {
 
 export const contractNotifications = pgTable("contract_notifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  contractId: varchar("contract_id").notNull().references(() => contracts.id),
+  contractId: varchar("contract_id").notNull().references(() => contracts.id, { onDelete: 'cascade' }),
   userId: varchar("user_id").notNull().references(() => users.id),
-  notificationType: text("notification_type").notNull(), // "renewal", "expiration", "obligation_due", "signature_required", "compliance_review"
+  orgId: varchar("org_id").notNull().references(() => orgs.id, { onDelete: 'cascade' }),
+  notificationType: text("notification_type").notNull(), // "contract_expiring", "contract_expired", "renewal_due", "obligation_due", "obligation_overdue", "signature_pending", "version_created"
   message: text("message").notNull(),
-  scheduledFor: timestamp("scheduled_for").notNull(),
-  sentAt: timestamp("sent_at"),
-  status: text("status").default("pending"), // "pending", "sent", "failed"
-  createdAt: timestamp("created_at").defaultNow(),
+  dueDate: timestamp("due_date"),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 // Relations

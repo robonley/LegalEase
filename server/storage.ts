@@ -21,6 +21,7 @@ import {
   contractParties,
   contractObligations,
   contractClauses,
+  contractNotifications,
   type User,
   type UpsertUser,
   type Org,
@@ -68,6 +69,8 @@ import {
   type InsertContractObligation,
   type ContractClause,
   type InsertContractClause,
+  type ContractNotification,
+  type InsertContractNotification,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, gte, lte, ilike, or, sql } from "drizzle-orm";
@@ -239,6 +242,14 @@ export interface IStorage {
   // Contract clause operations
   getClauses(userId: string): Promise<ContractClause[]>;
   createClause(data: InsertContractClause): Promise<ContractClause>;
+
+  // Contract notification operations
+  createContractNotification(data: InsertContractNotification): Promise<ContractNotification>;
+  getUserNotifications(userId: string): Promise<ContractNotification[]>;
+  getUnreadNotificationCount(userId: string): Promise<number>;
+  markNotificationAsRead(notificationId: string): Promise<void>;
+  markAllNotificationsAsRead(userId: string): Promise<void>;
+  deleteNotification(notificationId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1167,6 +1178,53 @@ export class DatabaseStorage implements IStorage {
   async createClause(data: InsertContractClause): Promise<ContractClause> {
     const [created] = await db.insert(contractClauses).values(data).returning();
     return created;
+  }
+
+  // Contract notification operations
+  async createContractNotification(data: InsertContractNotification): Promise<ContractNotification> {
+    const [created] = await db.insert(contractNotifications).values(data).returning();
+    return created;
+  }
+
+  async getUserNotifications(userId: string): Promise<ContractNotification[]> {
+    return await db
+      .select()
+      .from(contractNotifications)
+      .where(eq(contractNotifications.userId, userId))
+      .orderBy(desc(contractNotifications.createdAt));
+  }
+
+  async getUnreadNotificationCount(userId: string): Promise<number> {
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(contractNotifications)
+      .where(
+        and(
+          eq(contractNotifications.userId, userId),
+          eq(contractNotifications.isRead, false)
+        )
+      );
+    return Number(result[0]?.count || 0);
+  }
+
+  async markNotificationAsRead(notificationId: string): Promise<void> {
+    await db
+      .update(contractNotifications)
+      .set({ isRead: true })
+      .where(eq(contractNotifications.id, notificationId));
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    await db
+      .update(contractNotifications)
+      .set({ isRead: true })
+      .where(eq(contractNotifications.userId, userId));
+  }
+
+  async deleteNotification(notificationId: string): Promise<void> {
+    await db
+      .delete(contractNotifications)
+      .where(eq(contractNotifications.id, notificationId));
   }
 }
 

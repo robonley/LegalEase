@@ -7,6 +7,7 @@ import { useEntityContext } from "@/hooks/useEntityContext";
 import { useTheme } from "@/hooks/useTheme";
 import { useState, useEffect, useRef } from "react";
 import type { User } from "@shared/schema";
+import { NotificationBell } from "@/components/NotificationBell";
 
 // Navigation items will be dynamically generated based on entity context
 
@@ -247,15 +248,18 @@ export function Sidebar() {
                   </div>
                 </Link>
                 
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsCollapsed(true)}
-                  className="w-8 h-8 p-0 text-muted-foreground hover:text-foreground"
-                  data-testid="sidebar-collapse"
-                >
-                  <i className="fas fa-angle-left text-sm"></i>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <NotificationBell />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsCollapsed(true)}
+                    className="w-8 h-8 p-0 text-muted-foreground hover:text-foreground"
+                    data-testid="sidebar-collapse"
+                  >
+                    <i className="fas fa-angle-left text-sm"></i>
+                  </Button>
+                </div>
               </div>
               
               {/* Entity Selector */}

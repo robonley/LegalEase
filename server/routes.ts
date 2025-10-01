@@ -36,6 +36,7 @@ import path from "path";
 import fs from "fs";
 import Stripe from "stripe";
 import { complianceService, type ComplianceReview, type ComplianceGap } from "./services/complianceService";
+import { notificationService } from "./services/notificationService";
 
 // Initialize Stripe
 if (!process.env.STRIPE_SECRET_KEY) {
@@ -3469,6 +3470,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       res.status(500).json({ message: "Failed to create clause" });
+    }
+  });
+
+  // Notification routes
+  app.get('/api/notifications', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      const notifications = await notificationService.getUserNotifications(userId);
+      res.json(notifications);
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  app.get('/api/notifications/unread', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      const count = await notificationService.getUnreadCount(userId);
+      res.json({ count });
+    } catch (error) {
+      console.error("Error fetching unread count:", error);
+      res.status(500).json({ message: "Failed to fetch unread count" });
+    }
+  });
+
+  app.patch('/api/notifications/:id/read', async (req: any, res) => {
+    try {
+      await notificationService.markAsRead(req.params.id);
+      res.json({ message: "Notification marked as read" });
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      res.status(500).json({ message: "Failed to mark notification as read" });
+    }
+  });
+
+  app.post('/api/notifications/mark-all-read', async (req: any, res) => {
+    try {
+      const userId = "test-user-123";
+      await notificationService.markAllAsRead(userId);
+      res.json({ message: "All notifications marked as read" });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
+  });
+
+  app.delete('/api/notifications/:id', async (req: any, res) => {
+    try {
+      await notificationService.deleteNotification(req.params.id);
+      res.json({ message: "Notification deleted" });
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      res.status(500).json({ message: "Failed to delete notification" });
+    }
+  });
+
+  app.post('/api/notifications/check', async (req: any, res) => {
+    try {
+      // Manual trigger for notification checks (admin only in production)
+      await notificationService.runAllChecks();
+      res.json({ message: "Notification checks completed successfully" });
+    } catch (error) {
+      console.error("Error running notification checks:", error);
+      res.status(500).json({ message: "Failed to run notification checks" });
     }
   });
 
