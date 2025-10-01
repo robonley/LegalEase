@@ -3538,6 +3538,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // DocuSign Integration Placeholder Routes
+  // These are placeholder routes for future DocuSign e-signature integration
+  
+  app.post('/api/integrations/docusign/config', async (req: any, res) => {
+    try {
+      // TODO: Store encrypted DocuSign credentials in database
+      // For now, just return a placeholder response
+      console.log("DocuSign config received (placeholder):", {
+        apiKey: req.body.apiKey ? "***" : undefined,
+        accountId: req.body.accountId,
+        baseUrl: req.body.baseUrl,
+        enabled: req.body.enabled,
+      });
+      res.json({ 
+        message: 'DocuSign configuration saved (placeholder)',
+        success: true
+      });
+    } catch (error) {
+      console.error("Error saving DocuSign config:", error);
+      res.status(500).json({ message: "Failed to save DocuSign configuration" });
+    }
+  });
+
+  app.get('/api/integrations/docusign/status', async (req: any, res) => {
+    try {
+      // TODO: Check actual DocuSign configuration from database
+      res.json({ 
+        configured: false,
+        enabled: false,
+        message: 'DocuSign integration coming soon'
+      });
+    } catch (error) {
+      console.error("Error fetching DocuSign status:", error);
+      res.status(500).json({ message: "Failed to fetch DocuSign status" });
+    }
+  });
+
+  app.post('/api/integrations/docusign/test', async (req: any, res) => {
+    try {
+      // TODO: Test DocuSign API connection
+      res.status(501).json({ 
+        message: 'DocuSign integration coming soon. Connection test not yet available.'
+      });
+    } catch (error) {
+      console.error("Error testing DocuSign connection:", error);
+      res.status(500).json({ message: "Failed to test DocuSign connection" });
+    }
+  });
+
+  app.post('/api/contracts/:id/send-for-signature', async (req: any, res) => {
+    try {
+      const contractId = req.params.id;
+      // TODO: Integrate with DocuSign API to send contract for signature
+      // This would create an envelope, add signers, and send for signature
+      console.log(`Placeholder: Would send contract ${contractId} for signature`);
+      res.status(501).json({ 
+        message: 'DocuSign integration coming soon. Send for signature not yet available.'
+      });
+    } catch (error) {
+      console.error("Error sending contract for signature:", error);
+      res.status(500).json({ message: "Failed to send contract for signature" });
+    }
+  });
+
+  app.post('/api/contracts/:id/signature-reminder', async (req: any, res) => {
+    try {
+      const contractId = req.params.id;
+      // TODO: Send reminder to pending signers via DocuSign API
+      console.log(`Placeholder: Would send signature reminder for contract ${contractId}`);
+      res.status(501).json({ 
+        message: 'DocuSign integration coming soon. Signature reminders not yet available.'
+      });
+    } catch (error) {
+      console.error("Error sending signature reminder:", error);
+      res.status(500).json({ message: "Failed to send signature reminder" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

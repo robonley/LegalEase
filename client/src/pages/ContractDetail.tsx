@@ -15,7 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { AlertTriangle, ArrowLeft, Edit, Trash2, FileText, Calendar, DollarSign, Users, CheckCircle, GitCompare, History, RotateCcw, Plus, Eye } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Edit, Trash2, FileText, Calendar, DollarSign, Users, CheckCircle, GitCompare, History, RotateCcw, Plus, Eye, Send, Bell } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import VersionCompare from "@/components/VersionCompare";
 
@@ -160,6 +160,10 @@ export default function ContractDetail() {
     enabled: !!id,
   });
 
+  const { data: docusignStatus } = useQuery<{ configured: boolean; message?: string }>({
+    queryKey: ["/api/integrations/docusign/status"],
+  });
+
   const createVersionMutation = useMutation({
     mutationFn: async (data: { content: string; changesSummary: string }) => {
       if (!contract) throw new Error("Contract not found");
@@ -283,6 +287,44 @@ export default function ContractDetail() {
         title: "Error",
         description: error.message,
         variant: "destructive",
+      });
+    },
+  });
+
+  const sendForSignatureMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/contracts/${id}/send-for-signature`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", id] });
+      queryClient.invalidateQueries({ queryKey: ["/api/contracts", id, "parties"] });
+      toast({
+        title: "Coming Soon",
+        description: "DocuSign integration coming soon. This feature is not yet available.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Info",
+        description: error.message || "DocuSign integration coming soon",
+      });
+    },
+  });
+
+  const sendReminderMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", `/api/contracts/${id}/signature-reminder`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Coming Soon",
+        description: "DocuSign integration coming soon. This feature is not yet available.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Info",
+        description: error.message || "DocuSign integration coming soon",
       });
     },
   });
@@ -681,6 +723,88 @@ export default function ContractDetail() {
                 </div>
               </>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Signature Workflow Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2" data-testid="signature-section-title">
+              <Send className="h-5 w-5" />
+              Signature Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Current Status</p>
+                <div data-testid="contract-signature-status">
+                  {getStatusBadge(contract.status)}
+                </div>
+              </div>
+            </div>
+
+            {contract.status === 'pending_signature' ? (
+              <div className="space-y-4">
+                <Separator />
+                <div>
+                  <h4 className="text-sm font-medium mb-3" data-testid="signers-heading">Signers:</h4>
+                  <div className="space-y-2">
+                    {parties.map((party) => (
+                      <div key={party.id} className="flex items-center justify-between p-3 border rounded-lg" data-testid={`signer-${party.id}`}>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">
+                            {party.partyType === 'person' && party.person
+                              ? `${party.person.firstName} ${party.person.lastName}`
+                              : party.partyType === 'organization' && party.org
+                              ? party.org.name
+                              : party.externalPartyName || 'Unknown'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {party.role.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Badge variant={party.signatureStatus === 'signed' ? 'default' : 'secondary'} data-testid={`signer-status-${party.id}`}>
+                            {party.signatureStatus?.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()) || 'Pending'}
+                          </Badge>
+                          {party.signedAt && (
+                            <p className="text-xs text-muted-foreground" data-testid={`signed-at-${party.id}`}>
+                              Signed: {formatDate(party.signedAt)}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => sendReminderMutation.mutate()}
+                  disabled={sendReminderMutation.isPending}
+                  data-testid="button-send-reminder"
+                >
+                  <Bell className="h-4 w-4 mr-2" />
+                  Send Reminder
+                </Button>
+              </div>
+            ) : (
+              <Button
+                onClick={() => sendForSignatureMutation.mutate()}
+                disabled={!docusignStatus?.configured || sendForSignatureMutation.isPending}
+                data-testid="button-send-for-signature"
+              >
+                <Send className="h-4 w-4 mr-2" />
+                Send for Signature
+              </Button>
+            )}
+
+            <Alert className="mt-4" data-testid="alert-docusign-coming-soon">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                DocuSign integration coming soon. This is a placeholder for the signature workflow feature.
+              </AlertDescription>
+            </Alert>
           </CardContent>
         </Card>
 

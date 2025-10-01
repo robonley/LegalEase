@@ -12,6 +12,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 // Navigation items will be dynamically generated based on entity context
 
 const adminItems = [
+  { href: "/settings", icon: "fas fa-cog", label: "Settings" },
   { href: "/audit-log", icon: "fas fa-history", label: "Audit Log" },
   { href: "/billing", icon: "fas fa-credit-card", label: "Billing" },
 ];

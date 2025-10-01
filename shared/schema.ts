@@ -273,6 +273,7 @@ export const contracts = pgTable("contracts", {
   aiExtractedData: json("ai_extracted_data"), // key terms, obligations, risks
   riskLevel: text("risk_level"), // "low", "medium", "high"
   complianceStatus: text("compliance_status").default("pending"), // "pending", "compliant", "non_compliant", "review_required"
+  docusignEnvelopeId: text("docusign_envelope_id"), // DocuSign envelope ID for tracking signature status
   createdBy: varchar("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
