@@ -23,6 +23,8 @@ import { ComplianceCalendar } from "@/pages/ComplianceCalendar";
 import { DirectorsRegister } from "@/pages/DirectorsRegister";
 import { OfficersRegister } from "@/pages/OfficersRegister";
 import { ShareholdersRegister } from "@/pages/ShareholdersRegister";
+import Contracts from "@/pages/Contracts";
+import ContractDetail from "@/pages/ContractDetail";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -56,6 +58,8 @@ function Router() {
             <Route path="/shareholders-register" component={ShareholdersRegister} />
             <Route path="/compliance/review" component={ComplianceReview} />
             <Route path="/compliance/calendar" component={ComplianceCalendar} />
+            <Route path="/contracts" component={Contracts} />
+            <Route path="/contracts/:id" component={ContractDetail} />
             <Route path="/audit-log" component={AuditLog} />
             <Route path="/billing" component={BillingSettings} />
           </Layout>

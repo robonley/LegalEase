@@ -113,6 +113,11 @@ export function Sidebar() {
           hasChildren: true,
           children: documentSubItems
         },
+        { 
+          href: "/contracts", 
+          icon: "fas fa-file-contract", 
+          label: "Contracts"
+        },
       ];
     } else {
       // Global navigation
@@ -125,6 +130,11 @@ export function Sidebar() {
           label: "Documents",
           hasChildren: true,
           children: documentSubItems
+        },
+        { 
+          href: "/contracts", 
+          icon: "fas fa-file-contract", 
+          label: "Contracts"
         },
       ];
     }
