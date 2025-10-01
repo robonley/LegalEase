@@ -256,27 +256,58 @@ export function DocumentEditor({
     }
   }, [initialContent]);
 
-  // Auto-populate template when entity data loads or entity selection changes
+  // Auto-populate template when entity selection changes or document loads
   useEffect(() => {
-    if (originalTemplate && entityData?.organization) {
-      // Always re-populate from original template to ensure clean substitution
-      const { content: populatedContent, replacements } = populateTemplatePlaceholders(originalTemplate);
-      setContent(populatedContent);
-
-      // Apply formatting after content is set
-      setTimeout(() => {
-        const quill = quillRef.current?.getEditor();
-        if (quill && replacements && replacements.length > 0) {
-          replacements.forEach(({ start, length, variable }) => {
-            quill.formatText(start, length, 'data-field', variable);
-          });
-        }
-      }, 100);
-    } else if (originalTemplate && !entityData?.organization) {
-      // If no entity data, just use the original template
-      setContent(originalTemplate);
+    if (!entityData?.organization) return;
+    
+    const quill = quillRef.current?.getEditor();
+    if (!quill) return;
+    
+    // Get current plain text to find placeholder positions
+    const currentText = quill.getText();
+    
+    // Check if content has any template variables to replace
+    const hasVariables = /\{\{([^}]+)\}\}/.test(currentText);
+    if (!hasVariables) return;
+    
+    // Find all placeholder matches and their positions
+    const regex = /\{\{([^}]+)\}\}/g;
+    const matches: Array<{index: number, placeholder: string, value: string}> = [];
+    let match;
+    
+    while ((match = regex.exec(currentText)) !== null) {
+      const placeholder = match[0];
+      const value = computeTemplateValue(placeholder);
+      
+      if (value !== 'Not set') {
+        matches.push({
+          index: match.index,
+          placeholder,
+          value
+        });
+      }
     }
-  }, [originalTemplate, entityData, selectedEntityId, documentId]);
+    
+    if (matches.length === 0) return;
+    
+    // Disable undo/redo during batch operations
+    quill.history.clear();
+    
+    // Process matches in reverse order to maintain correct indices
+    matches.reverse().forEach(({ index, placeholder, value }) => {
+      // Delete the placeholder text
+      quill.deleteText(index, placeholder.length);
+      
+      // Insert the replacement value with data-field formatting
+      quill.insertText(index, value, {
+        'data-field': placeholder
+      });
+    });
+    
+    // Update the content state to match editor
+    setContent(quill.root.innerHTML);
+    
+  }, [entityData, selectedEntityId, documentId, initialContent]);
 
   const handleSave = async () => {
     if (!onSave) return;
