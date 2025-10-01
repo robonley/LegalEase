@@ -195,7 +195,6 @@ export function DocumentEditor({
     populatedContent = populatedContent.replace(/\{\{CompanyName\}\}/g, entityData.organization.name || '');
     populatedContent = populatedContent.replace(/\{\{Jurisdiction\}\}/g, entityData.organization.jurisdiction || '');
     populatedContent = populatedContent.replace(/\{\{IncorporationNumber\}\}/g, entityData.organization.number || '');
-    populatedContent = populatedContent.replace(/\{\{CompanyKey\}\}/g, entityData.organization.companyKey || '');
     
     // DATES
     const formatDate = (date: string | Date | null) => {
@@ -553,13 +552,299 @@ export function DocumentEditor({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleSave, onClose, onToggleFullscreen]);
 
+  // Helper function to compute actual template values from entityData
+  const computeTemplateValue = (variable: string): string => {
+    if (!entityData?.organization) return 'Not set';
+
+    const formatDate = (date: string | Date | null | undefined): string => {
+      if (!date) return 'Not set';
+      try {
+        return format(new Date(date), 'MMMM dd, yyyy');
+      } catch {
+        return 'Not set';
+      }
+    };
+
+    const formatAddress = (address: any): string => {
+      if (!address) return 'Not set';
+      const parts = [
+        address.line1,
+        address.line2,
+        address.city,
+        address.region,
+        address.postal,
+        address.country
+      ].filter(Boolean);
+      return parts.length > 0 ? parts.join(', ') : 'Not set';
+    };
+
+    const getAddressByRef = (refId: string | null): string => {
+      if (!refId || !entityData.addresses) return 'Not set';
+      const address = entityData.addresses.find(addr => addr.id === refId);
+      return formatAddress(address);
+    };
+
+    switch (variable) {
+      // Company Information
+      case '{{CompanyName}}':
+        return entityData.organization.name || 'Not set';
+      case '{{COMPANYNAME}}':
+        return entityData.organization.name?.toUpperCase() || 'NOT SET';
+      case '{{CompanyNumber}}':
+      case '{{IncorporationNumber}}':
+        return entityData.organization.number || 'Not set';
+      case '{{Jurisdiction}}':
+        return entityData.organization.jurisdiction || 'Not set';
+      case '{{FormationDate}}':
+        return formatDate(entityData.organization.formationAt);
+      case '{{AmendmentDate}}':
+        return formatDate(entityData.organization.amendmentDate);
+      case '{{PreviousCorporationName}}':
+        return entityData.organization.previousCorporationName || 'Not set';
+      case '{{AmendmentDetails}}':
+        return entityData.organization.amendmentDetails || 'Not set';
+      case '{{CreatedAt}}':
+        return formatDate(entityData.organization.createdAt);
+      case '{{UpdatedAt}}':
+        return formatDate(entityData.organization.updatedAt);
+
+      // Addresses
+      case '{{RegisteredOffice}}':
+        return getAddressByRef(entityData.organization.registeredOfficeId);
+      case '{{RecordsOffice}}':
+        return getAddressByRef(entityData.organization.recordsOfficeId);
+      case '{{MailingAddress}}':
+        return getAddressByRef(entityData.organization.mailingAddressId);
+      case '{{AuthRepAddress}}':
+        return getAddressByRef(entityData.organization.authRepAddressId);
+
+      // Authorized Representative
+      case '{{AuthRepName}}':
+        return entityData.organization.authRepName || 'Not set';
+      case '{{AuthRepCompany}}':
+        return entityData.organization.authRepCompany || 'Not set';
+      case '{{AuthRepEmail}}':
+        return entityData.organization.authRepEmail || 'Not set';
+      case '{{AuthRepPhone}}':
+        return entityData.organization.authRepPhone || 'Not set';
+
+      // Compliance
+      case '{{AnnualReturnDueAt}}':
+        return formatDate(entityData.organization.annualReturnDueAt);
+      case '{{AnnualReturnReminderEmail}}':
+        return entityData.organization.annualReturnReminderEmail || 'Not set';
+      case '{{AnnualReturnReminderDays}}':
+        return entityData.organization.annualReturnReminderDays?.toString() || '30';
+
+      // People & Roles - Directors
+      case '{{DirectorNames}}': {
+        const directors = entityData.people?.filter(p => p.roles.some(r => r.role.toLowerCase() === 'director')) || [];
+        return directors.length > 0 
+          ? directors.map(p => `${p.firstName} ${p.lastName}`).join(', ')
+          : 'Not set';
+      }
+      case '{{FirstDirector}}': {
+        const directors = entityData.people?.filter(p => p.roles.some(r => r.role.toLowerCase() === 'director')) || [];
+        return directors.length > 0 ? `${directors[0].firstName} ${directors[0].lastName}` : 'Not set';
+      }
+      case '{{DirectorCount}}': {
+        const directors = entityData.people?.filter(p => p.roles.some(r => r.role.toLowerCase() === 'director')) || [];
+        return directors.length.toString();
+      }
+      case '{{DirectorDetails}}': {
+        const directors = entityData.people?.filter(p => p.roles.some(r => r.role.toLowerCase() === 'director')) || [];
+        return directors.length > 0
+          ? directors.map(p => {
+              const role = p.roles.find(r => r.role.toLowerCase() === 'director');
+              const start = role?.startAt ? formatDate(role.startAt) : 'Unknown';
+              const end = role?.endAt ? formatDate(role.endAt) : 'Present';
+              return `${p.firstName} ${p.lastName} (${start} - ${end})`;
+            }).join(', ')
+          : 'Not set';
+      }
+
+      // Officers by Title
+      case '{{President}}':
+      case '{{CEO}}':
+      case '{{CFO}}':
+      case '{{CTO}}':
+      case '{{COO}}':
+      case '{{Secretary}}':
+      case '{{Treasurer}}': {
+        const title = variable.replace(/[{}]/g, '').toLowerCase();
+        const officer = entityData.people?.find(p => 
+          p.roles.some(r => r.role.toLowerCase() === 'officer' && r.title?.toLowerCase().includes(title))
+        );
+        return officer ? `${officer.firstName} ${officer.lastName}` : 'Not set';
+      }
+      case '{{Officers}}': {
+        const officers = entityData.people?.filter(p => p.roles.some(r => r.role.toLowerCase() === 'officer')) || [];
+        return officers.length > 0
+          ? officers.map(p => {
+              const role = p.roles.find(r => r.role.toLowerCase() === 'officer');
+              return `${p.firstName} ${p.lastName} (${role?.title || 'Officer'})`;
+            }).join(', ')
+          : 'Not set';
+      }
+      case '{{OfficerCount}}': {
+        const officers = entityData.people?.filter(p => p.roles.some(r => r.role.toLowerCase() === 'officer')) || [];
+        return officers.length.toString();
+      }
+
+      // Shareholders
+      case '{{Shareholders}}': {
+        const shareholders = entityData.people?.filter(p => p.roles.some(r => r.role.toLowerCase() === 'shareholder')) || [];
+        return shareholders.length > 0
+          ? shareholders.map(p => `${p.firstName} ${p.lastName}`).join(', ')
+          : 'Not set';
+      }
+      case '{{ShareholderCount}}': {
+        const shareholders = entityData.people?.filter(p => p.roles.some(r => r.role.toLowerCase() === 'shareholder')) || [];
+        return shareholders.length.toString();
+      }
+
+      // All People
+      case '{{AllPeople}}':
+        return entityData.people && entityData.people.length > 0
+          ? entityData.people.map(p => `${p.firstName} ${p.lastName}`).join(', ')
+          : 'Not set';
+      case '{{PeopleCount}}':
+        return entityData.people?.length.toString() || '0';
+      case '{{FirstPersonFirstName}}':
+        return entityData.people?.[0]?.firstName || 'Not set';
+      case '{{FirstPersonLastName}}':
+        return entityData.people?.[0]?.lastName || 'Not set';
+      case '{{FirstPersonEmail}}':
+        return entityData.people?.[0]?.email || 'Not set';
+      case '{{FirstPersonDOB}}':
+        return formatDate(entityData.people?.[0]?.dob);
+
+      // Share Classes
+      case '{{ShareClasses}}':
+        return entityData.shareClasses && entityData.shareClasses.length > 0
+          ? entityData.shareClasses.map(sc => sc.name).join(', ')
+          : 'Not set';
+      case '{{ShareClassCount}}':
+        return entityData.shareClasses?.length.toString() || '0';
+      case '{{ShareClassDetails}}': {
+        if (!entityData.shareClasses || entityData.shareClasses.length === 0) return 'Not set';
+        return entityData.shareClasses.map(sc => {
+          const rights = [];
+          if (sc.voting) rights.push('Voting');
+          if (sc.participating) rights.push('Participating');
+          if (sc.redemption) rights.push('Redeemable');
+          return `${sc.name} (${sc.shortCode}) - ${rights.join(', ')}`;
+        }).join('; ');
+      }
+      case '{{AuthorizedShares}}':
+        return '0';
+      case '{{FirstShareClassName}}':
+        return entityData.shareClasses?.[0]?.name || 'Not set';
+      case '{{FirstShareClassCode}}':
+        return entityData.shareClasses?.[0]?.shortCode || 'Not set';
+      case '{{FirstShareClassRights}}':
+        return entityData.shareClasses?.[0]?.specialRights || 'Not set';
+
+      // Share Issuances
+      case '{{IssuedShares}}': {
+        const total = entityData.shareIssuances?.reduce((sum, iss) => sum + (iss.quantity || 0), 0) || 0;
+        return total.toLocaleString();
+      }
+      case '{{IssuanceCount}}':
+        return entityData.shareIssuances?.length.toString() || '0';
+      case '{{TotalShareValue}}': {
+        const total = entityData.shareIssuances?.reduce((sum, iss) => 
+          sum + ((iss.quantity || 0) * parseFloat(iss.issuePrice || '0')), 0) || 0;
+        return total.toLocaleString();
+      }
+      case '{{LatestIssuanceDate}}': {
+        const sorted = entityData.shareIssuances?.sort((a, b) => 
+          new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()) || [];
+        return sorted[0] ? formatDate(sorted[0].issueDate) : 'Not set';
+      }
+      case '{{LatestIssuanceShares}}': {
+        const sorted = entityData.shareIssuances?.sort((a, b) => 
+          new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()) || [];
+        return sorted[0]?.quantity?.toLocaleString() || 'Not set';
+      }
+      case '{{LatestIssuancePrice}}': {
+        const sorted = entityData.shareIssuances?.sort((a, b) => 
+          new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()) || [];
+        return sorted[0]?.issuePrice || 'Not set';
+      }
+      case '{{LatestIssuanceCert}}': {
+        const sorted = entityData.shareIssuances?.sort((a, b) => 
+          new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime()) || [];
+        return sorted[0]?.certNumber || 'Not set';
+      }
+
+      // System & Dates
+      case '{{CurrentDate}}':
+        return format(new Date(), 'MMMM dd, yyyy');
+      case '{{CurrentYear}}':
+        return new Date().getFullYear().toString();
+      case '{{Currency}}':
+        return entityData.organization.jurisdiction?.includes('Canada') || 
+               entityData.organization.jurisdiction?.includes('CA') ? 'CAD' : 'USD';
+      case '{{FiscalYearEnd}}':
+        return entityData.organization.formationAt 
+          ? `December 31, ${new Date(entityData.organization.formationAt).getFullYear()}`
+          : `December 31, ${new Date().getFullYear()}`;
+
+      // Entity Relationships
+      case '{{ParentCompany}}':
+        return entityData.parentCompanies?.[0]?.name || 'Not set';
+      case '{{ParentCompanies}}':
+        return entityData.parentCompanies && entityData.parentCompanies.length > 0
+          ? entityData.parentCompanies.map(p => p.name).join(', ')
+          : 'Not set';
+      case '{{SubsidiaryCompanies}}':
+        return entityData.subsidiaryCompanies && entityData.subsidiaryCompanies.length > 0
+          ? entityData.subsidiaryCompanies.map(s => s.name).join(', ')
+          : 'Not set';
+      case '{{RelatedEntities}}':
+        return entityData.relatedEntities && entityData.relatedEntities.length > 0
+          ? entityData.relatedEntities.map(r => r.name).join(', ')
+          : 'Not set';
+      case '{{CorporateStructure}}': {
+        const parts = [];
+        if (entityData.parentCompanies?.length) {
+          parts.push(`Parents: ${entityData.parentCompanies.map(p => p.name).join(', ')}`);
+        }
+        if (entityData.subsidiaryCompanies?.length) {
+          parts.push(`Subsidiaries: ${entityData.subsidiaryCompanies.map(s => s.name).join(', ')}`);
+        }
+        return parts.length > 0 ? parts.join('; ') : 'Not set';
+      }
+      case '{{OwnershipPercentages}}': {
+        const ownerships = entityData.relationships?.filter(rel => 
+          rel.ownershipPercentage && Number(rel.ownershipPercentage) > 0
+        ) || [];
+        return ownerships.length > 0
+          ? ownerships.map(rel => `${rel.ownershipPercentage}% ownership`).join(', ')
+          : 'Not set';
+      }
+
+      default:
+        return 'Not set';
+    }
+  };
+
+  // Get friendly field name from variable
+  const getFriendlyFieldName = (variable: string): string => {
+    const name = variable.replace(/[{}]/g, '');
+    return name.replace(/([A-Z])/g, ' $1').trim();
+  };
+
   const insertVariable = (variable: string) => {
+    // Insert the actual computed value instead of the placeholder
+    const actualValue = computeTemplateValue(variable);
     const quill = quillRef.current?.getEditor();
     if (quill) {
       const range = quill.getSelection();
       if (range) {
-        quill.insertText(range.index, variable);
-        quill.setSelection(range.index + variable.length);
+        quill.insertText(range.index, actualValue);
+        quill.setSelection(range.index + actualValue.length);
       }
     }
   };
@@ -717,6 +1002,7 @@ export function DocumentEditor({
                         <button
                           className="text-left text-sm hover:bg-muted p-2 rounded w-full"
                           onClick={() => insertEntityData(entityData.organization.number || '')}
+                          data-testid="insert-company-number"
                         >
                           <div className="font-medium">{entityData.organization.number}</div>
                           <div className="text-xs text-muted-foreground">Corporation Number</div>
@@ -725,6 +1011,7 @@ export function DocumentEditor({
                       <button
                         className="text-left text-sm hover:bg-muted p-2 rounded w-full"
                         onClick={() => insertEntityData(entityData.organization.jurisdiction)}
+                        data-testid="insert-jurisdiction"
                       >
                         <div className="font-medium">{entityData.organization.jurisdiction}</div>
                         <div className="text-xs text-muted-foreground">Jurisdiction</div>
@@ -732,10 +1019,106 @@ export function DocumentEditor({
                       {entityData.organization.formationAt && (
                         <button
                           className="text-left text-sm hover:bg-muted p-2 rounded w-full"
-                          onClick={() => insertEntityData(entityData.organization.formationAt ? format(entityData.organization.formationAt, 'MMM dd, yyyy') : 'Not set')}
+                          onClick={() => insertEntityData(format(new Date(entityData.organization.formationAt!), 'MMMM dd, yyyy'))}
+                          data-testid="insert-formation-date"
                         >
-                          <div className="font-medium">{entityData.organization.formationAt ? format(entityData.organization.formationAt, 'MMM dd, yyyy') : 'Not set'}</div>
+                          <div className="font-medium">{format(new Date(entityData.organization.formationAt), 'MMMM dd, yyyy')}</div>
                           <div className="text-xs text-muted-foreground">Formation Date</div>
+                        </button>
+                      )}
+                      {entityData.organization.amendmentDate && (
+                        <button
+                          className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                          onClick={() => insertEntityData(format(new Date(entityData.organization.amendmentDate!), 'MMMM dd, yyyy'))}
+                          data-testid="insert-amendment-date"
+                        >
+                          <div className="font-medium">{format(new Date(entityData.organization.amendmentDate), 'MMMM dd, yyyy')}</div>
+                          <div className="text-xs text-muted-foreground">Amendment Date</div>
+                        </button>
+                      )}
+                      {entityData.organization.previousCorporationName && (
+                        <button
+                          className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                          onClick={() => insertEntityData(entityData.organization.previousCorporationName || '')}
+                          data-testid="insert-previous-name"
+                        >
+                          <div className="font-medium">{entityData.organization.previousCorporationName}</div>
+                          <div className="text-xs text-muted-foreground">Previous Corporation Name</div>
+                        </button>
+                      )}
+                      {entityData.organization.amendmentDetails && (
+                        <button
+                          className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                          onClick={() => insertEntityData(entityData.organization.amendmentDetails || '')}
+                          data-testid="insert-amendment-details"
+                        >
+                          <div className="font-medium">{entityData.organization.amendmentDetails}</div>
+                          <div className="text-xs text-muted-foreground">Amendment Details</div>
+                        </button>
+                      )}
+                      {entityData.organization.registeredOfficeId && entityData.addresses && (() => {
+                        const address = entityData.addresses.find(addr => addr.id === entityData.organization.registeredOfficeId);
+                        if (!address) return null;
+                        const addressStr = [address.line1, address.line2, address.city, address.region, address.postal, address.country].filter(Boolean).join(', ');
+                        return (
+                          <button
+                            className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                            onClick={() => insertEntityData(addressStr)}
+                            data-testid="insert-registered-office"
+                          >
+                            <div className="font-medium">{addressStr}</div>
+                            <div className="text-xs text-muted-foreground">Registered Office</div>
+                          </button>
+                        );
+                      })()}
+                      {entityData.organization.recordsOfficeId && entityData.addresses && (() => {
+                        const address = entityData.addresses.find(addr => addr.id === entityData.organization.recordsOfficeId);
+                        if (!address) return null;
+                        const addressStr = [address.line1, address.line2, address.city, address.region, address.postal, address.country].filter(Boolean).join(', ');
+                        return (
+                          <button
+                            className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                            onClick={() => insertEntityData(addressStr)}
+                            data-testid="insert-records-office"
+                          >
+                            <div className="font-medium">{addressStr}</div>
+                            <div className="text-xs text-muted-foreground">Records Office</div>
+                          </button>
+                        );
+                      })()}
+                      {entityData.organization.mailingAddressId && entityData.addresses && (() => {
+                        const address = entityData.addresses.find(addr => addr.id === entityData.organization.mailingAddressId);
+                        if (!address) return null;
+                        const addressStr = [address.line1, address.line2, address.city, address.region, address.postal, address.country].filter(Boolean).join(', ');
+                        return (
+                          <button
+                            className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                            onClick={() => insertEntityData(addressStr)}
+                            data-testid="insert-mailing-address"
+                          >
+                            <div className="font-medium">{addressStr}</div>
+                            <div className="text-xs text-muted-foreground">Mailing Address</div>
+                          </button>
+                        );
+                      })()}
+                      {entityData.organization.authRepName && (
+                        <button
+                          className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                          onClick={() => insertEntityData(entityData.organization.authRepName || '')}
+                          data-testid="insert-auth-rep-name"
+                        >
+                          <div className="font-medium">{entityData.organization.authRepName}</div>
+                          <div className="text-xs text-muted-foreground">Authorized Representative Name</div>
+                        </button>
+                      )}
+                      {entityData.organization.authRepCompany && (
+                        <button
+                          className="text-left text-sm hover:bg-muted p-2 rounded w-full"
+                          onClick={() => insertEntityData(entityData.organization.authRepCompany || '')}
+                          data-testid="insert-auth-rep-company"
+                        >
+                          <div className="font-medium">{entityData.organization.authRepCompany}</div>
+                          <div className="text-xs text-muted-foreground">Authorized Representative Company</div>
                         </button>
                       )}
                     </CardContent>
@@ -1074,17 +1457,27 @@ export function DocumentEditor({
                   <div key={category}>
                     <h5 className="text-xs font-medium text-muted-foreground uppercase mb-2">{category}</h5>
                     <div className="space-y-1">
-                      {variables.map(({ variable, description }) => (
-                        <button
-                          key={variable}
-                          className="text-left text-xs hover:bg-muted p-2 rounded w-full"
-                          onClick={() => insertVariable(variable)}
-                          data-testid={`insert-variable-${variable.replace(/[{}]/g, '')}`}
-                        >
-                          <div className="font-mono text-primary">{variable}</div>
-                          <div className="text-muted-foreground">{description}</div>
-                        </button>
-                      ))}
+                      {variables
+                        .filter(({ variable }) => variable !== '{{CompanyKey}}')
+                        .map(({ variable }) => {
+                          const actualValue = computeTemplateValue(variable);
+                          const fieldName = getFriendlyFieldName(variable);
+                          const isEmpty = actualValue === 'Not set' || actualValue === 'NOT SET' || actualValue === '0';
+                          
+                          return (
+                            <button
+                              key={variable}
+                              className="text-left text-xs hover:bg-muted p-2 rounded w-full"
+                              onClick={() => insertVariable(variable)}
+                              data-testid={`insert-variable-${variable.replace(/[{}]/g, '')}`}
+                            >
+                              <div className={`font-medium ${isEmpty ? 'text-muted-foreground' : 'text-foreground'}`}>
+                                {actualValue}
+                              </div>
+                              <div className="text-xs text-muted-foreground">{fieldName}</div>
+                            </button>
+                          );
+                        })}
                     </div>
                   </div>
                 ))}
