@@ -28,6 +28,7 @@ The frontend follows a component-based architecture with reusable UI components.
 - **Templates**: .docx template upload and management with variable mapping
 - **Minute Books**: Document bundle generation for corporate compliance
 - **Contracts**: Contract Lifecycle Management (CLM) module for centralized contract repository
+- **Entity Network**: Interactive visualization of entity relationships and corporate structure
 - **Audit Log**: Complete activity tracking for legal compliance
 
 ### Backend Architecture
@@ -122,6 +123,30 @@ The platform includes an integrated CLM module for centralized contract manageme
 - **Multi-Version Support**: Track all contract versions with change summaries
 - **Expiration Warnings**: Visual alerts for contracts expiring within 30 days
 
+### Entity Network Visualization
+The platform includes an interactive network visualization for exploring corporate structure and entity relationships:
+
+#### Visualization Features
+- **Interactive Graph**: React Flow-based network diagram showing entities as nodes connected by relationship lines
+- **Hierarchical Layout**: Dagre algorithm automatically positions entities in a parent-subsidiary hierarchy
+- **Relationship Types**: Visual distinction between subsidiary, parent, sister, related, and joint venture relationships
+- **Entity Details Panel**: Click any entity to view detailed information about shareholders, directors, and officers
+- **Navigation Controls**: Zoom, pan, and minimap for easy navigation of complex corporate structures
+
+#### Technical Implementation
+- **Libraries**: @xyflow/react for graph rendering, dagre for automatic layout
+- **Data Scoping**: User-scoped data access - only displays entities owned by authenticated user
+- **Security**: Authenticated endpoint with PII protection
+- **Real-time Updates**: Fetches live data from entity relationships, people, and shareholding tables
+
+#### Displayed Information
+When clicking an entity node, the side panel shows:
+- Entity basic information (name, jurisdiction, corporation number, formation date)
+- Directors with appointment dates
+- Officers with titles
+- Individual shareholders with share counts
+- Corporate shareholders (other entities that own shares)
+
 ### Data Validation & Types
 - **Schema Validation**: Zod schemas for runtime type checking
 - **Type Safety**: TypeScript throughout the stack
@@ -145,6 +170,7 @@ The platform includes an integrated CLM module for centralized contract manageme
 - **Routing**: Wouter for client-side routing
 - **Date Handling**: date-fns for date manipulation
 - **Icons**: Font Awesome (referenced in components)
+- **Network Visualization**: @xyflow/react for interactive graphs, dagre for automatic layout
 
 ### Backend Dependencies
 - **Framework**: Express.js with TypeScript
