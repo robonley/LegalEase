@@ -51,7 +51,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Search, MoreHorizontal, Trash2, Eye, FileText, ChevronDown, ChevronRight } from "lucide-react";
 import { useEntityContext } from "@/hooks/useEntityContext";
 import { DocumentEditor } from "@/components/DocumentEditor";
-import type { Template } from "@shared/schema";
+import type { Template, GeneratedDoc } from "@shared/schema";
 
 export default function Templates() {
   const { toast } = useToast();
@@ -64,6 +64,7 @@ export default function Templates() {
   const [showVariablesDialog, setShowVariablesDialog] = useState(false);
   const [showDocumentEditor, setShowDocumentEditor] = useState(false);
   const [selectedStarterTemplate, setSelectedStarterTemplate] = useState<any>(null);
+  const [selectedDraft, setSelectedDraft] = useState<GeneratedDoc | null>(null);
 
   // Fetch starter templates
   const { data: starterTemplates = [], isLoading: loadingStarter } = useQuery<Template[]>({
@@ -73,6 +74,12 @@ export default function Templates() {
   // Fetch custom templates
   const { data: customTemplates = [], isLoading: loadingCustom } = useQuery<Template[]>({
     queryKey: ["/api/templates"],
+  });
+
+  // Fetch draft documents
+  const { data: draftDocs = [], isLoading: loadingDrafts } = useQuery<GeneratedDoc[]>({
+    queryKey: [`/api/orgs/${currentEntity?.id}/drafts`],
+    enabled: !!currentEntity?.id,
   });
 
   // Delete template mutation
@@ -410,12 +417,15 @@ export default function Templates() {
       {/* Content */}
       <div className="p-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="starter" data-testid="quick-create-tab">
               Create
             </TabsTrigger>
             <TabsTrigger value="custom" data-testid="custom-templates-tab">
               Manage Templates ({customTemplates.length})
+            </TabsTrigger>
+            <TabsTrigger value="drafts" data-testid="drafts-tab">
+              Drafts ({draftDocs.length})
             </TabsTrigger>
           </TabsList>
 
@@ -498,6 +508,69 @@ export default function Templates() {
                     ))
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="drafts">
+            <Card>
+              <CardContent className="p-6">
+                {loadingDrafts ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="text-muted-foreground">Loading drafts...</div>
+                  </div>
+                ) : draftDocs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <i className="fas fa-file-alt text-4xl text-muted-foreground mb-4"></i>
+                    <h3 className="text-lg font-semibold mb-2">No Draft Documents</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Start creating a document from a template to see drafts here
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {draftDocs.map((draft) => (
+                      <Card 
+                        key={draft.id} 
+                        className="hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={async () => {
+                          try {
+                            const fullDraft = (await apiRequest("GET", `/api/documents/${draft.id}`)) as unknown as GeneratedDoc;
+                            setSelectedDraft(fullDraft);
+                            setShowDocumentEditor(true);
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: "Failed to load draft document",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        data-testid={`draft-${draft.id}`}
+                      >
+                        <CardContent className="p-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-lg flex items-center justify-center">
+                                <i className="fas fa-file-alt text-amber-600 dark:text-amber-400"></i>
+                              </div>
+                              <div>
+                                <h3 className="font-semibold text-lg">{draft.fileKey || "Untitled Document"}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  Last updated: {draft.updatedAt ? new Date(draft.updatedAt).toLocaleDateString() : 'Unknown'}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950">
+                              <i className="fas fa-pencil mr-1"></i>
+                              Draft
+                            </Badge>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -612,6 +685,25 @@ export default function Templates() {
               }}
               isFullscreen={false}
               onToggleFullscreen={() => {}}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Document Editor Modal for Drafts */}
+      {showDocumentEditor && selectedDraft && (
+        <Dialog open={showDocumentEditor} onOpenChange={setShowDocumentEditor}>
+          <DialogContent className="max-w-6xl max-h-[90vh] p-0 top-[5%] translate-y-0">
+            <DocumentEditor
+              documentId={selectedDraft.id}
+              orgId={currentEntity?.id || ''}
+              initialContent={selectedDraft.content || ''}
+              initialTitle={selectedDraft.fileKey || 'Untitled Document'}
+              onClose={() => {
+                setShowDocumentEditor(false);
+                setSelectedDraft(null);
+                queryClient.invalidateQueries({ queryKey: [`/api/orgs/${currentEntity?.id}/drafts`] });
+              }}
             />
           </DialogContent>
         </Dialog>
