@@ -62,11 +62,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Organization routes (temporarily bypassing auth for development)
-  app.get('/api/orgs', async (req: any, res) => {
+  // Organization routes
+  app.get('/api/orgs', isAuthenticated, async (req: any, res) => {
     try {
-      // Use a default test user ID for development
-      const userId = "test-user-123";
+      const userId = req.user.claims.sub;
       const orgs = await storage.getOrgs(userId);
       res.json(orgs);
     } catch (error) {
@@ -75,10 +74,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/orgs', async (req: any, res) => {
+  app.post('/api/orgs', isAuthenticated, async (req: any, res) => {
     try {
-      // Use a default test user ID for development
-      const userId = "test-user-123";
+      const userId = req.user.claims.sub;
       
       // Convert date strings to Date objects if provided
       const processedBody = { ...req.body };
@@ -152,10 +150,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/orgs/:id', async (req: any, res) => {
+  app.put('/api/orgs/:id', isAuthenticated, async (req: any, res) => {
     try {
-      // Use a default test user ID for development
-      const userId = "test-user-123";
+      const userId = req.user.claims.sub;
       
       // Convert date strings to Date objects if provided
       const processedBody = { ...req.body };
