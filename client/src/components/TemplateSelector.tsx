@@ -36,13 +36,14 @@ export function TemplateSelector({ open, onOpenChange, onTemplateSelect, onDraft
 
   // Fetch organization templates
   const { data: orgTemplates = [], isLoading: loadingOrg } = useQuery<Template[]>({
-    queryKey: ["/api/orgs", orgId, "templates"],
+    queryKey: [`/api/orgs/${orgId}/templates`],
+    enabled: !!orgId,
     retry: false,
   });
 
   // Fetch draft documents
   const { data: draftDocs = [], isLoading: loadingDrafts } = useQuery<GeneratedDoc[]>({
-    queryKey: ["/api/orgs", orgId, "drafts"],
+    queryKey: [`/api/orgs/${orgId}/drafts`],
     enabled: !!orgId,
     retry: false,
   });

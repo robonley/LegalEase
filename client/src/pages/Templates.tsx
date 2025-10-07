@@ -269,6 +269,9 @@ export default function Templates() {
         fileKey: `${selectedStarterTemplate.name} - ${new Date().toLocaleDateString()}`
       });
 
+      // Invalidate drafts cache to show the new document
+      queryClient.invalidateQueries({ queryKey: [`/api/orgs/${currentEntity?.id}/drafts`] });
+
       toast({
         title: "Success",
         description: "Document created successfully",

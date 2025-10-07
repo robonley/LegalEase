@@ -1307,8 +1307,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Document routes (temporarily bypassing auth for development)
-  app.get('/api/documents/:orgId?', async (req, res) => {
+  // Document routes
+  app.get('/api/documents/:orgId?', isAuthenticated, async (req, res) => {
     try {
       const orgId = req.params.orgId;
       if (!orgId) {
@@ -1323,10 +1323,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/orgs/:orgId/documents', async (req: any, res) => {
+  app.post('/api/documents', isAuthenticated, async (req: any, res) => {
     try {
-      // Use a default test user ID for development
-      const userId = "test-user-123";
+      const userId = req.user.claims.sub;
+      const { orgId, templateId, content, fileKey } = req.body;
+
+      if (!orgId || !templateId || !fileKey) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Create the document with draft status (default)
+      const generatedDoc = await storage.createGeneratedDoc({
+        orgId,
+        templateId,
+        fileKey,
+        content: content || '',
+        dataUsed: { createdFrom: 'template' },
+        createdBy: userId,
+        status: 'draft',
+      });
+
+      // Create audit log
+      await storage.createEnhancedAuditLog({
+        orgId,
+        actorId: userId,
+        action: "CREATE_DOCUMENT",
+        entityType: "document",
+        entityId: generatedDoc.id,
+        newValues: generatedDoc,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent'),
+        additionalContext: { 
+          templateId,
+          fileName: fileKey
+        }
+      });
+
+      res.status(201).json(generatedDoc);
+    } catch (error) {
+      console.error("Error creating document:", error);
+      res.status(500).json({ message: "Failed to create document" });
+    }
+  });
+
+  app.post('/api/orgs/:orgId/documents', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
       const { documentType } = req.body;
       const orgId = req.params.orgId;
 
