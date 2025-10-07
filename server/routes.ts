@@ -1332,8 +1332,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
-      // Create the document with draft status (default)
-      const generatedDoc = await storage.createGeneratedDoc({
+      // Authorization: verify user owns this organization
+      const userOrgs = await storage.getOrgs(userId);
+      const ownsOrg = userOrgs.some(org => org.id === orgId);
+      if (!ownsOrg) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Validate and create the document with draft status
+      const docData = insertGeneratedDocSchema.parse({
         orgId,
         templateId,
         fileKey,
@@ -1341,7 +1348,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dataUsed: { createdFrom: 'template' },
         createdBy: userId,
         status: 'draft',
+        updatedAt: new Date(),
       });
+
+      const generatedDoc = await storage.createGeneratedDoc(docData);
 
       // Create audit log
       await storage.createEnhancedAuditLog({
