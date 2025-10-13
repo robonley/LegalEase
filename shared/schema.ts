@@ -55,7 +55,7 @@ export const addresses = pgTable("addresses", {
 export const orgs = pgTable("orgs", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
-  number: text("number"), // registration/corp number
+  number: text("number"), // registration/corp number (OCN for OBR)
   companyKey: text("company_key"), // secure key for the company
   jurisdiction: text("jurisdiction").notNull(), // e.g., "CBCA", "OBCA", "DE"
   formationAt: timestamp("formation_at"),
@@ -76,6 +76,25 @@ export const orgs = pgTable("orgs", {
   annualReturnDueAt: timestamp("annual_return_due_at"),
   annualReturnReminderEmail: text("annual_return_reminder_email"),
   annualReturnReminderDays: integer("annual_return_reminder_days").default(30), // Days before due date to send reminder
+  // OBR Integration Fields
+  naicsCode: text("naics_code"), // 6-digit industry classification code
+  officialEmail: text("official_email"), // Official corporate email for OBR documents
+  // Director Configuration
+  directorNumberType: text("director_number_type"), // "fixed" or "range"
+  directorFixedNumber: integer("director_fixed_number"),
+  directorMinNumber: integer("director_min_number"),
+  directorMaxNumber: integer("director_max_number"),
+  // Shares & Provisions
+  sharesProvisions: text("shares_provisions"), // Full shares and provisions text
+  usesPredefinedShares: boolean("uses_predefined_shares").default(false),
+  // NUANS Information
+  nuansReportNumber: text("nuans_report_number"),
+  nuansReportDate: timestamp("nuans_report_date"),
+  // Legal Opinion
+  requiresLegalOpinion: boolean("requires_legal_opinion").default(false),
+  // Certifier Information
+  certifierId: varchar("certifier_id").references(() => people.id),
+  certifierType: text("certifier_type"), // "director", "officer", "other"
   createdById: varchar("created_by_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -84,11 +103,13 @@ export const orgs = pgTable("orgs", {
 export const people = pgTable("people", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   firstName: text("first_name").notNull(),
+  middleName: text("middle_name"), // OBR requires middle name
   lastName: text("last_name").notNull(),
   email: text("email"),
   dob: timestamp("dob"),
   addressId: varchar("address_id").references(() => addresses.id),
   kycId: text("kyc_id"), // external ref
+  isResidentCanadian: boolean("is_resident_canadian"), // Required for OBR director compliance
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -100,6 +121,12 @@ export const personOnOrgs = pgTable("person_on_orgs", {
   title: text("title"), // e.g., "President"
   startAt: timestamp("start_at"),
   endAt: timestamp("end_at"),
+  // OBR-specific fields
+  isIncorporator: boolean("is_incorporator").default(false), // Is this person an incorporator?
+  hasConsent: boolean("has_consent").default(false), // Director consent obtained
+  electedDate: timestamp("elected_date"), // For directors
+  appointedDate: timestamp("appointed_date"), // For officers
+  ceasedDate: timestamp("ceased_date"), // When director/officer ceased
 });
 
 export const shareClasses = pgTable("share_classes", {
