@@ -24,6 +24,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Search, SortAsc, SortDesc, Filter, ChevronDown } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NAICSSelector } from "@/components/NAICSSelector";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { validateOntarioAddress } from "@/lib/addressValidation";
 
 const formSchema = z.object({
   name: z.string().min(1, "Entity name is required"),
@@ -48,6 +53,22 @@ const formSchema = z.object({
     postal: z.string().optional(),
     country: z.string().optional(),
   }).optional(),
+  // OBR Filing Information
+  naicsCode: z.string().optional(),
+  officialEmail: z.string().email().optional().or(z.literal("")),
+  // Director Configuration
+  directorNumberType: z.enum(["fixed", "range"]).optional(),
+  directorFixedNumber: z.preprocess((val) => val === "" ? undefined : val, z.coerce.number().int().optional()),
+  directorMinNumber: z.preprocess((val) => val === "" ? undefined : val, z.coerce.number().int().optional()),
+  directorMaxNumber: z.preprocess((val) => val === "" ? undefined : val, z.coerce.number().int().optional()),
+  // Shares & Provisions
+  sharesProvisions: z.string().optional(),
+  usesPredefinedShares: z.boolean().optional(),
+  // NUANS Information
+  nuansReportNumber: z.string().optional(),
+  nuansReportDate: z.string().optional(),
+  // Legal Opinion
+  requiresLegalOpinion: z.boolean().optional(),
 });
 
 export default function Entities() {
@@ -114,10 +135,39 @@ export default function Entities() {
         postal: "",
         country: "",
       },
+      // OBR Filing Information
+      naicsCode: "",
+      officialEmail: "",
+      // Director Configuration
+      directorNumberType: "fixed",
+      directorFixedNumber: "",
+      directorMinNumber: "",
+      directorMaxNumber: "",
+      // Shares & Provisions
+      sharesProvisions: "",
+      usesPredefinedShares: false,
+      // NUANS Information
+      nuansReportNumber: "",
+      nuansReportDate: "",
+      // Legal Opinion
+      requiresLegalOpinion: false,
     },
   });
 
   const onSubmit = (data: z.infer<typeof formSchema>) => {
+    // Validate Ontario address if provided
+    if (data.registeredOffice && data.registeredOffice.line1) {
+      const addressValidation = validateOntarioAddress(data.registeredOffice);
+      if (!addressValidation.isValid) {
+        toast({
+          title: "Address Validation Error",
+          description: addressValidation.errors.join(", "),
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     createMutation.mutate(data);
   };
 
@@ -605,6 +655,313 @@ export default function Entities() {
                             <Input {...field} placeholder="Canada" data-testid="input-registered-country" />
                           </FormControl>
                           <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* OBR Filing Information Section */}
+                  <div className="space-y-4">
+                    <div className="border-b border-border pb-3">
+                      <h3 className="text-lg font-medium flex items-center">
+                        <i className="fas fa-file-alt mr-2 text-primary"></i>
+                        OBR Filing Information
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Information required for Ontario Business Registry filing
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="naicsCode"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>NAICS Industry Code</FormLabel>
+                            <FormControl>
+                              <NAICSSelector 
+                                value={field.value} 
+                                onChange={field.onChange}
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Select the primary industry classification
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="officialEmail"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Official Corporate Email</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="email" 
+                                {...field} 
+                                value={field.value || ""} 
+                                data-testid="input-official-email" 
+                                placeholder="contact@company.com"
+                              />
+                            </FormControl>
+                            <FormDescription>
+                              Email for official OBR communications
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Director Configuration Section */}
+                  <div className="space-y-4">
+                    <div className="border-b border-border pb-3">
+                      <h3 className="text-lg font-medium flex items-center">
+                        <i className="fas fa-users mr-2 text-primary"></i>
+                        Director Configuration
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Specify the number of directors for this entity
+                      </p>
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="directorNumberType"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>Director Number Type</FormLabel>
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              className="flex flex-col space-y-1"
+                            >
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="fixed" data-testid="radio-director-fixed" />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  Fixed number of directors
+                                </FormLabel>
+                              </FormItem>
+                              <FormItem className="flex items-center space-x-3 space-y-0">
+                                <FormControl>
+                                  <RadioGroupItem value="range" data-testid="radio-director-range" />
+                                </FormControl>
+                                <FormLabel className="font-normal">
+                                  Range of directors (minimum and maximum)
+                                </FormLabel>
+                              </FormItem>
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    {form.watch("directorNumberType") === "fixed" && (
+                      <FormField
+                        control={form.control}
+                        name="directorFixedNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Fixed Number of Directors</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min="1" 
+                                {...field} 
+                                value={field.value || ""} 
+                                data-testid="input-director-fixed-number" 
+                                placeholder="e.g., 3"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    )}
+                    
+                    {form.watch("directorNumberType") === "range" && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="directorMinNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Minimum Number</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="1" 
+                                  {...field} 
+                                  value={field.value || ""} 
+                                  data-testid="input-director-min-number" 
+                                  placeholder="e.g., 1"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="directorMaxNumber"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Maximum Number</FormLabel>
+                              <FormControl>
+                                <Input 
+                                  type="number" 
+                                  min="1" 
+                                  {...field} 
+                                  value={field.value || ""} 
+                                  data-testid="input-director-max-number" 
+                                  placeholder="e.g., 10"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Shares & Provisions Section */}
+                  <div className="space-y-4">
+                    <div className="border-b border-border pb-3">
+                      <h3 className="text-lg font-medium flex items-center">
+                        <i className="fas fa-chart-pie mr-2 text-primary"></i>
+                        Shares & Provisions
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Share structure and provisions for this entity
+                      </p>
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="usesPredefinedShares"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                          <div className="space-y-0.5">
+                            <FormLabel className="text-base">
+                              Use Predefined Share Structure
+                            </FormLabel>
+                            <FormDescription>
+                              Enable to use a standard predefined share structure
+                            </FormDescription>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="switch-predefined-shares"
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="sharesProvisions"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Shares and Provisions</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              {...field} 
+                              value={field.value || ""} 
+                              data-testid="input-shares-provisions" 
+                              placeholder="Enter the full shares and provisions text..."
+                              rows={5}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Detailed description of share classes, rights, and provisions
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {/* NUANS Information Section */}
+                  <div className="space-y-4">
+                    <div className="border-b border-border pb-3">
+                      <h3 className="text-lg font-medium flex items-center">
+                        <i className="fas fa-file-signature mr-2 text-primary"></i>
+                        NUANS Information
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Newly Upgraded Automated Name Search report details
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="nuansReportNumber"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>NUANS Report Number</FormLabel>
+                            <FormControl>
+                              <Input 
+                                {...field} 
+                                value={field.value || ""} 
+                                data-testid="input-nuans-report-number" 
+                                placeholder="Enter NUANS report number"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="nuansReportDate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>NUANS Report Date</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="date"
+                                {...field}
+                                value={field.value || ''}
+                                data-testid="input-nuans-report-date"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Legal Opinion Section */}
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="requiresLegalOpinion"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid="checkbox-legal-opinion"
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>
+                              Requires Legal Opinion
+                            </FormLabel>
+                            <FormDescription>
+                              Check if this entity requires a legal opinion for incorporation
+                            </FormDescription>
+                          </div>
                         </FormItem>
                       )}
                     />

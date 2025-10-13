@@ -86,6 +86,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (processedBody.amendmentDate && processedBody.amendmentDate !== '') {
         processedBody.amendmentDate = new Date(processedBody.amendmentDate);
       }
+      if (processedBody.nuansReportDate && processedBody.nuansReportDate !== '') {
+        processedBody.nuansReportDate = new Date(processedBody.nuansReportDate);
+      }
       
       // Remove empty string dates to avoid validation errors
       if (processedBody.formationAt === '') {
@@ -93,6 +96,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       if (processedBody.amendmentDate === '') {
         delete processedBody.amendmentDate;
+      }
+      if (processedBody.nuansReportDate === '') {
+        delete processedBody.nuansReportDate;
       }
       
       // Clean up empty string address IDs to avoid foreign key constraint errors
@@ -304,9 +310,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("Role data received:", role);
         console.log("Role startAt type:", typeof role.startAt, role.startAt);
         
+        // Convert date strings to Date objects if provided
+        const roleData: any = { ...role };
+        if (roleData.startAt) {
+          roleData.startAt = new Date(roleData.startAt);
+        }
+        if (roleData.electedDate && roleData.electedDate !== '') {
+          roleData.electedDate = new Date(roleData.electedDate);
+        } else if (roleData.electedDate === '') {
+          delete roleData.electedDate;
+        }
+        if (roleData.appointedDate && roleData.appointedDate !== '') {
+          roleData.appointedDate = new Date(roleData.appointedDate);
+        } else if (roleData.appointedDate === '') {
+          delete roleData.appointedDate;
+        }
+        if (roleData.ceasedDate && roleData.ceasedDate !== '') {
+          roleData.ceasedDate = new Date(roleData.ceasedDate);
+        } else if (roleData.ceasedDate === '') {
+          delete roleData.ceasedDate;
+        }
+        
         const relationData = insertPersonOnOrgSchema.parse({
-          ...role,
-          startAt: role.startAt ? new Date(role.startAt) : new Date(),
+          ...roleData,
+          startAt: roleData.startAt || new Date(),
           orgId: req.params.orgId,
           personId: person.id
         });

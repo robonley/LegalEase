@@ -23,13 +23,19 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FormDescription } from "@/components/ui/form";
+import { validateOntarioAddress } from "@/lib/addressValidation";
+import { useToast } from "@/hooks/use-toast";
 
 // Simple form schema
 const personWithRolesSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
+  middleName: z.string().optional(),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   dob: z.string().optional(),
+  isResidentCanadian: z.boolean().optional(),
   // Address fields
   includeAddress: z.boolean().default(false),
   addressLine1: z.string().optional(),
@@ -43,6 +49,12 @@ const personWithRolesSchema = z.object({
     role: z.enum(["Director", "Officer", "Shareholder"]),
     title: z.string().optional(),
     startAt: z.string().optional(),
+    // OBR-specific fields
+    isIncorporator: z.boolean().optional(),
+    hasConsent: z.boolean().optional(),
+    electedDate: z.string().optional(),
+    appointedDate: z.string().optional(),
+    ceasedDate: z.string().optional(),
     // Shareholder-specific fields
     shareQuantity: z.string().optional(),
     shareType: z.enum(["Common", "Preferred"]).optional(),
@@ -95,13 +107,17 @@ const officerTitles = [
 ];
 
 export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData, hideButtons = false, isEditMode = false }: PersonFormProps) {
+  const { toast } = useToast();
+  
   const form = useForm<PersonWithRolesForm>({
     resolver: zodResolver(personWithRolesSchema),
     defaultValues: {
       firstName: initialData?.firstName || "",
+      middleName: initialData?.middleName || "",
       lastName: initialData?.lastName || "",
       email: initialData?.email || "",
       dob: initialData?.dob || "",
+      isResidentCanadian: initialData?.isResidentCanadian || false,
       includeAddress: initialData?.includeAddress || false,
       addressLine1: initialData?.addressLine1 || "",
       addressLine2: initialData?.addressLine2 || "",
@@ -110,8 +126,25 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
       country: initialData?.country || "",
       postal: initialData?.postal || "",
       roles: initialData?.roles || [
-        { role: "Director" as const, title: "", startAt: new Date().toISOString().split('T')[0] },
-        { role: "Shareholder" as const, title: "", startAt: new Date().toISOString().split('T')[0], shareQuantity: "", shareType: "Common" as const, shareClass: "" }
+        { 
+          role: "Director" as const, 
+          title: "", 
+          startAt: new Date().toISOString().split('T')[0],
+          isIncorporator: false,
+          hasConsent: false,
+          electedDate: "",
+          ceasedDate: ""
+        },
+        { 
+          role: "Shareholder" as const, 
+          title: "", 
+          startAt: new Date().toISOString().split('T')[0], 
+          shareQuantity: "", 
+          shareType: "Common" as const, 
+          shareClass: "",
+          isIncorporator: false,
+          ceasedDate: ""
+        }
       ],
     },
   });
@@ -124,12 +157,35 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
   });
 
   const handleSubmit = (data: PersonWithRolesForm) => {
+    // Validate Ontario address if provided
+    if (data.includeAddress && data.addressLine1) {
+      const addressData = {
+        line1: data.addressLine1,
+        line2: data.addressLine2,
+        city: data.city,
+        region: data.region,
+        postal: data.postal,
+        country: data.country,
+      };
+      const addressValidation = validateOntarioAddress(addressData);
+      if (!addressValidation.isValid) {
+        toast({
+          title: "Address Validation Error",
+          description: addressValidation.errors.join(", "),
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+    
     const submitData = {
       person: {
         firstName: data.firstName,
+        middleName: data.middleName || undefined,
         lastName: data.lastName,
         email: data.email || undefined,
         dob: data.dob ? new Date(data.dob) : null,
+        isResidentCanadian: data.isResidentCanadian,
         address: data.includeAddress ? {
           line1: data.addressLine1!,
           line2: data.addressLine2 || undefined,
@@ -143,6 +199,12 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
         role: role.role,
         title: role.title || undefined,
         startAt: role.startAt || new Date().toISOString(),
+        // OBR fields
+        isIncorporator: role.isIncorporator || false,
+        hasConsent: role.hasConsent || false,
+        electedDate: role.electedDate || undefined,
+        appointedDate: role.appointedDate || undefined,
+        ceasedDate: role.ceasedDate || undefined,
         // Include shareholder-specific data if applicable
         ...(role.role === "Shareholder" && {
           shareQuantity: role.shareQuantity ? parseInt(role.shareQuantity) : undefined,
@@ -168,7 +230,7 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
             <CardTitle className="text-lg">Personal Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="firstName"
@@ -177,6 +239,19 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                     <FormLabel>First Name</FormLabel>
                     <FormControl>
                       <Input placeholder="John" {...field} data-testid="input-first-name" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="middleName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Middle Name (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Michael" {...field} data-testid="input-middle-name" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -230,6 +305,30 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                     />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="isResidentCanadian"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                      data-testid="checkbox-canadian-resident"
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>
+                      Canadian Resident
+                    </FormLabel>
+                    <FormDescription>
+                      Check if this person is a Canadian resident (required for OBR compliance)
+                    </FormDescription>
+                  </div>
                 </FormItem>
               )}
             />
@@ -563,6 +662,125 @@ export function PersonForm({ onSubmit, onCancel, isLoading = false, initialData,
                     );
                   }}
                 />
+
+                {/* OBR-specific fields */}
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                  <FormField
+                    control={form.control}
+                    name={`roles.${index}.isIncorporator`}
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid={`checkbox-incorporator-${index}`}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Is Incorporator
+                          </FormLabel>
+                          <FormDescription>
+                            Check if this person is an incorporator
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+
+                  {form.watch(`roles.${index}.role`) === "Director" && (
+                    <FormField
+                      control={form.control}
+                      name={`roles.${index}.hasConsent`}
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                              data-testid={`checkbox-consent-${index}`}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>
+                              Has Director Consent
+                            </FormLabel>
+                            <FormDescription>
+                              Check if director consent obtained
+                            </FormDescription>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {form.watch(`roles.${index}.role`) === "Director" && (
+                    <FormField
+                      control={form.control}
+                      name={`roles.${index}.electedDate`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Elected Date</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="date" 
+                              {...field}
+                              value={field.value || ''}
+                              data-testid={`input-elected-date-${index}`}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  {form.watch(`roles.${index}.role`) === "Officer" && (
+                    <FormField
+                      control={form.control}
+                      name={`roles.${index}.appointedDate`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Appointed Date</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="date" 
+                              {...field}
+                              value={field.value || ''}
+                              data-testid={`input-appointed-date-${index}`}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
+
+                  <FormField
+                    control={form.control}
+                    name={`roles.${index}.ceasedDate`}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Ceased Date (Optional)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="date" 
+                            {...field}
+                            value={field.value || ''}
+                            data-testid={`input-ceased-date-${index}`}
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Date when this role ended (if applicable)
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
                 {/* Shareholder-specific fields */}
                 {form.watch(`roles.${index}.role`) === "Shareholder" && (
